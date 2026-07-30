@@ -1,0 +1,12 @@
+{
+  "name": "Birlikte Puzzle",
+  "short_name": "Puzzle",
+  "description": "Sevdiğinle aynı puzzle'ı gerçek zamanlı birlikte çöz.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a1423",
+  "theme_color": "#1a1423",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

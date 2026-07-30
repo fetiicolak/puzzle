@@ -1,0 +1,343 @@
+:root {
+  --bg: #1a1423;
+  --bg2: #241b2e;
+  --card: #2e2338;
+  --card-hover: #3a2c47;
+  --text: #f3edf7;
+  --muted: #a99bb8;
+  --accent: #e85d75;
+  --accent-soft: #ffd9e0;
+  --ok: #6fcf97;
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+button {
+  font: inherit;
+  border: none;
+  cursor: pointer;
+  border-radius: 12px;
+  color: inherit;
+  background: var(--card);
+  transition: background 0.15s, transform 0.1s;
+}
+button:hover { background: var(--card-hover); }
+button:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  padding: 14px 24px;
+  font-size: 1.05rem;
+}
+.btn-primary:hover { background: #f06e85; }
+
+.btn-secondary {
+  background: var(--card);
+  padding: 14px 24px;
+  font-size: 1.05rem;
+}
+
+/* ---- ekran düzeni ---- */
+
+.screen {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 20px 48px;
+  gap: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 2rem;
+  text-align: center;
+  letter-spacing: -0.5px;
+}
+.title span { color: var(--accent); }
+
+.subtitle {
+  color: var(--muted);
+  text-align: center;
+  max-width: 420px;
+  line-height: 1.5;
+}
+
+.section-label {
+  align-self: flex-start;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 8px;
+}
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.sample-grid button {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  aspect-ratio: 4/3;
+  border: 2px solid transparent;
+}
+.sample-grid button:hover { border-color: var(--accent); }
+.sample-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.resume-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.resume-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 10px;
+  width: 100%;
+  text-align: left;
+}
+.resume-card img {
+  width: 72px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.resume-card .info { flex: 1; min-width: 0; }
+.resume-card .info b { display: block; }
+.resume-card .info small { color: var(--muted); }
+.resume-card .del {
+  background: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  padding: 8px;
+}
+.resume-card .del:hover { color: var(--accent); }
+
+/* ---- kurulum ---- */
+
+.setup-preview {
+  width: 100%;
+  max-height: 40vh;
+  object-fit: contain;
+  border-radius: 16px;
+  background: var(--bg2);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.chip {
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--card);
+  font-weight: 600;
+}
+.chip.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.message-input {
+  width: 100%;
+  background: var(--card);
+  border: none;
+  border-radius: 12px;
+  color: var(--text);
+  padding: 12px 14px;
+  font: inherit;
+  resize: vertical;
+  min-height: 64px;
+}
+.message-input:focus { outline: 2px solid var(--accent); }
+
+.action-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---- oyun ---- */
+
+.game-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+}
+
+.game-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(26, 20, 35, 0.92);
+  z-index: 5;
+  flex-wrap: wrap;
+}
+.game-topbar .spacer { flex: 1; }
+.game-topbar button {
+  padding: 8px 12px;
+  font-size: 0.95rem;
+}
+.game-topbar .stat {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  padding: 0 4px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.game-canvas {
+  flex: 1;
+  touch-action: none;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.game-banner {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border-radius: 14px;
+  padding: 14px 18px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  max-width: min(92vw, 460px);
+  text-align: center;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+.game-banner code {
+  background: var(--bg);
+  padding: 6px 10px;
+  border-radius: 8px;
+  word-break: break-all;
+  font-size: 0.85rem;
+}
+
+/* ---- kutlama ---- */
+
+.celebration {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 20, 35, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  z-index: 10;
+  padding: 24px;
+  text-align: center;
+  animation: fadeIn 0.6s;
+}
+.celebration h2 { font-size: 2.2rem; }
+.celebration .surprise {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 20px 24px;
+  max-width: 480px;
+  font-size: 1.15rem;
+  line-height: 1.6;
+  border: 1px solid var(--accent);
+  white-space: pre-wrap;
+}
+.celebration .time { color: var(--muted); }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confetti {
+  position: fixed;
+  top: -20px;
+  font-size: 1.4rem;
+  animation: fall linear forwards;
+  z-index: 11;
+  pointer-events: none;
+}
+@keyframes fall {
+  to {
+    transform: translateY(110vh) rotate(720deg);
+    opacity: 0.6;
+  }
+}
+
+.loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  z-index: 8;
+  background: var(--bg2);
+}
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--card);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
