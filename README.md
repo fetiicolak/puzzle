@@ -8,7 +8,8 @@ Sevdiğinle aynı puzzle'ı gerçek zamanlı birlikte çözebileceğin, tarayıc
 - 🔒 Fotoğraf hiçbir sunucuya yüklenmez — WebRTC ile doğrudan partnerin tarayıcısına aktarılır
 - 💌 Puzzle tamamlanınca açılan sürpriz mesaj
 - 💾 İlerleme otomatik kaydedilir, kaldığın yerden devam edersin
-- 📱 Mobil uyumlu (PWA — telefona uygulama gibi eklenebilir)
+- 📱 Mobil uyumlu PWA: telefonun ana ekranına eklenip tam ekran açılır,
+  service worker sayesinde çevrimdışıyken de başlatılabilir
 
 ## Nasıl çalışır?
 
