@@ -396,9 +396,9 @@ export default function GameScreen({ config, onExit }: Props) {
         <span className="stat">{Math.round(prog * 100)}%</span>
         <span className="spacer" />
         {roomStatus !== 'idle' && (
-          <span className="stat">
+          <span className="stat" title={STATUS_TEXT[roomStatus]}>
             <span className="status-dot" style={{ background: STATUS_COLOR[roomStatus] }} />
-            {STATUS_TEXT[roomStatus]}
+            <span className="status-text">{STATUS_TEXT[roomStatus]}</span>
           </span>
         )}
         {config.mode === 'guest' && (roomStatus === 'disconnected' || roomStatus === 'error') && (
