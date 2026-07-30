@@ -5,6 +5,8 @@ import type { StateSnapshot } from './engine/state'
 
 export interface SavedPuzzle {
   id: string
+  /** Kullanıcının verdiği ad; boş bırakılırsa "İsimsiz N" atanır */
+  title: string
   imageDataUrl: string
   seed: number
   pieceCount: number
@@ -73,6 +75,20 @@ export function newPuzzleId(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
+/**
+ * İsim verilmeden başlanan puzzle'lar için sıradaki ad: "İsimsiz 1", "İsimsiz 2"…
+ * Daha önce kullanılmış en büyük numaranın bir fazlası seçilir.
+ */
+export function nextUntitledName(mevcutBasliklar?: string[]): string {
+  const basliklar = mevcutBasliklar ?? listPuzzles().map((p) => p.title)
+  let enBuyuk = 0
+  for (const b of basliklar) {
+    const m = /^İsimsiz\s+(\d+)$/.exec((b ?? '').trim())
+    if (m) enBuyuk = Math.max(enBuyuk, Number(m[1]))
+  }
+  return `İsimsiz ${enBuyuk + 1}`
+}
+
 /** Dosyayı/URL'i yükleyip en fazla maxDim piksele küçültülmüş JPEG dataURL döndürür */
 export async function toPuzzleImage(src: File | string, maxDim = 1600): Promise<string> {
   const url = typeof src === 'string' ? src : URL.createObjectURL(src)
@@ -89,6 +105,19 @@ export async function toPuzzleImage(src: File | string, maxDim = 1600): Promise<
   } finally {
     if (typeof src !== 'string') URL.revokeObjectURL(url)
   }
+}
+
+/** Uzak adresteki görseli, yeniden kodlamadan dataURL'e çevir */
+export async function urlToDataUrl(url: string): Promise<string> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('Görsel indirilemedi')
+  const blob = await res.blob()
+  return await new Promise<string>((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(fr.result as string)
+    fr.onerror = () => reject(new Error('Görsel okunamadı'))
+    fr.readAsDataURL(blob)
+  })
 }
 
 export function loadImage(url: string): Promise<HTMLImageElement> {

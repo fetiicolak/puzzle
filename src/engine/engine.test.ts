@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { computeGrid, generateCut, mulberry32 } from './cutter'
 import {
+  canSplit,
   correctPos,
   createGameState,
   dropGroup,
   isCompleted,
   moveGroup,
+  nextFreeGroupId,
   progress,
   restore,
   snapshot,
+  splitPiece,
 } from './state'
 
 describe('mulberry32', () => {
@@ -147,6 +150,55 @@ describe('dropGroup', () => {
     }
     expect(isCompleted(s)).toBe(true)
     expect(progress(s)).toBe(1)
+  })
+})
+
+describe('splitPiece', () => {
+  function birlesmisGrup() {
+    const s = makeState()
+    const a = s.pieces[0]
+    const b = s.pieces[1]
+    moveGroup(s, a.group, 800 - a.x, 800 - a.y)
+    moveGroup(s, b.group, a.x + s.cut.cellW - b.x, a.y - b.y)
+    dropGroup(s, b.group)
+    return { s, a, b }
+  }
+
+  it('birleşmiş gruptan parça koparır', () => {
+    const { s, a, b } = birlesmisGrup()
+    expect(a.group).toBe(b.group)
+    expect(canSplit(s, b.id)).toBe(true)
+
+    const yeni = nextFreeGroupId(s)
+    const ok = splitPiece(s, b.id, yeni, 1500, 1500)
+    expect(ok).toBe(true)
+    expect(b.group).toBe(yeni)
+    expect(b.group).not.toBe(a.group)
+    expect(b.x).toBe(1500)
+    expect(s.groups.get(yeni)).toEqual([b.id])
+    expect(s.groups.get(a.group)).toEqual([a.id])
+  })
+
+  it('tek parçalık grupta bir şey yapmaz', () => {
+    const s = makeState()
+    expect(canSplit(s, 0)).toBe(false)
+    expect(splitPiece(s, 0, nextFreeGroupId(s), 10, 10)).toBe(false)
+  })
+
+  it('ayrılan parça tekrar birleşebilir', () => {
+    const { s, a, b } = birlesmisGrup()
+    splitPiece(s, b.id, nextFreeGroupId(s), 1500, 1500)
+    // b'yi tekrar a'nın sağına getir
+    moveGroup(s, b.group, a.x + s.cut.cellW - b.x, a.y - b.y)
+    const res = dropGroup(s, b.group)
+    expect(res.merges).toBe(1)
+    expect(a.group).toBe(b.group)
+  })
+
+  it('nextFreeGroupId kullanımdaki kimliği vermez', () => {
+    const s = makeState()
+    const id = nextFreeGroupId(s)
+    expect(s.groups.has(id)).toBe(false)
   })
 })
 

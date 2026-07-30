@@ -213,6 +213,50 @@ export function dropGroup(state: GameState, groupId: number): DropResult {
   return { groupId, snappedToFrame, merges, completed: isCompleted(state) }
 }
 
+/** Bir sonraki kullanılmamış grup kimliği */
+export function nextFreeGroupId(state: GameState): number {
+  let id = state.pieces.length
+  while (state.groups.has(id)) id++
+  return id
+}
+
+/**
+ * Parçayı içinde bulunduğu gruptan koparır (sağ tık / uzun basma).
+ * Tek parçalık gruplarda bir şey yapmaz. Ağ senkronu için yeni grup kimliği
+ * ve hedef konum dışarıdan verilir, böylece iki uç aynı sonuca ulaşır.
+ */
+export function splitPiece(
+  state: GameState,
+  pieceId: number,
+  newGroupId: number,
+  x: number,
+  y: number,
+): boolean {
+  const p = state.pieces[pieceId]
+  if (!p) return false
+  const ids = state.groups.get(p.group)
+  if (!ids || ids.length < 2) return false
+
+  const i = ids.indexOf(pieceId)
+  if (i < 0) return false
+  ids.splice(i, 1)
+
+  p.group = newGroupId
+  p.x = x
+  p.y = y
+  state.groups.set(newGroupId, [pieceId])
+  state.zOrder.push(newGroupId)
+  return true
+}
+
+/** Parça birleşmiş bir grubun parçası mı (ayrılabilir mi) */
+export function canSplit(state: GameState, pieceId: number): boolean {
+  const p = state.pieces[pieceId]
+  if (!p) return false
+  const ids = state.groups.get(p.group)
+  return !!ids && ids.length > 1
+}
+
 export function isGroupPlaced(state: GameState, groupId: number): boolean {
   const ids = state.groups.get(groupId)
   if (!ids) return false

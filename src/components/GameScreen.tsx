@@ -2,32 +2,54 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { PuzzleBoard } from '../engine/board'
 import { generateCut, renderPieceBitmaps } from '../engine/cutter'
 import {
+  canSplit,
   createGameState,
   dropGroup,
+  nextFreeGroupId,
   progress,
   restore,
   setGroupPos,
   snapshot,
+  splitPiece,
   type GameState,
   type StateSnapshot,
 } from '../engine/state'
 import { Room, type RoomStatus } from '../net/peer'
 import { chunkDataUrl, type Msg } from '../net/protocol'
-import { loadImage, savePuzzle } from '../storage'
+import { loadImage, savePuzzle, urlToDataUrl } from '../storage'
+import { useAuth } from '../supabase/auth'
+import {
+  createRemotePuzzle,
+  joinRemotePuzzle,
+  puzzleImageUrl,
+  saveRemoteProgress,
+} from '../supabase/puzzles'
 
 export interface GameConfig {
   puzzleId: string
-  mode: 'local' | 'guest'
-  /** guest: katılınacak oda kodu */
+  /**
+   * local  — cihazdaki puzzle (fotoğraf elde)
+   * guest  — davet linkiyle odaya katılan
+   * remote — sunucudaki ortak tablodan devam (fotoğraf depodan iner)
+   */
+  mode: 'local' | 'guest' | 'remote'
+  /** guest/remote: oda kodu */
   roomCode?: string
+  /** remote: depodaki fotoğrafın yolu */
+  imagePath?: string
   /** local: oyun açılır açılmaz oda kur ve daveti göster */
   autoHost?: boolean
+  title?: string
   imageDataUrl?: string
   seed?: number
   pieceCount?: number
   message?: string
+  /** Sen dahil odaya girebilecek toplam kişi sayısı */
+  maxPlayers?: number
   elapsed?: number
   snap?: StateSnapshot | null
+  /** Sunucudaki kayıt kimliği (ortak geçmişten devam ederken) */
+  remoteId?: string | null
 }
 
 interface Props {
@@ -47,6 +69,9 @@ interface EngineRefs {
   pendingSnap: StateSnapshot | null
   /** Son fotoğraf parçasının alındığı an — takılan aktarımı tespit etmek için */
   lastChunkAt: number
+  /** Sunucudaki puzzle kaydının kimliği (giriş yapılmışsa) */
+  remoteId: string | null
+  lastRemoteSave: number
   lastMoveSent: number
   lastCursorSent: number
   elapsed: number
@@ -66,8 +91,8 @@ function formatTime(sec: number): string {
 const STATUS_TEXT: Record<RoomStatus, string> = {
   idle: '',
   connecting: 'Bağlanıyor…',
-  waiting: 'Partner bekleniyor',
-  connected: 'Partner bağlı',
+  waiting: 'Katılım bekleniyor',
+  connected: 'Bağlı',
   disconnected: 'Bağlantı koptu',
   error: 'Bağlantı hatası',
 }
@@ -82,6 +107,7 @@ const STATUS_COLOR: Record<RoomStatus, string> = {
 }
 
 export default function GameScreen({ config, onExit }: Props) {
+  const auth = useAuth()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [phase, setPhase] = useState<'loading' | 'playing' | 'done'>('loading')
   const [loadText, setLoadText] = useState(
@@ -90,12 +116,15 @@ export default function GameScreen({ config, onExit }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [roomStatus, setRoomStatus] = useState<RoomStatus>('idle')
   const [statusDetail, setStatusDetail] = useState('')
+  const [playerCount, setPlayerCount] = useState(1)
+  const [roomCode, setRoomCode] = useState(config.roomCode ?? '')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [elapsed, setElapsed] = useState(config.elapsed ?? 0)
   const [prog, setProg] = useState(0)
   const [ghost, setGhost] = useState(true)
   const [surprise, setSurprise] = useState(config.message ?? '')
+  const [title, setTitle] = useState(config.title ?? '')
 
   const refs = useRef<EngineRefs>({
     board: null,
@@ -108,6 +137,8 @@ export default function GameScreen({ config, onExit }: Props) {
     imgTotal: -1,
     pendingSnap: config.snap ?? null,
     lastChunkAt: 0,
+    remoteId: config.remoteId ?? null,
+    lastRemoteSave: 0,
     lastMoveSent: 0,
     lastCursorSent: 0,
     elapsed: config.elapsed ?? 0,
@@ -115,12 +146,12 @@ export default function GameScreen({ config, onExit }: Props) {
     destroyed: false,
   })
 
-  const inviteLink = useMemo(() => {
-    const code = refs.current.room?.code ?? config.roomCode
-    return code
-      ? `${location.origin}${location.pathname}#room=${code}`
-      : ''
-  }, [roomStatus, config.roomCode]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Oda kodu kimlik çakışmasında değişebilir; link her zaman güncel kodu
+  // göstermeli, yoksa paylaşılan davet ölü bir odaya işaret eder.
+  const inviteLink = useMemo(
+    () => (roomCode ? `${location.origin}${location.pathname}#room=${roomCode}` : ''),
+    [roomCode],
+  )
 
   // ---- kayıt ----
   const save = () => {
@@ -128,6 +159,7 @@ export default function GameScreen({ config, onExit }: Props) {
     if (!r.game || !r.imageDataUrl) return
     savePuzzle({
       id: config.puzzleId,
+      title: titleRef.current,
       imageDataUrl: r.imageDataUrl,
       seed: r.seed,
       pieceCount: r.pieceCount,
@@ -137,9 +169,23 @@ export default function GameScreen({ config, onExit }: Props) {
       completed: r.completed,
       updatedAt: Date.now(),
     })
+
+    // Sunucudaki ortak kayda da yaz (sık yazmamak için kısıtlı)
+    if (r.remoteId && Date.now() - r.lastRemoteSave > 8000) {
+      r.lastRemoteSave = Date.now()
+      void saveRemoteProgress(r.remoteId, {
+        state: snapshot(r.game),
+        elapsed: r.elapsed,
+        completed: r.completed,
+      }).catch(() => {
+        // çevrimdışıysak yerel kayıt zaten duruyor
+      })
+    }
   }
   const surpriseRef = useRef(surprise)
   surpriseRef.current = surprise
+  const titleRef = useRef(title)
+  titleRef.current = title
 
   // ---- motor kurulumu ----
   const build = async (imageDataUrl: string, pieceCount: number, seed: number) => {
@@ -187,6 +233,18 @@ export default function GameScreen({ config, onExit }: Props) {
           r.room?.send({ t: 'cursor', x, y })
         }
       },
+      onSplit: (pieceId) => {
+        if (!canSplit(game, pieceId)) return
+        const p = game.pieces[pieceId]
+        const newGroup = nextFreeGroupId(game)
+        // koparılan parça biraz kenara çıksın ki ayrıldığı görülsün
+        const x = p.x + game.cut.cellW * 0.65
+        const y = p.y + game.cut.cellH * 0.65
+        if (splitPiece(game, pieceId, newGroup, x, y)) {
+          r.room?.send({ t: 'split', piece: pieceId, group: newGroup, x, y })
+          afterStateChange(false)
+        }
+      },
     })
     r.board = board
     if (import.meta.env.DEV) {
@@ -195,6 +253,8 @@ export default function GameScreen({ config, onExit }: Props) {
     }
     setProg(progress(game))
     setPhase(game.pieces.length > 0 && progressDone(game) ? 'done' : 'playing')
+    // hiç parça oynatılmadan çıkılsa bile geçmişte görünsün
+    save()
   }
 
   const progressDone = (game: GameState) => progress(game) >= 1
@@ -203,7 +263,7 @@ export default function GameScreen({ config, onExit }: Props) {
     const r = refs.current
     if (!r.game || !r.board) return
     // birleşmelerde geçersiz kalan kilitleri temizle
-    for (const g of [...r.board.lockedGroups]) {
+    for (const g of [...r.board.lockedGroups.keys()]) {
       if (!r.game.groups.has(g)) r.board.lockedGroups.delete(g)
     }
     r.board.invalidate()
@@ -216,15 +276,20 @@ export default function GameScreen({ config, onExit }: Props) {
   }
 
   // ---- ağ ----
-  const handleMsg = (msg: Msg) => {
+  const handleMsg = (msg: Msg, from: string) => {
     const r = refs.current
     switch (msg.t) {
+      case 'full': {
+        setError('Oda dolu. Bu puzzle için belirlenen kişi sayısına ulaşılmış.')
+        break
+      }
       case 'meta': {
         r.seed = msg.seed
         r.pieceCount = msg.pieceCount
         r.elapsed = msg.elapsed
         setElapsed(msg.elapsed)
         setSurprise(msg.message)
+        setTitle(msg.title)
         r.imgChunks = []
         r.imgTotal = msg.imgChunks
         setLoadText('Fotoğraf alınıyor…')
@@ -257,7 +322,7 @@ export default function GameScreen({ config, onExit }: Props) {
         break
       }
       case 'grab': {
-        r.board?.lockedGroups.add(msg.g)
+        r.board?.lockedGroups.set(msg.g, from)
         r.board?.invalidate()
         break
       }
@@ -268,7 +333,7 @@ export default function GameScreen({ config, onExit }: Props) {
       }
       case 'move': {
         if (!r.game) break
-        r.board?.lockedGroups.add(msg.g)
+        r.board?.lockedGroups.set(msg.g, from)
         setGroupPos(r.game, msg.g, msg.anchor, msg.x, msg.y)
         r.board?.invalidate()
         break
@@ -283,15 +348,45 @@ export default function GameScreen({ config, onExit }: Props) {
       }
       case 'cursor': {
         if (r.board) {
-          r.board.remoteCursor = { x: msg.x, y: msg.y, visible: true }
+          r.board.remoteCursors.set(from, { x: msg.x, y: msg.y, at: Date.now() })
           r.board.invalidate()
         }
+        break
+      }
+      case 'split': {
+        if (!r.game) break
+        splitPiece(r.game, msg.piece, msg.group, msg.x, msg.y)
+        afterStateChange(false)
         break
       }
     }
   }
 
   const roomEvents = {
+    onCodeChanged: (code: string) => {
+      if (!refs.current.destroyed) setRoomCode(code)
+    },
+    onPeerJoined: (id: string) => {
+      const r = refs.current
+      if (r.destroyed) return
+      // yeni gelene her şeyi yolla (yalnızca ona, diğerleri zaten senkron)
+      sendFullSync(id)
+      setInviteOpen(false)
+      setPlayerCount(r.room?.playerCount ?? 1)
+    },
+    onPeerLeft: (id: string) => {
+      const r = refs.current
+      if (r.destroyed) return
+      // ayrılan kişinin tuttuğu parçalar serbest kalsın, imleci kaybolsun
+      r.board?.remoteCursors.delete(id)
+      if (r.board) {
+        for (const [g, sahip] of [...r.board.lockedGroups]) {
+          if (sahip === id) r.board.lockedGroups.delete(g)
+        }
+        r.board.invalidate()
+      }
+      setPlayerCount(r.room?.playerCount ?? 1)
+    },
     onStatus: (status: RoomStatus, detail?: string) => {
       const r = refs.current
       if (r.destroyed) return
@@ -307,33 +402,36 @@ export default function GameScreen({ config, onExit }: Props) {
           )
         }
       }
-      if (status === 'connected' && config.mode === 'local') {
-        // partner bağlandı: her şeyi gönder
-        sendFullSync()
-        setInviteOpen(false)
-      }
       if (status === 'connected' && config.mode === 'guest') {
         r.lastChunkAt = Date.now()
-        setLoadText('Puzzle bilgisi bekleniyor…')
+        if (!r.game) setLoadText('Puzzle bilgisi bekleniyor…')
       }
+      // oda kodu kesinleştiğinde sunucuya kaydet
+      if (config.mode === 'local' && (status === 'waiting' || status === 'connected')) {
+        void registerRemoteRoom()
+      }
+      setPlayerCount(r.room?.playerCount ?? 1)
     },
     onMessage: handleMsg,
   }
 
-  const sendFullSync = () => {
+  /** Tüm puzzle verisini gönder. hedef verilirse yalnızca ona. */
+  const sendFullSync = (hedef?: string) => {
     const r = refs.current
     if (!r.room || !r.game || !r.imageDataUrl) return
     const chunks = chunkDataUrl(r.imageDataUrl)
-    r.room.send({
+    const yolla = (m: Msg) => (hedef ? r.room!.sendTo(hedef, m) : r.room!.send(m))
+    yolla({
       t: 'meta',
       seed: r.seed,
       pieceCount: r.pieceCount,
+      title: titleRef.current,
       message: surpriseRef.current,
       imgChunks: chunks.length,
       elapsed: r.elapsed,
     })
-    chunks.forEach((data, i) => r.room!.send({ t: 'img', i, data }))
-    r.room.send({ t: 'state', snap: snapshot(r.game) })
+    chunks.forEach((data, i) => yolla({ t: 'img', i, data }))
+    yolla({ t: 'state', snap: snapshot(r.game) })
   }
 
   const createRoom = () => {
@@ -342,8 +440,31 @@ export default function GameScreen({ config, onExit }: Props) {
       setInviteOpen(true)
       return
     }
-    r.room = Room.host(roomEvents)
+    // ortak tablodan devam ediliyorsa eski oda kodunu koru: önceki davet
+    // linki çalışmaya devam etsin
+    r.room = Room.host(roomEvents, config.maxPlayers ?? 2, config.roomCode)
+    setRoomCode(r.room.code)
     setInviteOpen(true)
+  }
+
+  /** Odayı sunucuya kaydet: katılanların geçmişinde de görünsün */
+  const registerRemoteRoom = async () => {
+    const r = refs.current
+    if (!auth.user || r.remoteId || !r.room || !r.imageDataUrl) return
+    try {
+      const uzak = await createRemotePuzzle({
+        roomCode: r.room.code,
+        title: titleRef.current,
+        imageDataUrl: r.imageDataUrl,
+        seed: r.seed,
+        pieceCount: r.pieceCount,
+        message: surpriseRef.current,
+        maxPlayers: config.maxPlayers ?? 2,
+      })
+      if (uzak && !r.destroyed) r.remoteId = uzak.id
+    } catch {
+      // sunucuya yazılamadıysa oyun yine çalışır, sadece ortak geçmişe düşmez
+    }
   }
 
   const rejoin = () => {
@@ -359,6 +480,57 @@ export default function GameScreen({ config, onExit }: Props) {
     else r.room = Room.join(config.roomCode, roomEvents)
   }
 
+  /**
+   * Misafir açılışı: giriş yapılmışsa puzzle'ı doğrudan sunucudan al
+   * (fotoğraf dahil), böylece host'un aktarımını beklemeye gerek kalmaz.
+   * Giriş yoksa eski yol: her şey odadan gelir.
+   */
+  const initGuest = async () => {
+    const r = refs.current
+    const kod = config.roomCode!
+    if (auth.user) {
+      try {
+        setLoadText('Puzzle sunucudan alınıyor…')
+        const uzak = await joinRemotePuzzle(kod)
+        if (uzak && !r.destroyed) {
+          const url = await puzzleImageUrl(uzak.image_path)
+          if (url && !r.destroyed) {
+            const dataUrl = await urlToDataUrl(url)
+            r.remoteId = uzak.id
+            r.elapsed = uzak.elapsed
+            r.pendingSnap = uzak.state
+            setElapsed(uzak.elapsed)
+            setTitle(uzak.title)
+            setSurprise(uzak.message)
+            await build(dataUrl, uzak.piece_count, uzak.seed)
+          }
+        }
+      } catch {
+        // sunucudan alınamadıysa odadan gelmesini bekleriz
+      }
+    }
+    if (r.destroyed) return
+    if (!r.game) setLoadText('Odaya bağlanılıyor…')
+    r.room = Room.join(kod, roomEvents)
+  }
+
+  /** Ortak geçmişten devam: fotoğrafı depodan indirip kur */
+  const initRemote = async () => {
+    const r = refs.current
+    try {
+      setLoadText('Fotoğraf sunucudan alınıyor…')
+      const url = await puzzleImageUrl(config.imagePath!)
+      if (!url) throw new Error('Fotoğrafa erişilemedi')
+      const dataUrl = await urlToDataUrl(url)
+      if (r.destroyed) return
+      await build(dataUrl, config.pieceCount!, config.seed!)
+    } catch {
+      if (!r.destroyed) {
+        setError('Bu tablonun fotoğrafına ulaşılamadı. İnternetini kontrol edip tekrar dene.')
+      }
+    }
+  }
+
   // ---- yaşam döngüsü ----
   useEffect(() => {
     const r = refs.current
@@ -368,8 +540,14 @@ export default function GameScreen({ config, onExit }: Props) {
       void build(config.imageDataUrl!, config.pieceCount!, config.seed!).then(() => {
         if (!r.destroyed && config.autoHost) createRoom()
       })
+    } else if (config.mode === 'remote') {
+      void initRemote()
     } else {
-      r.room = Room.join(config.roomCode!, roomEvents)
+      void initGuest()
+    }
+
+    if (import.meta.env.DEV) {
+      ;(window as unknown as Record<string, unknown>).__refs = r
     }
 
     const onUnload = () => save()
@@ -427,6 +605,7 @@ export default function GameScreen({ config, onExit }: Props) {
     <div className="game-root">
       <div className="game-topbar">
         <button onClick={onExit} title="Ana sayfa">←</button>
+        {title && <span className="game-title" title={title}>{title}</span>}
         <span className="stat">⏱ {formatTime(elapsed)}</span>
         <span className="stat">{Math.round(prog * 100)}%</span>
         <span className="spacer" />
@@ -437,6 +616,11 @@ export default function GameScreen({ config, onExit }: Props) {
           >
             <span className="status-dot" style={{ background: STATUS_COLOR[roomStatus] }} />
             <span className="status-text">{STATUS_TEXT[roomStatus]}</span>
+          </span>
+        )}
+        {config.mode === 'local' && (config.maxPlayers ?? 2) > 1 && roomStatus !== 'idle' && (
+          <span className="stat" title="Odadaki kişi sayısı">
+            👥 {playerCount}/{config.maxPlayers ?? 2}
           </span>
         )}
         {config.mode === 'guest' && (roomStatus === 'disconnected' || roomStatus === 'error') && (

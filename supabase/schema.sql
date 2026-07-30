@@ -37,10 +37,13 @@ create table if not exists public.puzzles (
   id uuid primary key default gen_random_uuid(),
   owner uuid not null references auth.users on delete cascade,
   room_code text not null unique,
+  title text not null default '',
   image_path text not null,
   seed bigint not null,
   piece_count int not null,
   message text not null default '',
+  -- odaya aynı anda kaç kişi katılabilir
+  max_players int not null default 2,
   -- parça konumları (engine/state.ts -> StateSnapshot)
   state jsonb,
   elapsed int not null default 0,
@@ -48,6 +51,10 @@ create table if not exists public.puzzles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Şema daha önce çalıştırıldıysa eksik sütunları tamamla
+alter table public.puzzles add column if not exists title text not null default '';
+alter table public.puzzles add column if not exists max_players int not null default 2;
 
 alter table public.puzzles enable row level security;
 

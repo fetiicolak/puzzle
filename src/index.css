@@ -107,6 +107,7 @@ button:active { transform: scale(0.97); }
   border-radius: 14px;
   aspect-ratio: 4/3;
   border: 2px solid transparent;
+  position: relative;
 }
 .sample-grid button:hover { border-color: var(--accent); }
 .sample-grid img {
@@ -115,6 +116,74 @@ button:active { transform: scale(0.97); }
   object-fit: cover;
   display: block;
 }
+
+/* eser adı ve ressam — görselin altına yumuşak geçişle biner */
+.sample-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 18px 10px 8px;
+  background: linear-gradient(to top, rgba(10, 6, 16, 0.92), rgba(10, 6, 16, 0));
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: left;
+  pointer-events: none;
+}
+.sample-caption b {
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+.sample-caption small {
+  color: var(--accent-soft);
+  font-size: 0.72rem;
+  opacity: 0.9;
+}
+
+.title-input {
+  min-height: 0;
+  resize: none;
+}
+
+/* ---- giriş ---- */
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.form-error,
+.form-info {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.form-error {
+  background: rgba(235, 87, 87, 0.15);
+  color: #ffb4b4;
+}
+.form-info {
+  background: rgba(111, 207, 151, 0.15);
+  color: #a8e6c3;
+}
+
+.account-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.account-bar .spacer { flex: 1; }
+.account-bar button {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+.account-bar b { color: var(--text); }
 
 .resume-list {
   display: flex;
@@ -228,6 +297,15 @@ button:active { transform: scale(0.97); }
   padding: 0 4px;
 }
 
+.game-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  max-width: 28vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status-dot {
   width: 10px;
   height: 10px;
@@ -252,6 +330,10 @@ button:active { transform: scale(0.97); }
   }
   .game-topbar .status-text {
     display: none;
+  }
+  .game-title {
+    max-width: 22vw;
+    font-size: 0.85rem;
   }
   .status-dot {
     margin-right: 0;

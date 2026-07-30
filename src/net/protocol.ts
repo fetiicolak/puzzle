@@ -7,6 +7,7 @@ export interface MetaMsg {
   t: 'meta'
   seed: number
   pieceCount: number
+  title: string
   message: string
   /** base64 chunk sayısı */
   imgChunks: number
@@ -56,7 +57,21 @@ export interface CursorMsg {
   y: number
 }
 
-export type Msg =
+/** Birleşmiş bir parçayı grubundan koparma */
+export interface SplitMsg {
+  t: 'split'
+  piece: number
+  group: number
+  x: number
+  y: number
+}
+
+/** Oda dolu — host yeni gelene bunu gönderip bağlantıyı kapatır */
+export interface FullMsg {
+  t: 'full'
+}
+
+export type Msg = (
   | MetaMsg
   | ImgChunkMsg
   | StateMsg
@@ -65,6 +80,12 @@ export type Msg =
   | MoveMsg
   | DropMsg
   | CursorMsg
+  | SplitMsg
+  | FullMsg
+) & {
+  /** Host yansıtırken kaynağı işaretler; doğrudan gelen mesajlarda boştur */
+  from?: string
+}
 
 /**
  * dataURL'i güvenli boyutlu chunk'lara böl.

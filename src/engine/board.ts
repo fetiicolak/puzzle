@@ -13,12 +13,23 @@ export interface BoardCallbacks {
   onDrop?: (groupId: number) => void
   /** İmleç dünya koordinatında hareket etti */
   onCursor?: (x: number, y: number) => void
+  /** Parçayı grubundan koparma isteği (sağ tık / uzun basma) */
+  onSplit?: (pieceId: number) => void
 }
 
 export interface RemoteCursor {
   x: number
   y: number
-  visible: boolean
+  /** Son hareket zamanı — bir süre kıpırdamayan imleç solar */
+  at: number
+}
+
+/** Katılımcı kimliğinden sabit bir renk üret (herkeste aynı renk görünür) */
+export function peerColor(id: string): string {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  const renkler = ['#e85d75', '#f2c94c', '#6fcf97', '#56ccf2', '#bb6bd9', '#f2994a', '#5e9cea']
+  return renkler[h % renkler.length]
 }
 
 interface PointerInfo {
@@ -49,10 +60,10 @@ export class PuzzleBoard {
   private raf = 0
   private dirty = true
 
-  /** Partnerin imleci (dünya koordinatı) */
-  remoteCursor: RemoteCursor = { x: 0, y: 0, visible: false }
-  /** Partnerin kilitlediği gruplar */
-  lockedGroups = new Set<number>()
+  /** Diğer katılımcıların imleçleri: kimlik -> konum */
+  remoteCursors = new Map<string, RemoteCursor>()
+  /** Başkasının tuttuğu gruplar: grup -> katılımcı kimliği */
+  lockedGroups = new Map<number, string>()
   /** Önizleme (hayalet görsel) açık mı */
   showGhost = true
 
@@ -77,6 +88,7 @@ export class PuzzleBoard {
 
   destroy(): void {
     cancelAnimationFrame(this.raf)
+    this.cancelLongPress()
     for (const fn of this.detachFns) fn()
   }
 
@@ -145,6 +157,12 @@ export class PuzzleBoard {
     on('pointerup', (e) => this.pointerUp(e))
     on('pointercancel', (e) => this.pointerUp(e))
     on('wheel', (e) => this.wheel(e), { passive: false })
+    on('contextmenu', (e) => {
+      e.preventDefault()
+      const [sx, sy] = this.local(e as unknown as PointerEvent)
+      const hit = this.hitTest(...this.screenToWorld(sx, sy))
+      if (hit !== null) this.requestSplit(hit)
+    })
 
     const ro = new ResizeObserver(() => {
       this.resize()
@@ -195,9 +213,42 @@ export class PuzzleBoard {
       this.dragAnchor = hit
       bringToTop(this.state, groupId)
       this.dirty = true
+      // dokunmatikte sağ tık yok: yerinde uzun basma parçayı koparır
+      if (e.pointerType === 'touch') this.startLongPress(hit, sx, sy)
     } else {
       this.panning = true
     }
+  }
+
+  // ---- uzun basma (mobilde parça ayırma) ----
+
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null
+  private longPressOrigin: [number, number] = [0, 0]
+
+  private startLongPress(pieceId: number, sx: number, sy: number): void {
+    this.cancelLongPress()
+    this.longPressOrigin = [sx, sy]
+    this.longPressTimer = setTimeout(() => {
+      this.longPressTimer = null
+      // basılı tutarken sürüklenmediyse ayır
+      if (this.dragGroup !== null) {
+        this.endDrag()
+        this.requestSplit(pieceId)
+      }
+    }, 550)
+  }
+
+  private cancelLongPress(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer)
+      this.longPressTimer = null
+    }
+  }
+
+  private requestSplit(pieceId: number): void {
+    const groupId = this.state.pieces[pieceId]?.group
+    if (groupId === undefined || this.lockedGroups.has(groupId)) return
+    this.callbacks.onSplit?.(pieceId)
   }
 
   private pointerMove(e: PointerEvent): void {
@@ -226,6 +277,13 @@ export class PuzzleBoard {
     }
 
     if (this.dragGroup !== null) {
+      // parmak kaydıysa bu bir sürükleme, uzun basma değil
+      if (
+        this.longPressTimer &&
+        Math.hypot(sx - this.longPressOrigin[0], sy - this.longPressOrigin[1]) > 8
+      ) {
+        this.cancelLongPress()
+      }
       moveGroup(this.state, this.dragGroup, dx / this.scale, dy / this.scale)
       const anchor = this.state.pieces[this.dragAnchor]
       this.callbacks.onMove?.(this.dragGroup, this.dragAnchor, anchor.x, anchor.y)
@@ -238,6 +296,7 @@ export class PuzzleBoard {
   }
 
   private pointerUp(e: PointerEvent): void {
+    this.cancelLongPress()
     this.pointers = this.pointers.filter((p) => p.id !== e.pointerId)
     if (this.pointers.length < 2) this.lastPinchDist = 0
     if (this.dragGroup !== null && this.pointers.length === 0) this.endDrag()
@@ -355,25 +414,29 @@ export class PuzzleBoard {
     for (const gid of state.zOrder) {
       const ids = state.groups.get(gid)
       if (!ids) continue
-      const locked = this.lockedGroups.has(gid)
+      // parçayı tutan kişinin rengiyle çevrele
+      const sahip = this.lockedGroups.get(gid)
       for (const id of ids) {
         const p = state.pieces[id]
         const bm = this.bitmaps[p.row][p.col]
-        if (locked) {
+        if (sahip) {
           ctx.save()
-          ctx.shadowColor = '#e85d75'
+          ctx.shadowColor = peerColor(sahip)
           ctx.shadowBlur = 12 / this.scale
         }
         ctx.drawImage(bm.canvas, p.x + bm.offsetX, p.y + bm.offsetY)
-        if (locked) ctx.restore()
+        if (sahip) ctx.restore()
       }
     }
 
-    // partner imleci
-    if (this.remoteCursor.visible) {
-      const { x, y } = this.remoteCursor
+    // diğer katılımcıların imleçleri
+    const simdi = Date.now()
+    for (const [id, cur] of this.remoteCursors) {
+      // 8 saniyedir kıpırdamayan imleci gizle (sekmeyi kapatmış olabilir)
+      if (simdi - cur.at > 8000) continue
+      const { x, y } = cur
       const s = 10 / this.scale
-      ctx.fillStyle = '#e85d75'
+      ctx.fillStyle = peerColor(id)
       ctx.beginPath()
       ctx.moveTo(x, y)
       ctx.lineTo(x + s * 0.9, y + s * 1.3)
