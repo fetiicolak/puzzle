@@ -45,6 +45,8 @@ interface EngineRefs {
   imgChunks: string[]
   imgTotal: number
   pendingSnap: StateSnapshot | null
+  /** Son fotoğraf parçasının alındığı an — takılan aktarımı tespit etmek için */
+  lastChunkAt: number
   lastMoveSent: number
   lastCursorSent: number
   elapsed: number
@@ -87,6 +89,7 @@ export default function GameScreen({ config, onExit }: Props) {
   )
   const [error, setError] = useState<string | null>(null)
   const [roomStatus, setRoomStatus] = useState<RoomStatus>('idle')
+  const [statusDetail, setStatusDetail] = useState('')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [elapsed, setElapsed] = useState(config.elapsed ?? 0)
@@ -104,6 +107,7 @@ export default function GameScreen({ config, onExit }: Props) {
     imgChunks: [],
     imgTotal: -1,
     pendingSnap: config.snap ?? null,
+    lastChunkAt: 0,
     lastMoveSent: 0,
     lastCursorSent: 0,
     elapsed: config.elapsed ?? 0,
@@ -187,7 +191,7 @@ export default function GameScreen({ config, onExit }: Props) {
     r.board = board
     if (import.meta.env.DEV) {
       // dev'de konsoldan/testten erişim için
-      ;(window as unknown as Record<string, unknown>).__puzzle = { game, board }
+      ;(window as unknown as Record<string, unknown>).__puzzle = { game, board, refs: r }
     }
     setProg(progress(game))
     setPhase(game.pieces.length > 0 && progressDone(game) ? 'done' : 'playing')
@@ -228,10 +232,17 @@ export default function GameScreen({ config, onExit }: Props) {
       }
       case 'img': {
         r.imgChunks[msg.i] = msg.data
-        if (r.imgTotal > 0 && r.imgChunks.filter(Boolean).length === r.imgTotal) {
-          const dataUrl = r.imgChunks.join('')
-          r.imgChunks = []
-          void build(dataUrl, r.pieceCount, r.seed)
+        r.lastChunkAt = Date.now()
+        const got = r.imgChunks.filter(Boolean).length
+        if (r.imgTotal > 0) {
+          if (got === r.imgTotal) {
+            const dataUrl = r.imgChunks.join('')
+            r.imgChunks = []
+            r.imgTotal = -1
+            void build(dataUrl, r.pieceCount, r.seed)
+          } else {
+            setLoadText(`Fotoğraf alınıyor… %${Math.round((got / r.imgTotal) * 100)}`)
+          }
         }
         break
       }
@@ -285,12 +296,14 @@ export default function GameScreen({ config, onExit }: Props) {
       const r = refs.current
       if (r.destroyed) return
       setRoomStatus(status)
+      setStatusDetail(detail ?? '')
+      if (status === 'connecting') setError(null)
       if (status === 'error') {
         if (config.mode === 'guest') {
           setError(
             detail === 'peer-unavailable'
-              ? 'Oda bulunamadı. Partnerin oyunu açık mı? Linki kontrol edin.'
-              : 'Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin.',
+              ? 'Oda bulunamadı. Partnerinin oyun ekranı hâlâ açık mı? Oda linki yalnızca o sekme açıkken çalışır.'
+              : 'Bağlantı kurulamadı. İki taraf da internete bağlıysa tekrar deneyin; bazı kurumsal/mobil ağlar doğrudan bağlantıyı engelleyebiliyor.',
           )
         }
       }
@@ -300,6 +313,7 @@ export default function GameScreen({ config, onExit }: Props) {
         setInviteOpen(false)
       }
       if (status === 'connected' && config.mode === 'guest') {
+        r.lastChunkAt = Date.now()
         setLoadText('Puzzle bilgisi bekleniyor…')
       }
     },
@@ -336,8 +350,13 @@ export default function GameScreen({ config, onExit }: Props) {
     const r = refs.current
     if (config.mode !== 'guest' || !config.roomCode) return
     setError(null)
-    r.room?.close()
-    r.room = Room.join(config.roomCode, roomEvents)
+    r.imgChunks = []
+    r.imgTotal = -1
+    setLoadText('Odaya bağlanılıyor…')
+    // Yeni bir Room kurmak yerine mevcut olanı sıfırla: eskisi arka planda
+    // yaşamaya devam edip çakışan ikinci bir bağlantı açıyordu.
+    if (r.room) r.room.retry()
+    else r.room = Room.join(config.roomCode, roomEvents)
   }
 
   // ---- yaşam döngüsü ----
@@ -378,6 +397,22 @@ export default function GameScreen({ config, onExit }: Props) {
     return () => clearInterval(id)
   }, [phase])
 
+  // Misafir "bağlandı" görünüp veri gelmiyorsa sonsuza kadar bekletme:
+  // aktarım 20 sn takılırsa kullanıcıya durumu söyle ve tekrar denet.
+  useEffect(() => {
+    if (config.mode !== 'guest' || phase !== 'loading' || roomStatus !== 'connected') return
+    const id = setInterval(() => {
+      const r = refs.current
+      if (r.lastChunkAt && Date.now() - r.lastChunkAt > 20_000) {
+        setError(
+          'Bağlantı kuruldu ama puzzle verisi gelmedi. Partnerinin sekmesi arka planda ' +
+            'olabilir; ekranı açık tutmasını isteyip tekrar deneyin.',
+        )
+      }
+    }, 2000)
+    return () => clearInterval(id)
+  }, [config.mode, phase, roomStatus])
+
   const copyInvite = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink)
@@ -396,7 +431,10 @@ export default function GameScreen({ config, onExit }: Props) {
         <span className="stat">{Math.round(prog * 100)}%</span>
         <span className="spacer" />
         {roomStatus !== 'idle' && (
-          <span className="stat" title={STATUS_TEXT[roomStatus]}>
+          <span
+            className="stat"
+            title={statusDetail ? `${STATUS_TEXT[roomStatus]} (${statusDetail})` : STATUS_TEXT[roomStatus]}
+          >
             <span className="status-dot" style={{ background: STATUS_COLOR[roomStatus] }} />
             <span className="status-text">{STATUS_TEXT[roomStatus]}</span>
           </span>

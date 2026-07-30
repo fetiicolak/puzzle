@@ -1,7 +1,7 @@
 // Canvas tahtası: render, pan/zoom, pointer etkileşimi.
 // React'ten bağımsız; GameState'i çizer ve kullanıcı eylemlerini callback'lerle bildirir.
 
-import { piecePath, type PieceBitmap } from './cutter'
+import { pieceMargin, piecePath, type PieceBitmap } from './cutter'
 import { bringToTop, moveGroup, type GameState } from './state'
 
 export interface BoardCallbacks {
@@ -84,18 +84,42 @@ export class PuzzleBoard {
     this.dirty = true
   }
 
-  /** Görünümü çerçeve + dağılmış parçaları kapsayacak şekilde ayarla */
+  /**
+   * Görünümü çerçeveyi VE parçaların bulunduğu her yeri kapsayacak şekilde ayarla.
+   * Sabit bir pay yerine gerçek konumlardan sınırlayıcı kutu hesaplanır; aksi halde
+   * uzağa sürüklenmiş parçalar "sığdır" sonrası ekran dışında kalıyordu.
+   */
   fitView(): void {
-    const { cut } = this.state
-    const W = cut.cols * cut.cellW
-    const H = cut.rows * cut.cellH
-    const pad = Math.max(cut.cellW, cut.cellH) * 2.6
     const rect = this.canvas.getBoundingClientRect()
-    const sx = rect.width / (W + pad * 2)
-    const sy = rect.height / (H + pad * 2)
-    this.scale = Math.min(sx, sy)
-    this.tx = rect.width / 2 - (W / 2) * this.scale
-    this.ty = rect.height / 2 - (H / 2) * this.scale
+    // canvas henüz yerleşmediyse (genişlik 0) bir sonraki karede tekrar dene
+    if (rect.width < 1 || rect.height < 1) {
+      requestAnimationFrame(() => this.fitView())
+      return
+    }
+    const { cut } = this.state
+    let minX = 0
+    let minY = 0
+    let maxX = cut.cols * cut.cellW
+    let maxY = cut.rows * cut.cellH
+    for (const p of this.state.pieces) {
+      if (p.x < minX) minX = p.x
+      if (p.y < minY) minY = p.y
+      if (p.x + cut.cellW > maxX) maxX = p.x + cut.cellW
+      if (p.y + cut.cellH > maxY) maxY = p.y + cut.cellH
+    }
+    // tab çıkıntıları hücre sınırının dışına taşar
+    const tab = pieceMargin(cut)
+    minX -= tab
+    minY -= tab
+    maxX += tab
+    maxY += tab
+
+    const pad = 16 // ekran pikselinde kenar boşluğu
+    const scaleX = (rect.width - pad * 2) / (maxX - minX)
+    const scaleY = (rect.height - pad * 2) / (maxY - minY)
+    this.scale = Math.max(0.02, Math.min(scaleX, scaleY))
+    this.tx = rect.width / 2 - ((minX + maxX) / 2) * this.scale
+    this.ty = rect.height / 2 - ((minY + maxY) / 2) * this.scale
     this.dirty = true
   }
 

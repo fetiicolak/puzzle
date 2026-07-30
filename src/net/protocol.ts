@@ -66,8 +66,12 @@ export type Msg =
   | DropMsg
   | CursorMsg
 
-/** dataURL'i güvenli boyutlu chunk'lara böl */
-export function chunkDataUrl(dataUrl: string, size = 48_000): string[] {
+/**
+ * dataURL'i güvenli boyutlu chunk'lara böl.
+ * 16 KB, WebRTC data channel'ın tek mesaj sınırının epey altında kalır;
+ * daha büyük parçalar bazı tarayıcılarda kanalı kapattırıyordu.
+ */
+export function chunkDataUrl(dataUrl: string, size = 16_000): string[] {
   const chunks: string[] = []
   for (let i = 0; i < dataUrl.length; i += size) chunks.push(dataUrl.slice(i, i + size))
   return chunks
