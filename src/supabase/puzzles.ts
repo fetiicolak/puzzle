@@ -140,6 +140,12 @@ export async function puzzlePlayerNames(puzzleId: string): Promise<string[]> {
   return (profiller ?? []).map((p) => (p as { display_name: string }).display_name)
 }
 
+/** Oda kodu çakışma sonrası değiştiyse sunucudaki kaydı da güncelle */
+export async function updateRemoteRoomCode(puzzleId: string, roomCode: string): Promise<void> {
+  if (!supabase) return
+  await supabase.from('puzzles').update({ room_code: roomCode }).eq('id', puzzleId)
+}
+
 export async function deleteRemotePuzzle(puzzleId: string): Promise<void> {
   if (!supabase) return
   await supabase.from('puzzles').delete().eq('id', puzzleId)

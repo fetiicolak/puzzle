@@ -3,7 +3,8 @@ import AuthScreen from './components/AuthScreen'
 import GameScreen, { type GameConfig } from './components/GameScreen'
 import HomeScreen from './components/HomeScreen'
 import SetupScreen from './components/SetupScreen'
-import { newPuzzleId, type SavedPuzzle } from './storage'
+import { randomRoomCode } from './net/peer'
+import { type SavedPuzzle } from './storage'
 import { useAuth } from './supabase/auth'
 
 type Screen =
@@ -15,9 +16,11 @@ function initialScreen(): Screen {
   // davet linki ile mi açıldı? (#room=abc123)
   const m = location.hash.match(/room=([a-z0-9]+)/)
   if (m) {
+    // Yerel kayıt kimliği olarak oda kodunu kullanıyoruz: aynı puzzle'a hangi
+    // yoldan girilirse girilsin (yerel / sunucu / davet linki) tek kayıt olur.
     return {
       s: 'game',
-      config: { puzzleId: `oda-${m[1]}`, mode: 'guest', roomCode: m[1] },
+      config: { puzzleId: m[1], mode: 'guest', roomCode: m[1] },
     }
   }
   return { s: 'home' }
@@ -75,7 +78,7 @@ export default function App() {
             setScreen({
               s: 'game',
               config: {
-                puzzleId: `uzak-${p.id}`,
+                puzzleId: p.room_code,
                 mode: 'remote',
                 remoteId: p.id,
                 roomCode: p.room_code,
@@ -99,13 +102,17 @@ export default function App() {
           imageDataUrl={screen.imageDataUrl}
           defaultTitle={screen.defaultTitle}
           onBack={goHome}
-          onStart={(opts) =>
+          onStart={(opts) => {
+            // Oda kodunu baştan üret: davet linki, sunucudaki kayıt ve yerel
+            // kayıt aynı kimliği paylaşsın (tek başına oynansa bile kaydedilir)
+            const kod = randomRoomCode()
             setScreen({
               s: 'game',
               config: {
-                puzzleId: newPuzzleId(),
+                puzzleId: kod,
                 mode: 'local',
                 autoHost: opts.withPartner,
+                roomCode: kod,
                 title: opts.title,
                 imageDataUrl: screen.imageDataUrl,
                 seed: (Math.random() * 0xffffffff) >>> 0,
@@ -116,7 +123,7 @@ export default function App() {
                 snap: null,
               },
             })
-          }
+          }}
         />
       )
     case 'game':

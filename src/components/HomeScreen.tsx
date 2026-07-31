@@ -18,6 +18,13 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   const fileRef = useRef<HTMLInputElement>(null)
   const [saved, setSaved] = useState<SavedPuzzle[]>(listPuzzles)
   const [busy, setBusy] = useState(false)
+
+  // Liste render sırasında okunuyor; oyundan çıkarken yazılan son kayıt bundan
+  // sonra düşüyor. Bağlandıktan sonra bir kez daha oku, yoksa hemen "devam et"
+  // denince son saniyeler/hamleler eksik geliyordu.
+  useEffect(() => {
+    setSaved(listPuzzles())
+  }, [])
   const [uzak, setUzak] = useState<RemotePuzzle[]>([])
   const [uzakYukleniyor, setUzakYukleniyor] = useState(false)
 
@@ -40,6 +47,11 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       iptal = true
     }
   }, [auth.user])
+
+  // Sunucuya kaydedilmiş bir puzzle hem "Tablolarım"da hem "Bu Cihazda"
+  // görünmesin; yerel kayıt kimliği oda koduyla aynı olduğu için eşleşiyor.
+  const uzakKodlar = new Set(uzak.map((p) => p.room_code))
+  const yalnizcaYerel = saved.filter((p) => !uzakKodlar.has(p.id))
 
   const pick = async (src: File | Sample) => {
     setBusy(true)
@@ -155,11 +167,11 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         </>
       )}
 
-      {saved.length > 0 && (
+      {yalnizcaYerel.length > 0 && (
         <>
           <div className="section-label">Bu Cihazda</div>
           <div className="resume-list">
-            {saved.map((p) => (
+            {yalnizcaYerel.map((p) => (
               <div key={p.id} className="resume-card" role="button" onClick={() => onResume(p)}>
                 <img src={p.imageDataUrl} alt="" />
                 <div className="info">

@@ -23,6 +23,7 @@ import {
   joinRemotePuzzle,
   puzzleImageUrl,
   saveRemoteProgress,
+  updateRemoteRoomCode,
 } from '../supabase/puzzles'
 
 export interface GameConfig {
@@ -154,7 +155,7 @@ export default function GameScreen({ config, onExit }: Props) {
   )
 
   // ---- kayıt ----
-  const save = () => {
+  const save = (zorla = false) => {
     const r = refs.current
     if (!r.game || !r.imageDataUrl) return
     savePuzzle({
@@ -170,13 +171,16 @@ export default function GameScreen({ config, onExit }: Props) {
       updatedAt: Date.now(),
     })
 
-    // Sunucudaki ortak kayda da yaz (sık yazmamak için kısıtlı)
-    if (r.remoteId && Date.now() - r.lastRemoteSave > 8000) {
+    // Sunucudaki ortak kayda da yaz. Normalde seyrek yazılır; oyundan
+    // ayrılırken (zorla=true) beklemeden yazılır, yoksa son hamleler
+    // sunucuya hiç ulaşmadan sekme kapanabiliyor.
+    if (r.remoteId && (zorla || Date.now() - r.lastRemoteSave > 8000)) {
       r.lastRemoteSave = Date.now()
       void saveRemoteProgress(r.remoteId, {
         state: snapshot(r.game),
         elapsed: r.elapsed,
         completed: r.completed,
+        title: titleRef.current,
       }).catch(() => {
         // çevrimdışıysak yerel kayıt zaten duruyor
       })
@@ -255,6 +259,8 @@ export default function GameScreen({ config, onExit }: Props) {
     setPhase(game.pieces.length > 0 && progressDone(game) ? 'done' : 'playing')
     // hiç parça oynatılmadan çıkılsa bile geçmişte görünsün
     save()
+    // tek başına oynananlar dahil sunucuya kaydet
+    if (config.mode === 'local') void registerRemoteRoom()
   }
 
   const progressDone = (game: GameState) => progress(game) >= 1
@@ -364,7 +370,12 @@ export default function GameScreen({ config, onExit }: Props) {
 
   const roomEvents = {
     onCodeChanged: (code: string) => {
-      if (!refs.current.destroyed) setRoomCode(code)
+      const r = refs.current
+      if (r.destroyed) return
+      setRoomCode(code)
+      // sunucudaki kayıt da yeni kodu göstersin, yoksa davet linkiyle
+      // gelen kişi kaydı bulamaz
+      if (r.remoteId) void updateRemoteRoomCode(r.remoteId, code).catch(() => {})
     },
     onPeerJoined: (id: string) => {
       const r = refs.current
@@ -447,13 +458,17 @@ export default function GameScreen({ config, onExit }: Props) {
     setInviteOpen(true)
   }
 
-  /** Odayı sunucuya kaydet: katılanların geçmişinde de görünsün */
+  /**
+   * Puzzle'ı sunucuya kaydet. Tek başına oynananlar da kaydedilir; böylece
+   * "Tablolarım"da görünür ve başka bir cihazdan kaldığı yerden devam edilebilir.
+   */
   const registerRemoteRoom = async () => {
     const r = refs.current
-    if (!auth.user || r.remoteId || !r.room || !r.imageDataUrl) return
+    const kod = r.room?.code ?? config.roomCode
+    if (!auth.user || r.remoteId || !kod || !r.imageDataUrl) return
     try {
       const uzak = await createRemotePuzzle({
-        roomCode: r.room.code,
+        roomCode: kod,
         title: titleRef.current,
         imageDataUrl: r.imageDataUrl,
         seed: r.seed,
@@ -550,13 +565,22 @@ export default function GameScreen({ config, onExit }: Props) {
       ;(window as unknown as Record<string, unknown>).__refs = r
     }
 
-    const onUnload = () => save()
+    // Sekme kapanırken/arka plana atılırken son durumu yaz. Mobilde
+    // beforeunload çoğu zaman çalışmaz; asıl güvenilir sinyal budur.
+    const onUnload = () => save(true)
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') save(true)
+    }
     window.addEventListener('beforeunload', onUnload)
+    window.addEventListener('pagehide', onUnload)
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       r.destroyed = true
       window.removeEventListener('beforeunload', onUnload)
-      save()
+      window.removeEventListener('pagehide', onUnload)
+      document.removeEventListener('visibilitychange', onVisibility)
+      save(true)
       r.board?.destroy()
       r.room?.close()
       r.board = null
@@ -565,12 +589,15 @@ export default function GameScreen({ config, onExit }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // süre sayacı
+  // süre sayacı + düzenli otomatik kayıt
   useEffect(() => {
     if (phase !== 'playing') return
     const id = setInterval(() => {
-      refs.current.elapsed += 1
-      setElapsed(refs.current.elapsed)
+      const r = refs.current
+      r.elapsed += 1
+      setElapsed(r.elapsed)
+      // Parça oynatılmadan geçen uzun sürelerde de ilerleme kaybolmasın
+      if (r.elapsed % 15 === 0) save()
     }, 1000)
     return () => clearInterval(id)
   }, [phase])
