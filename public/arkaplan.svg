@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="gece" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b1030"/>
+      <stop offset="0.5" stop-color="#2a1436"/>
+      <stop offset="1" stop-color="#3a1730"/>
+    </linearGradient>
+    <radialGradient id="isik1" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff5d7d" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff5d7d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="isik2" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff9a5a" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ff9a5a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="isik3" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7c6bff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#7c6bff" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="pcA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff7a92"/>
+      <stop offset="1" stop-color="#e8455f"/>
+    </linearGradient>
+    <linearGradient id="pcB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffc07a"/>
+      <stop offset="1" stop-color="#ff8a4a"/>
+    </linearGradient>
+    <linearGradient id="pcC" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8f8bff"/>
+      <stop offset="1" stop-color="#5f57d6"/>
+    </linearGradient>
+    <linearGradient id="pcD" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6fe3b6"/>
+      <stop offset="1" stop-color="#33b58a"/>
+    </linearGradient>
+
+    <!-- Tek bir yapboz parçası: sağ ve alt kenarında çıkıntı, sol ve üstünde girinti -->
+    <path id="parca" d="
+      M0,0
+      h34 c0,-13 22,-13 22,0 h34
+      v34 c13,0 13,22 0,22 v34
+      h-34 c0,13 -22,13 -22,0 h-34
+      v-34 c-13,0 -13,-22 0,-22 z"/>
+
+    <filter id="yumusat" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#gece)"/>
+  <ellipse cx="230" cy="120" rx="620" ry="450" fill="url(#isik1)"/>
+  <ellipse cx="1420" cy="180" rx="560" ry="420" fill="url(#isik3)"/>
+  <ellipse cx="820" cy="1010" rx="720" ry="440" fill="url(#isik2)"/>
+
+  <!-- Ortada birleşmiş parçalardan oluşan bir öbek -->
+  <g filter="url(#yumusat)" opacity="0.92">
+    <use href="#parca" x="700" y="400" fill="url(#pcA)"/>
+    <use href="#parca" x="790" y="400" fill="url(#pcB)"/>
+    <use href="#parca" x="700" y="490" fill="url(#pcC)"/>
+    <use href="#parca" x="790" y="490" fill="url(#pcD)"/>
+  </g>
+
+  <!-- Etrafa dağılmış tekil parçalar -->
+  <g filter="url(#yumusat)">
+    <use href="#parca" x="180" y="180" fill="url(#pcB)" opacity="0.85" transform="rotate(-18 225 225)"/>
+    <use href="#parca" x="380" y="640" fill="url(#pcC)" opacity="0.8" transform="rotate(24 425 685)"/>
+    <use href="#parca" x="1180" y="250" fill="url(#pcA)" opacity="0.85" transform="rotate(15 1225 295)"/>
+    <use href="#parca" x="1320" y="620" fill="url(#pcD)" opacity="0.8" transform="rotate(-27 1365 665)"/>
+    <use href="#parca" x="560" y="150" fill="url(#pcD)" opacity="0.6" transform="rotate(33 605 195)"/>
+    <use href="#parca" x="980" y="720" fill="url(#pcB)" opacity="0.7" transform="rotate(-12 1025 765)"/>
+    <use href="#parca" x="120" y="760" fill="url(#pcA)" opacity="0.55" transform="rotate(8 165 805)"/>
+    <use href="#parca" x="1450" y="80" fill="url(#pcC)" opacity="0.5" transform="rotate(-35 1495 125)"/>
+  </g>
+
+  <!-- Boş kalan yuvalar: puzzle'ın tamamlanmamışlığını anlatır -->
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="2">
+    <use href="#parca" x="880" y="400"/>
+    <use href="#parca" x="700" y="580"/>
+    <use href="#parca" x="880" y="490"/>
+    <use href="#parca" x="610" y="490"/>
+  </g>
+
+  <!-- İnce parıltılar -->
+  <g fill="#fff">
+    <circle cx="300" cy="420" r="2.5" opacity="0.5"/>
+    <circle cx="1080" cy="180" r="2" opacity="0.4"/>
+    <circle cx="640" cy="840" r="2.5" opacity="0.45"/>
+    <circle cx="1500" cy="480" r="2" opacity="0.35"/>
+    <circle cx="200" cy="620" r="1.8" opacity="0.4"/>
+    <circle cx="900" cy="120" r="2.2" opacity="0.4"/>
+  </g>
+</svg>

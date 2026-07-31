@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import FriendsSection from './FriendsSection'
 import { SAMPLES, sampleThumbUrl, sampleUrl, type Sample } from '../samples'
 import { listPuzzles, removePuzzle, toPuzzleImage, type SavedPuzzle } from '../storage'
 import { useAuth } from '../supabase/auth'
@@ -152,6 +153,8 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
           e.target.value = ''
         }}
       />
+
+      {auth.user && <FriendsSection />}
 
       {auth.user && (uzak.length > 0 || uzakYukleniyor) && (
         <section className="block">

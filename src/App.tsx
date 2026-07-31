@@ -38,22 +38,37 @@ export default function App() {
     setScreen({ s: 'home' })
   }
 
-  if (auth.enabled && auth.loading) {
-    return (
-      <div className="overlay">
-        <div className="spinner" />
-        <p>Bir saniye…</p>
-      </div>
-    )
-  }
+  // Arka plan: giriş yapılmadan bulanık, girildikten sonra net.
+  // Oyun ekranında tuval tam ekran olduğu için tamamen gizlenir.
+  const bulanik = auth.enabled && !auth.user
+  const oyunda = screen.s === 'game'
+  const arkaPlan = (
+    <>
+      <div className={`bg ${bulanik ? 'blurred' : ''} ${oyunda ? 'hidden' : ''}`} aria-hidden="true" />
+      <div
+        className={`bg-scrim ${bulanik ? 'dim' : ''} ${oyunda ? 'hidden' : ''}`}
+        aria-hidden="true"
+      />
+    </>
+  )
 
-  if (auth.enabled && !auth.user && !misafirDevam) {
-    return <AuthScreen onSkip={() => setMisafirDevam(true)} />
-  }
-
-  switch (screen.s) {
-    case 'home':
+  const icerik = () => {
+    if (auth.enabled && auth.loading) {
       return (
+        <div className="overlay">
+          <div className="spinner" />
+          <p>Bir saniye…</p>
+        </div>
+      )
+    }
+
+    if (auth.enabled && !auth.user && !misafirDevam) {
+      return <AuthScreen onSkip={() => setMisafirDevam(true)} />
+    }
+
+    switch (screen.s) {
+      case 'home':
+        return (
         <HomeScreen
           onPickImage={(imageDataUrl, defaultTitle) =>
             setScreen({ s: 'setup', imageDataUrl, defaultTitle })
@@ -95,9 +110,9 @@ export default function App() {
           }
           onSignIn={() => setMisafirDevam(false)}
         />
-      )
-    case 'setup':
-      return (
+        )
+      case 'setup':
+        return (
         <SetupScreen
           imageDataUrl={screen.imageDataUrl}
           defaultTitle={screen.defaultTitle}
@@ -125,8 +140,16 @@ export default function App() {
             })
           }}
         />
-      )
-    case 'game':
-      return <GameScreen key={screen.config.puzzleId} config={screen.config} onExit={goHome} />
+        )
+      case 'game':
+        return <GameScreen key={screen.config.puzzleId} config={screen.config} onExit={goHome} />
+    }
   }
+
+  return (
+    <>
+      {arkaPlan}
+      {icerik()}
+    </>
+  )
 }

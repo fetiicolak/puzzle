@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { beniHatirla, beniHatirlaAyarla } from '../supabase/client'
 import { useAuth } from '../supabase/auth'
 
 interface Props {
@@ -15,12 +16,15 @@ export default function AuthScreen({ onSkip }: Props) {
   const [hata, setHata] = useState<string | null>(null)
   const [bilgi, setBilgi] = useState<string | null>(null)
   const [bekle, setBekle] = useState(false)
+  const [hatirla, setHatirla] = useState(beniHatirla)
 
   const gonder = async (e: React.FormEvent) => {
     e.preventDefault()
     setHata(null)
     setBilgi(null)
     setBekle(true)
+    // oturum yazılmadan önce nereye kaydedileceği belli olmalı
+    beniHatirlaAyarla(hatirla)
     try {
       const sonuc =
         mod === 'giris' ? await signIn(email, sifre) : await signUp(email, sifre, ad)
@@ -96,6 +100,18 @@ export default function AuthScreen({ onSkip }: Props) {
           onChange={(e) => setSifre(e.target.value)}
         />
 
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={hatirla}
+            onChange={(e) => {
+              setHatirla(e.target.checked)
+              beniHatirlaAyarla(e.target.checked)
+            }}
+          />
+          <span>Beni hatırla</span>
+        </label>
+
         {hata && <div className="form-error">{hata}</div>}
         {bilgi && <div className="form-info">{bilgi}</div>}
 
@@ -105,7 +121,7 @@ export default function AuthScreen({ onSkip }: Props) {
       </form>
 
       <button className="btn btn-ghost" onClick={onSkip}>
-        Girmeden bak
+        Misafir olarak devam et
       </button>
     </div>
   )

@@ -177,6 +177,49 @@ create trigger on_puzzle_created
   after insert on public.puzzles
   for each row execute function public.handle_new_puzzle();
 
+-- ---------------------------------------------------------------- arkadaşlar
+-- Tek yönlü kayıt tutulur: isteği gönderen (requester) ve alan (addressee).
+-- Kabul edilince status 'accepted' olur; iki taraf da arkadaş sayılır.
+
+create table if not exists public.friendships (
+  id uuid primary key default gen_random_uuid(),
+  requester uuid not null references auth.users on delete cascade,
+  addressee uuid not null references auth.users on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted')),
+  created_at timestamptz not null default now(),
+  unique (requester, addressee),
+  check (requester <> addressee)
+);
+
+alter table public.friendships enable row level security;
+
+create index if not exists friendships_requester_idx on public.friendships (requester);
+create index if not exists friendships_addressee_idx on public.friendships (addressee);
+
+-- Yalnızca tarafları görebilir
+drop policy if exists friendships_select on public.friendships;
+create policy friendships_select on public.friendships
+  for select to authenticated
+  using (requester = auth.uid() or addressee = auth.uid());
+
+-- İsteği yalnızca kendi adına gönderebilirsin
+drop policy if exists friendships_insert on public.friendships;
+create policy friendships_insert on public.friendships
+  for insert to authenticated with check (requester = auth.uid());
+
+-- Kabul etmeyi yalnızca isteği alan yapabilir
+drop policy if exists friendships_update on public.friendships;
+create policy friendships_update on public.friendships
+  for update to authenticated
+  using (addressee = auth.uid())
+  with check (addressee = auth.uid());
+
+-- İki taraf da silebilir (isteği geri çekme / arkadaşlıktan çıkarma)
+drop policy if exists friendships_delete on public.friendships;
+create policy friendships_delete on public.friendships
+  for delete to authenticated
+  using (requester = auth.uid() or addressee = auth.uid());
+
 -- ---------------------------------------------------------------- depolama
 -- Fotoğraflar için özel (public olmayan) kova; erişim imzalı URL ile verilir.
 

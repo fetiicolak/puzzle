@@ -8,11 +8,71 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 export const supabaseEnabled = Boolean(url && key)
 
+const HATIRLA_ANAHTARI = 'puzzle:beni-hatirla'
+
+/** "Beni hatırla" işaretli mi (varsayılan: evet) */
+export function beniHatirla(): boolean {
+  try {
+    return localStorage.getItem(HATIRLA_ANAHTARI) !== '0'
+  } catch {
+    return true
+  }
+}
+
+export function beniHatirlaAyarla(deger: boolean): void {
+  try {
+    localStorage.setItem(HATIRLA_ANAHTARI, deger ? '1' : '0')
+    // tercih değişince oturumu doğru yere taşı
+    const digeri = deger ? sessionStorage : localStorage
+    const hedef = deger ? localStorage : sessionStorage
+    for (const k of Object.keys(digeri)) {
+      if (k.startsWith('sb-')) {
+        hedef.setItem(k, digeri.getItem(k)!)
+        digeri.removeItem(k)
+      }
+    }
+  } catch {
+    // depolama kapalıysa oturum yine de bu sekmede çalışır
+  }
+}
+
+/**
+ * Oturum, tercihe göre kalıcı (localStorage) ya da sekmelik (sessionStorage)
+ * saklanır. Supabase istemcisi bir kez kurulduğu için seçim okuma anında
+ * yapılıyor; böylece kullanıcı tercihini değiştirdiğinde yeniden kurmak
+ * gerekmiyor.
+ */
+const oturumDeposu = {
+  getItem: (k: string) => {
+    try {
+      return localStorage.getItem(k) ?? sessionStorage.getItem(k)
+    } catch {
+      return null
+    }
+  },
+  setItem: (k: string, v: string) => {
+    try {
+      ;(beniHatirla() ? localStorage : sessionStorage).setItem(k, v)
+    } catch {
+      // yoksay
+    }
+  },
+  removeItem: (k: string) => {
+    try {
+      localStorage.removeItem(k)
+      sessionStorage.removeItem(k)
+    } catch {
+      // yoksay
+    }
+  },
+}
+
 export const supabase: SupabaseClient | null = supabaseEnabled
   ? createClient(url!, key!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        storage: oturumDeposu,
         // #room=... bağlantısıyla çakışmasın diye oturum bilgisini
         // adres çubuğundan okuma
         detectSessionInUrl: false,
