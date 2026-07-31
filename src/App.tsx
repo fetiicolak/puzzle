@@ -2,10 +2,11 @@ import { useState } from 'react'
 import AuthScreen from './components/AuthScreen'
 import GameScreen, { type GameConfig } from './components/GameScreen'
 import HomeScreen from './components/HomeScreen'
-import SetupScreen from './components/SetupScreen'
+import SetupScreen, { type StartOptions } from './components/SetupScreen'
 import { randomRoomCode } from './net/peer'
-import { type SavedPuzzle } from './storage'
+import { savePuzzle, type SavedPuzzle } from './storage'
 import { useAuth } from './supabase/auth'
+import { createRemotePuzzle } from './supabase/puzzles'
 
 type Screen =
   | { s: 'home' }
@@ -32,10 +33,56 @@ export default function App() {
   // Davet linkiyle gelen kişiyi giriş duvarına takma: oyun hemen açılsın.
   // (Girişi ana ekrandaki "Giriş Yap" ile yapabilir; tablo o zaman geçmişine düşer.)
   const [misafirDevam, setMisafirDevam] = useState(() => initialScreen().s === 'game')
+  const [saklaniyor, setSaklaniyor] = useState(false)
 
   const goHome = () => {
     if (location.hash) history.replaceState(null, '', location.pathname + location.search)
     setScreen({ s: 'home' })
+  }
+
+  /**
+   * Özel gün puzzle'ı: oyunu açmadan kaydet. Giriş yapılmışsa sunucuya
+   * (böylece partner de kilitli görür), değilse yalnızca bu cihaza.
+   */
+  const ozelGuneSakla = async (kod: string, seed: number, opts: StartOptions) => {
+    if (screen.s !== 'setup') return
+    const gorsel = screen.imageDataUrl
+    setSaklaniyor(true)
+    try {
+      if (auth.user) {
+        await createRemotePuzzle({
+          roomCode: kod,
+          title: opts.title,
+          imageDataUrl: gorsel,
+          seed,
+          pieceCount: opts.pieceCount,
+          message: opts.message,
+          maxPlayers: opts.maxPlayers,
+          rotation: opts.rotation,
+          unlockAt: opts.unlockAt,
+        })
+      }
+      savePuzzle({
+        id: kod,
+        title: opts.title,
+        imageDataUrl: gorsel,
+        seed,
+        pieceCount: opts.pieceCount,
+        snap: null,
+        elapsed: 0,
+        message: opts.message,
+        completed: false,
+        updatedAt: Date.now(),
+        unlockAt: opts.unlockAt,
+      })
+      const ne = new Date(opts.unlockAt!).toLocaleString('tr-TR')
+      alert(`"${opts.title}" saklandı. ${ne} tarihinde açılacak.`)
+      goHome()
+    } catch {
+      alert('Kaydedilemedi. Bağlantını kontrol edip tekrar dene.')
+    } finally {
+      setSaklaniyor(false)
+    }
   }
 
   // Arka plan: giriş yapılmadan bulanık, girildikten sonra net.
@@ -53,6 +100,15 @@ export default function App() {
   )
 
   const icerik = () => {
+    if (saklaniyor) {
+      return (
+        <div className="overlay">
+          <div className="spinner" />
+          <p>Özel gün için saklanıyor…</p>
+        </div>
+      )
+    }
+
     if (auth.enabled && auth.loading) {
       return (
         <div className="overlay">
@@ -121,6 +177,17 @@ export default function App() {
             // Oda kodunu baştan üret: davet linki, sunucudaki kayıt ve yerel
             // kayıt aynı kimliği paylaşsın (tek başına oynansa bile kaydedilir)
             const kod = randomRoomCode()
+            const seed = (Math.random() * 0xffffffff) >>> 0
+            const ileriTarihli =
+              !!opts.unlockAt && new Date(opts.unlockAt).getTime() > Date.now()
+
+            // Özel gün için saklanıyorsa oyunu açma: kaydet ve ana sayfaya dön.
+            // (Yoksa "sakla" deyip anında oynamış oluyorduk.)
+            if (ileriTarihli) {
+              void ozelGuneSakla(kod, seed, opts)
+              return
+            }
+
             setScreen({
               s: 'game',
               config: {
@@ -130,7 +197,7 @@ export default function App() {
                 roomCode: kod,
                 title: opts.title,
                 imageDataUrl: screen.imageDataUrl,
-                seed: (Math.random() * 0xffffffff) >>> 0,
+                seed,
                 pieceCount: opts.pieceCount,
                 message: opts.message,
                 maxPlayers: opts.maxPlayers,

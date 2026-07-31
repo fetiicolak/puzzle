@@ -192,6 +192,7 @@ export default function GameScreen({ config, onExit }: Props) {
       message: surpriseRef.current,
       completed: r.completed,
       updatedAt: Date.now(),
+      unlockAt: config.unlockAt ?? null,
     })
 
     // Sunucudaki ortak kayda da yaz. Normalde seyrek yazılır; oyundan

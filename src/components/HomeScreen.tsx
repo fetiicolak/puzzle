@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import FriendsSection from './FriendsSection'
 import { SAMPLES, sampleThumbUrl, sampleUrl, type Sample } from '../samples'
-import { listPuzzles, removePuzzle, toPuzzleImage, type SavedPuzzle } from '../storage'
+import {
+  listPuzzles,
+  removePuzzle,
+  toPuzzleImage,
+  yerelKilitliMi,
+  type SavedPuzzle,
+} from '../storage'
 import { useAuth } from '../supabase/auth'
 import {
   deleteRemotePuzzle,
@@ -280,14 +286,38 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
             {auth.enabled && !auth.user && <em className="field-hint">giriş yaparsan kaybolmaz</em>}
           </h2>
           <div className="resume-list">
-            {yalnizcaYerel.map((p) => (
-              <article key={p.id} className="resume-card" onClick={() => onResume(p)}>
-                <img src={p.imageDataUrl} alt="" />
+            {yalnizcaYerel.map((p) => {
+              const kilitli = yerelKilitliMi(p)
+              return (
+              <article
+                key={p.id}
+                className={`resume-card ${kilitli ? 'kilitli' : ''}`}
+                onClick={() => {
+                  if (kilitli) {
+                    alert(
+                      `Bu puzzle ${new Date(p.unlockAt!).toLocaleString('tr-TR')} tarihinde açılacak.`,
+                    )
+                    return
+                  }
+                  onResume(p)
+                }}
+              >
+                {kilitli ? (
+                  <div className="cover-fallback">🔒</div>
+                ) : (
+                  <img src={p.imageDataUrl} alt="" />
+                )}
                 <div className="info">
                   <b>{p.title || 'İsimsiz'}</b>
                   <small>
-                    {p.completed ? 'bitti · ' : ''}
-                    {p.pieceCount} parça · {tarih(p.updatedAt)}
+                    {kilitli ? (
+                      <span className="kilit-yazi">{geriSayim(p.unlockAt!)}</span>
+                    ) : (
+                      <>
+                        {p.completed ? 'bitti · ' : ''}
+                        {p.pieceCount} parça · {tarih(p.updatedAt)}
+                      </>
+                    )}
                   </small>
                 </div>
                 <button
@@ -304,7 +334,8 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   ✕
                 </button>
               </article>
-            ))}
+              )
+            })}
           </div>
         </section>
       )}

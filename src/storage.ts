@@ -15,6 +15,13 @@ export interface SavedPuzzle {
   message: string
   completed: boolean
   updatedAt: number
+  /** Doluysa bu tarihe kadar açılamaz (özel gün) */
+  unlockAt?: string | null
+}
+
+/** Kayıt hâlâ kilitli mi */
+export function yerelKilitliMi(p: { unlockAt?: string | null }): boolean {
+  return !!p.unlockAt && new Date(p.unlockAt).getTime() > Date.now()
 }
 
 const INDEX_KEY = 'puzzle:index'
