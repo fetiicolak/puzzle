@@ -96,10 +96,34 @@ as $$
   );
 $$;
 
--- profiller: herkes görebilir (partner adını göstermek için), kendini düzenler
+-- Profil görünürlüğü: kendini, birlikte puzzle çözdüklerini ve arkadaşlık
+-- ilişkisi olduğun kişileri görürsün. Eskiden "herkes herkesi görebilir"
+-- idi; bu, kayıtlı herkesin tüm kullanıcıları listeleyebilmesi demekti.
+create or replace function public.profil_gorulebilir(p_kisi uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    p_kisi = auth.uid()
+    or exists (
+      select 1
+      from public.puzzle_players benim
+      join public.puzzle_players digeri on digeri.puzzle_id = benim.puzzle_id
+      where benim.user_id = auth.uid() and digeri.user_id = p_kisi
+    )
+    or exists (
+      select 1 from public.friendships
+      where (requester = auth.uid() and addressee = p_kisi)
+         or (addressee = auth.uid() and requester = p_kisi)
+    );
+$$;
+
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles
-  for select to authenticated using (true);
+  for select to authenticated using (public.profil_gorulebilir(id));
 
 drop policy if exists profiles_update on public.profiles;
 create policy profiles_update on public.profiles
@@ -153,6 +177,15 @@ begin
     raise exception 'oda bulunamadi';
   end if;
 
+  -- Özel gün kilidi: sahibi dışında kimse tarihten önce giremez.
+  -- Bu kontrol sunucuda olmalı; yalnızca arayüzde olduğunda oda kodunu
+  -- bilen biri gizli notu ve fotoğrafı tarihten önce okuyabiliyordu.
+  if found_puzzle.unlock_at is not null
+     and found_puzzle.unlock_at > now()
+     and found_puzzle.owner <> auth.uid() then
+    raise exception 'puzzle henuz acilmadi';
+  end if;
+
   insert into public.puzzle_players (puzzle_id, user_id)
   values (found_puzzle.id, auth.uid())
   on conflict do nothing;
@@ -160,6 +193,38 @@ begin
   return found_puzzle;
 end;
 $$;
+
+-- Katılımcılar oyunu birlikte oynayabilsin ama puzzle'ın kimliğini
+-- değiştiremesin: sahiplik, fotoğraf, oda kodu ve kilit tarihi korunur.
+create or replace function public.puzzle_guncelleme_kontrol()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.owner is distinct from old.owner then
+    raise exception 'sahiplik degistirilemez';
+  end if;
+  if auth.uid() is distinct from old.owner then
+    if new.image_path is distinct from old.image_path
+       or new.room_code is distinct from old.room_code
+       or new.unlock_at is distinct from old.unlock_at
+       or new.seed is distinct from old.seed
+       or new.piece_count is distinct from old.piece_count
+       or new.rotation is distinct from old.rotation
+       or new.max_players is distinct from old.max_players then
+      raise exception 'bu alani yalnizca puzzle sahibi degistirebilir';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_puzzle_update on public.puzzles;
+create trigger on_puzzle_update
+  before update on public.puzzles
+  for each row execute function public.puzzle_guncelleme_kontrol();
 
 revoke all on function public.join_puzzle(text) from public;
 grant execute on function public.join_puzzle(text) to authenticated;
@@ -288,19 +353,57 @@ create policy messages_delete on public.messages
 -- ---------------------------------------------------------------- depolama
 -- Fotoğraflar için özel (public olmayan) kova; erişim imzalı URL ile verilir.
 
-insert into storage.buckets (id, name, public)
-values ('puzzle-images', 'puzzle-images', false)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('puzzle-images', 'puzzle-images', false, 10485760,
+        array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set public = false,
+      file_size_limit = 10485760,
+      allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
+
+/*
+  Fotoğraf görünürlüğü. Önceki politika "kayıtlı olan herkes tüm kovayı
+  okuyabilir" diyordu; yani başka birinin özel fotoğrafı, yolu bilindiğinde
+  (ya da imzalı URL üretilerek) indirilebiliyordu.
+
+  Artık yalnızca o puzzle'ın katılımcıları görebilir ve kilitli bir puzzle'ın
+  fotoğrafına tarih gelene kadar sahibi dışında kimse erişemez.
+*/
+create or replace function public.foto_gorulebilir(p_yol text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.puzzles p
+    where p.image_path = p_yol
+      and (
+        p.owner = auth.uid()
+        or (
+          public.is_puzzle_player(p.id)
+          and (p.unlock_at is null or p.unlock_at <= now())
+        )
+      )
+  );
+$$;
 
 drop policy if exists puzzle_images_insert on storage.objects;
 create policy puzzle_images_insert on storage.objects
   for insert to authenticated
-  with check (bucket_id = 'puzzle-images' and owner = auth.uid());
+  with check (
+    bucket_id = 'puzzle-images'
+    and owner = auth.uid()
+    -- kendi klasörünün dışına yazamasın
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 drop policy if exists puzzle_images_select on storage.objects;
 create policy puzzle_images_select on storage.objects
   for select to authenticated
-  using (bucket_id = 'puzzle-images');
+  using (bucket_id = 'puzzle-images' and public.foto_gorulebilir(name));
 
 drop policy if exists puzzle_images_delete on storage.objects;
 create policy puzzle_images_delete on storage.objects

@@ -123,10 +123,28 @@ export async function createRemotePuzzle(opts: {
  * Oda koduyla katıl: kullanıcıyı katılımcı listesine ekler ve puzzle'ı döndürür.
  * (Sunucudaki join_puzzle fonksiyonu, doğrudan okuma izni vermeden bunu yapar.)
  */
+/** Odaya katılırken sunucudan dönebilecek anlamlı durumlar */
+export class OdaHatasi extends Error {
+  constructor(
+    message: string,
+    readonly tur: 'kilitli' | 'bulunamadi' | 'diger',
+  ) {
+    super(message)
+  }
+}
+
 export async function joinRemotePuzzle(roomCode: string): Promise<RemotePuzzle | null> {
   if (!supabase) return null
   const { data, error } = await supabase.rpc('join_puzzle', { p_code: roomCode })
-  if (error) return null
+  if (error) {
+    const m = error.message ?? ''
+    // sunucu kilidi: özel gün tarihi gelmeden katılım engellenir
+    if (m.includes('acilmadi')) {
+      throw new OdaHatasi('Bu puzzle henüz açılmadı. Özel gün için saklanmış.', 'kilitli')
+    }
+    if (m.includes('bulunamadi')) return null
+    return null
+  }
   return (data ?? null) as RemotePuzzle | null
 }
 

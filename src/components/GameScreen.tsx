@@ -24,6 +24,8 @@ import { useAuth } from '../supabase/auth'
 import {
   createRemotePuzzle,
   joinRemotePuzzle,
+  kilitliMi,
+  OdaHatasi,
   puzzleImageUrl,
   saveRemoteProgress,
   updateRemoteRoomCode,
@@ -580,6 +582,10 @@ export default function GameScreen({ config, onExit }: Props) {
       try {
         setLoadText('Puzzle getiriliyor')
         const uzak = await joinRemotePuzzle(kod)
+        if (uzak && kilitliMi(uzak) && uzak.owner !== auth.user.id) {
+          setError('Bu puzzle henüz açılmadı. Özel gün için saklanmış.')
+          return
+        }
         if (uzak && !r.destroyed) {
           const url = await puzzleImageUrl(uzak.image_path)
           if (url && !r.destroyed) {
@@ -593,8 +599,12 @@ export default function GameScreen({ config, onExit }: Props) {
             await build(dataUrl, uzak.piece_count, uzak.seed)
           }
         }
-      } catch {
-        // sunucudan alınamadıysa odadan gelmesini bekleriz
+      } catch (e) {
+        if (e instanceof OdaHatasi && e.tur === 'kilitli') {
+          setError(e.message)
+          return
+        }
+        // başka bir sebeple alınamadıysa odadan gelmesini bekleriz
       }
     }
     if (r.destroyed) return
