@@ -27,11 +27,7 @@ export default function AuthScreen({ onSkip }: Props) {
       if (sonuc) {
         setHata(sonuc)
       } else if (mod === 'kayit') {
-        // E-posta doğrulaması açıksa oturum hemen açılmaz
-        setBilgi(
-          'Kayıt alındı. E-posta doğrulaması açıksa gelen kutunu kontrol et, ' +
-            'sonra giriş yap.',
-        )
+        setBilgi('Hesap açıldı. Şimdi giriş yapabilirsin.')
         setMod('giris')
       }
     } finally {
@@ -40,35 +36,40 @@ export default function AuthScreen({ onSkip }: Props) {
   }
 
   return (
-    <div className="screen">
-      <h1 className="title">
-        Birlikte <span>Puzzle</span> 🧩
-      </h1>
-      <p className="subtitle">
-        Giriş yaparsan çözdüğün tablolar hesabına kaydedilir ve birlikte oynadığın
-        kişilerin geçmişinde de görünür.
-      </p>
+    <div className="screen screen-center">
+      <header className="hero">
+        <h1 className="title">
+          Birlikte <span>Puzzle</span>
+        </h1>
+        <p className="subtitle">Tabloların kaybolmasın, beraber çözdüklerin ikinizde de dursun.</p>
+      </header>
 
-      <div className="chip-row">
+      <div className="tabs">
         <button
-          className={`chip ${mod === 'giris' ? 'active' : ''}`}
-          onClick={() => { setMod('giris'); setHata(null) }}
+          className={`tab ${mod === 'giris' ? 'active' : ''}`}
+          onClick={() => {
+            setMod('giris')
+            setHata(null)
+          }}
         >
-          Giriş Yap
+          Giriş
         </button>
         <button
-          className={`chip ${mod === 'kayit' ? 'active' : ''}`}
-          onClick={() => { setMod('kayit'); setHata(null) }}
+          className={`tab ${mod === 'kayit' ? 'active' : ''}`}
+          onClick={() => {
+            setMod('kayit')
+            setHata(null)
+          }}
         >
-          Kayıt Ol
+          Kayıt
         </button>
       </div>
 
       <form className="auth-form" onSubmit={gonder}>
         {mod === 'kayit' && (
           <input
-            className="message-input title-input"
-            placeholder="Görünecek adın"
+            className="input"
+            placeholder="Adın"
             value={ad}
             maxLength={40}
             required
@@ -76,7 +77,7 @@ export default function AuthScreen({ onSkip }: Props) {
           />
         )}
         <input
-          className="message-input title-input"
+          className="input"
           type="email"
           autoComplete="email"
           placeholder="E-posta"
@@ -85,30 +86,27 @@ export default function AuthScreen({ onSkip }: Props) {
           onChange={(e) => setEmail(e.target.value)}
         />
         <input
-          className="message-input title-input"
+          className="input"
           type="password"
           autoComplete={mod === 'giris' ? 'current-password' : 'new-password'}
-          placeholder="Şifre (en az 6 karakter)"
+          placeholder="Şifre"
           value={sifre}
           minLength={6}
           required
           onChange={(e) => setSifre(e.target.value)}
         />
 
-        {hata && <div className="form-error">⚠ {hata}</div>}
-        {bilgi && <div className="form-info">✓ {bilgi}</div>}
+        {hata && <div className="form-error">{hata}</div>}
+        {bilgi && <div className="form-info">{bilgi}</div>}
 
-        <button className="btn-primary" type="submit" disabled={bekle}>
-          {bekle ? 'Bekle…' : mod === 'giris' ? 'Giriş Yap' : 'Kayıt Ol'}
+        <button className="btn btn-primary btn-lg" type="submit" disabled={bekle}>
+          {bekle ? 'Bir saniye…' : mod === 'giris' ? 'Giriş yap' : 'Hesap aç'}
         </button>
       </form>
 
-      <button className="btn-secondary" onClick={onSkip}>
-        Girmeden devam et
+      <button className="btn btn-ghost" onClick={onSkip}>
+        Girmeden bak
       </button>
-      <small style={{ color: 'var(--muted)', textAlign: 'center', maxWidth: 380 }}>
-        Girmeden oynayabilirsin; bu durumda tablolar yalnızca bu cihazda saklanır.
-      </small>
     </div>
   )
 }

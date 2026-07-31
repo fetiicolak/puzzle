@@ -40,9 +40,9 @@ export default function App() {
 
   if (auth.enabled && auth.loading) {
     return (
-      <div className="loading">
+      <div className="overlay">
         <div className="spinner" />
-        <div>Oturum kontrol ediliyor…</div>
+        <p>Bir saniye…</p>
       </div>
     )
   }

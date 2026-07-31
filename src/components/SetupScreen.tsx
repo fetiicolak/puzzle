@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { nextUntitledName } from '../storage'
+import { useEffect, useState } from 'react'
+import { computeGrid } from '../engine/cutter'
+import { loadImage, nextUntitledName } from '../storage'
 
 const PIECE_OPTIONS = [24, 48, 100, 200, 300, 500]
 const PLAYER_OPTIONS = [2, 3, 4, 6, 8]
@@ -25,10 +26,27 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
   const [pieces, setPieces] = useState(100)
   const [message, setMessage] = useState('')
   const [maxPlayers, setMaxPlayers] = useState(2)
+  const [olculer, setOlculer] = useState<{ w: number; h: number } | null>(null)
+
+  // Seçilen sayı yaklaşıktır: ızgara, hücreler kareye yakın olacak şekilde
+  // kurulur. Gerçekte kaç parça çıkacağını göstermek daha dürüst.
+  useEffect(() => {
+    let iptal = false
+    loadImage(imageDataUrl)
+      .then((img) => {
+        if (!iptal) setOlculer({ w: img.naturalWidth, h: img.naturalHeight })
+      })
+      .catch(() => {})
+    return () => {
+      iptal = true
+    }
+  }, [imageDataUrl])
+
+  const izgara = olculer ? computeGrid(olculer.w, olculer.h, pieces) : null
+  const gercekSayi = izgara ? izgara.rows * izgara.cols : pieces
 
   const start = (withPartner: boolean) =>
     onStart({
-      // isim verilmediyse "İsimsiz N" atanır
       title: title.trim() || nextUntitledName(),
       pieceCount: pieces,
       message,
@@ -38,65 +56,87 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
 
   return (
     <div className="screen">
-      <h1 className="title">Puzzle'ını Ayarla</h1>
-      <img className="setup-preview" src={imageDataUrl} alt="Seçilen görsel" />
+      <h1 className="title">Hazırlık</h1>
 
-      <div className="section-label">Puzzle Adı</div>
-      <input
-        className="message-input title-input"
-        placeholder={nextUntitledName()}
-        value={title}
-        maxLength={60}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-
-      <div className="section-label">Parça Sayısı</div>
-      <div className="chip-row">
-        {PIECE_OPTIONS.map((n) => (
-          <button
-            key={n}
-            className={`chip ${n === pieces ? 'active' : ''}`}
-            onClick={() => setPieces(n)}
-          >
-            {n}
-          </button>
-        ))}
+      <div className="setup-preview-wrap">
+        <img className="setup-preview" src={imageDataUrl} alt="Seçtiğin görsel" />
       </div>
 
-      <div className="section-label">Kaç Kişi Oynayacak</div>
-      <div className="chip-row">
-        {PLAYER_OPTIONS.map((n) => (
-          <button
-            key={n}
-            className={`chip ${n === maxPlayers ? 'active' : ''}`}
-            onClick={() => setMaxPlayers(n)}
-          >
-            {n} kişi
-          </button>
-        ))}
-      </div>
-      <small style={{ color: 'var(--muted)', marginTop: -12 }}>
-        Sen dahil toplam kişi sayısı. Davet linkiyle {maxPlayers - 1} kişi katılabilir.
-      </small>
+      <label className="field">
+        <span className="field-label">Adı</span>
+        <input
+          className="input"
+          placeholder={nextUntitledName()}
+          value={title}
+          maxLength={60}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </label>
 
-      <div className="section-label">Sürpriz Mesaj (isteğe bağlı)</div>
-      <textarea
-        className="message-input"
-        placeholder="Puzzle tamamlanınca açılacak bir not bırak… 💌"
-        value={message}
-        maxLength={500}
-        onChange={(e) => setMessage(e.target.value)}
-      />
+      <div className="field">
+        <span className="field-label">
+          Kaç parça
+          {izgara && (
+            <em className="field-hint">
+              {gercekSayi} parça · {izgara.cols}×{izgara.rows}
+            </em>
+          )}
+        </span>
+        <div className="chip-row">
+          {PIECE_OPTIONS.map((n) => (
+            <button
+              key={n}
+              className={`chip ${n === pieces ? 'active' : ''}`}
+              onClick={() => setPieces(n)}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="field">
+        <span className="field-label">
+          Kaç kişi
+          <em className="field-hint">
+            {maxPlayers === 2 ? 'ikiniz' : `sen + ${maxPlayers - 1} kişi`}
+          </em>
+        </span>
+        <div className="chip-row">
+          {PLAYER_OPTIONS.map((n) => (
+            <button
+              key={n}
+              className={`chip ${n === maxPlayers ? 'active' : ''}`}
+              onClick={() => setMaxPlayers(n)}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <label className="field">
+        <span className="field-label">
+          Gizli not <em className="field-hint">isteğe bağlı</em>
+        </span>
+        <textarea
+          className="input textarea"
+          placeholder="Bitince görsün diye bir şeyler yaz…"
+          value={message}
+          maxLength={500}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+      </label>
 
       <div className="action-row">
-        <button className="btn-secondary" onClick={onBack}>
-          ← Geri
+        <button className="btn btn-ghost" onClick={onBack}>
+          Geri
         </button>
-        <button className="btn-secondary" onClick={() => start(false)}>
-          🧩 Tek Başına Oyna
+        <button className="btn btn-secondary" onClick={() => start(false)}>
+          Tek başıma
         </button>
-        <button className="btn-primary" onClick={() => start(true)}>
-          💕 Birlikte Oyna
+        <button className="btn btn-primary" onClick={() => start(true)}>
+          Birlikte oyna
         </button>
       </div>
     </div>

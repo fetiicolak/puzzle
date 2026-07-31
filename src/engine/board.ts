@@ -375,7 +375,7 @@ export class PuzzleBoard {
     const vh = canvas.height / dpr
 
     // arka plan
-    ctx.fillStyle = '#241b2e'
+    ctx.fillStyle = '#1a1426'
     ctx.fillRect(0, 0, vw, vh)
 
     ctx.translate(this.tx, this.ty)

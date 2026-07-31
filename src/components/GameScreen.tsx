@@ -91,11 +91,11 @@ function formatTime(sec: number): string {
 
 const STATUS_TEXT: Record<RoomStatus, string> = {
   idle: '',
-  connecting: 'Bağlanıyor…',
-  waiting: 'Katılım bekleniyor',
+  connecting: 'Bağlanıyor',
+  waiting: 'Bekleniyor',
   connected: 'Bağlı',
-  disconnected: 'Bağlantı koptu',
-  error: 'Bağlantı hatası',
+  disconnected: 'Koptu',
+  error: 'Bağlanamadı',
 }
 
 const STATUS_COLOR: Record<RoomStatus, string> = {
@@ -112,13 +112,15 @@ export default function GameScreen({ config, onExit }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [phase, setPhase] = useState<'loading' | 'playing' | 'done'>('loading')
   const [loadText, setLoadText] = useState(
-    config.mode === 'guest' ? 'Odaya bağlanılıyor…' : 'Parçalar kesiliyor…',
+    config.mode === 'guest' ? 'Odaya bağlanılıyor' : 'Parçalar kesiliyor',
   )
   const [error, setError] = useState<string | null>(null)
   const [roomStatus, setRoomStatus] = useState<RoomStatus>('idle')
   const [statusDetail, setStatusDetail] = useState('')
   const [playerCount, setPlayerCount] = useState(1)
   const [roomCode, setRoomCode] = useState(config.roomCode ?? '')
+  /** Orijinal görseli köşede göster */
+  const [peek, setPeek] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [elapsed, setElapsed] = useState(config.elapsed ?? 0)
@@ -194,7 +196,7 @@ export default function GameScreen({ config, onExit }: Props) {
   // ---- motor kurulumu ----
   const build = async (imageDataUrl: string, pieceCount: number, seed: number) => {
     const r = refs.current
-    setLoadText('Parçalar kesiliyor…')
+    setLoadText('Parçalar kesiliyor')
     const img = await loadImage(imageDataUrl)
     if (r.destroyed || !canvasRef.current) return
     const cut = generateCut(img.naturalWidth, img.naturalHeight, pieceCount, seed)
@@ -286,7 +288,7 @@ export default function GameScreen({ config, onExit }: Props) {
     const r = refs.current
     switch (msg.t) {
       case 'full': {
-        setError('Oda dolu. Bu puzzle için belirlenen kişi sayısına ulaşılmış.')
+        setError('Oda dolu.')
         break
       }
       case 'meta': {
@@ -298,7 +300,7 @@ export default function GameScreen({ config, onExit }: Props) {
         setTitle(msg.title)
         r.imgChunks = []
         r.imgTotal = msg.imgChunks
-        setLoadText('Fotoğraf alınıyor…')
+        setLoadText('Fotoğraf geliyor')
         break
       }
       case 'img': {
@@ -312,7 +314,7 @@ export default function GameScreen({ config, onExit }: Props) {
             r.imgTotal = -1
             void build(dataUrl, r.pieceCount, r.seed)
           } else {
-            setLoadText(`Fotoğraf alınıyor… %${Math.round((got / r.imgTotal) * 100)}`)
+            setLoadText(`Fotoğraf geliyor · %${Math.round((got / r.imgTotal) * 100)}`)
           }
         }
         break
@@ -408,14 +410,14 @@ export default function GameScreen({ config, onExit }: Props) {
         if (config.mode === 'guest') {
           setError(
             detail === 'peer-unavailable'
-              ? 'Oda bulunamadı. Partnerinin oyun ekranı hâlâ açık mı? Oda linki yalnızca o sekme açıkken çalışır.'
-              : 'Bağlantı kurulamadı. İki taraf da internete bağlıysa tekrar deneyin; bazı kurumsal/mobil ağlar doğrudan bağlantıyı engelleyebiliyor.',
+              ? 'Oda kapalı. Karşı tarafın sayfası hâlâ açık mı?'
+              : 'Bağlanamadık. Bazı ağlar bu tür bağlantıyı engelliyor.',
           )
         }
       }
       if (status === 'connected' && config.mode === 'guest') {
         r.lastChunkAt = Date.now()
-        if (!r.game) setLoadText('Puzzle bilgisi bekleniyor…')
+        if (!r.game) setLoadText('Puzzle bekleniyor')
       }
       // oda kodu kesinleştiğinde sunucuya kaydet
       if (config.mode === 'local' && (status === 'waiting' || status === 'connected')) {
@@ -488,7 +490,7 @@ export default function GameScreen({ config, onExit }: Props) {
     setError(null)
     r.imgChunks = []
     r.imgTotal = -1
-    setLoadText('Odaya bağlanılıyor…')
+    setLoadText('Odaya bağlanılıyor')
     // Yeni bir Room kurmak yerine mevcut olanı sıfırla: eskisi arka planda
     // yaşamaya devam edip çakışan ikinci bir bağlantı açıyordu.
     if (r.room) r.room.retry()
@@ -505,7 +507,7 @@ export default function GameScreen({ config, onExit }: Props) {
     const kod = config.roomCode!
     if (auth.user) {
       try {
-        setLoadText('Puzzle sunucudan alınıyor…')
+        setLoadText('Puzzle getiriliyor')
         const uzak = await joinRemotePuzzle(kod)
         if (uzak && !r.destroyed) {
           const url = await puzzleImageUrl(uzak.image_path)
@@ -525,7 +527,7 @@ export default function GameScreen({ config, onExit }: Props) {
       }
     }
     if (r.destroyed) return
-    if (!r.game) setLoadText('Odaya bağlanılıyor…')
+    if (!r.game) setLoadText('Odaya bağlanılıyor')
     r.room = Room.join(kod, roomEvents)
   }
 
@@ -533,7 +535,7 @@ export default function GameScreen({ config, onExit }: Props) {
   const initRemote = async () => {
     const r = refs.current
     try {
-      setLoadText('Fotoğraf sunucudan alınıyor…')
+      setLoadText('Fotoğraf getiriliyor')
       const url = await puzzleImageUrl(config.imagePath!)
       if (!url) throw new Error('Fotoğrafa erişilemedi')
       const dataUrl = await urlToDataUrl(url)
@@ -541,7 +543,7 @@ export default function GameScreen({ config, onExit }: Props) {
       await build(dataUrl, config.pieceCount!, config.seed!)
     } catch {
       if (!r.destroyed) {
-        setError('Bu tablonun fotoğrafına ulaşılamadı. İnternetini kontrol edip tekrar dene.')
+        setError('Fotoğrafa ulaşamadık. Bağlantını kontrol et.')
       }
     }
   }
@@ -609,10 +611,7 @@ export default function GameScreen({ config, onExit }: Props) {
     const id = setInterval(() => {
       const r = refs.current
       if (r.lastChunkAt && Date.now() - r.lastChunkAt > 20_000) {
-        setError(
-          'Bağlantı kuruldu ama puzzle verisi gelmedi. Partnerinin sekmesi arka planda ' +
-            'olabilir; ekranı açık tutmasını isteyip tekrar deneyin.',
-        )
+        setError('Bağlandık ama puzzle gelmedi. Karşı taraf sayfayı öne alsın.')
       }
     }, 2000)
     return () => clearInterval(id)
@@ -631,32 +630,61 @@ export default function GameScreen({ config, onExit }: Props) {
   return (
     <div className="game-root">
       <div className="game-topbar">
-        <button onClick={onExit} title="Ana sayfa">←</button>
-        {title && <span className="game-title" title={title}>{title}</span>}
-        <span className="stat">⏱ {formatTime(elapsed)}</span>
-        <span className="stat">{Math.round(prog * 100)}%</span>
+        <button className="icon-btn" onClick={onExit} title="Çık">
+          ←
+        </button>
+        {title && (
+          <span className="game-title" title={title}>
+            {title}
+          </span>
+        )}
+        <span className="stat tabular">{formatTime(elapsed)}</span>
+
+        <div className="progress" title={`%${Math.round(prog * 100)} tamam`}>
+          <div className="progress-fill" style={{ width: `${Math.round(prog * 100)}%` }} />
+          <span className="progress-text tabular">%{Math.round(prog * 100)}</span>
+        </div>
+
         <span className="spacer" />
+
         {roomStatus !== 'idle' && (
           <span
             className="stat"
-            title={statusDetail ? `${STATUS_TEXT[roomStatus]} (${statusDetail})` : STATUS_TEXT[roomStatus]}
+            title={
+              statusDetail
+                ? `${STATUS_TEXT[roomStatus]} (${statusDetail})`
+                : STATUS_TEXT[roomStatus]
+            }
           >
             <span className="status-dot" style={{ background: STATUS_COLOR[roomStatus] }} />
             <span className="status-text">{STATUS_TEXT[roomStatus]}</span>
-          </span>
-        )}
-        {config.mode === 'local' && (config.maxPlayers ?? 2) > 1 && roomStatus !== 'idle' && (
-          <span className="stat" title="Odadaki kişi sayısı">
-            👥 {playerCount}/{config.maxPlayers ?? 2}
+            {config.mode !== 'guest' && (config.maxPlayers ?? 2) > 1 && (
+              <span className="tabular">
+                {' '}
+                {playerCount}/{config.maxPlayers ?? 2}
+              </span>
+            )}
           </span>
         )}
         {config.mode === 'guest' && (roomStatus === 'disconnected' || roomStatus === 'error') && (
-          <button onClick={rejoin}>🔄 Yeniden Bağlan</button>
+          <button className="btn btn-sm btn-secondary" onClick={rejoin}>
+            Bağlan
+          </button>
         )}
-        {config.mode === 'local' && (
-          <button onClick={createRoom} title="Partnerini davet et">💌 Davet</button>
+        {config.mode !== 'guest' && (
+          <button className="btn btn-sm btn-secondary" onClick={createRoom}>
+            Davet
+          </button>
         )}
         <button
+          className={`icon-btn ${peek ? 'on' : ''}`}
+          onClick={() => setPeek((v) => !v)}
+          title="Orijinali göster"
+        >
+          🖼
+        </button>
+        <button
+          className={`icon-btn ${ghost ? 'on' : ''}`}
           onClick={() => {
             const b = refs.current.board
             if (b) {
@@ -665,55 +693,77 @@ export default function GameScreen({ config, onExit }: Props) {
               b.invalidate()
             }
           }}
-          title="Izgara ipucu"
+          title="Izgara"
         >
-          {ghost ? '👁' : '🙈'}
+          ⊞
         </button>
-        <button onClick={() => refs.current.board?.fitView()} title="Görünümü sığdır">⛶</button>
+        <button
+          className="icon-btn"
+          onClick={() => refs.current.board?.fitView()}
+          title="Hepsini göster"
+        >
+          ⤢
+        </button>
       </div>
 
       <canvas ref={canvasRef} className="game-canvas" />
 
+      {peek && refs.current.imageDataUrl && (
+        <button className="peek" onClick={() => setPeek(false)} title="Kapat">
+          <img src={refs.current.imageDataUrl} alt="Orijinal" />
+        </button>
+      )}
+
       {phase === 'loading' && !error && (
-        <div className="loading">
+        <div className="overlay">
           <div className="spinner" />
-          <div>{loadText}</div>
+          <p>{loadText}</p>
         </div>
       )}
 
       {error && (
-        <div className="loading">
-          <div>😔 {error}</div>
+        <div className="overlay">
+          <p className="overlay-title">{error}</p>
           <div className="action-row">
             {config.mode === 'guest' && (
-              <button className="btn-primary" onClick={rejoin}>Tekrar Dene</button>
+              <button className="btn btn-primary" onClick={rejoin}>
+                Tekrar dene
+              </button>
             )}
-            <button className="btn-secondary" onClick={onExit}>Ana Sayfa</button>
+            <button className="btn btn-secondary" onClick={onExit}>
+              Geri dön
+            </button>
           </div>
         </div>
       )}
 
       {inviteOpen && inviteLink && (
         <div className="game-banner">
-          <b>💌 Partnerini davet et</b>
+          <b>Linki gönder</b>
           <code>{inviteLink}</code>
           <div className="action-row">
-            <button className="btn-primary" onClick={() => void copyInvite()}>
-              {copied ? '✓ Kopyalandı' : 'Linki Kopyala'}
+            <button className="btn btn-primary" onClick={() => void copyInvite()}>
+              {copied ? 'Kopyalandı' : 'Kopyala'}
             </button>
-            <button className="btn-secondary" onClick={() => setInviteOpen(false)}>
+            <button className="btn btn-ghost" onClick={() => setInviteOpen(false)}>
               Kapat
             </button>
           </div>
           {roomStatus === 'waiting' && (
-            <small style={{ color: 'var(--muted)' }}>
-              Link partnerinde açık kaldığı sürece bağlanabilir.
-            </small>
+            <small className="muted">Sen bu sayfadayken bağlanabilirler.</small>
           )}
         </div>
       )}
 
-      {phase === 'done' && <Celebration surprise={surprise} elapsed={elapsed} onExit={onExit} />}
+      {phase === 'done' && (
+        <Celebration
+          surprise={surprise}
+          elapsed={elapsed}
+          title={title}
+          image={refs.current.imageDataUrl}
+          onExit={onExit}
+        />
+      )}
     </div>
   )
 }
@@ -721,44 +771,60 @@ export default function GameScreen({ config, onExit }: Props) {
 function Celebration({
   surprise,
   elapsed,
+  title,
+  image,
   onExit,
 }: {
   surprise: string
   elapsed: number
+  title: string
+  image: string
   onExit: () => void
 }) {
-  const confetti = useMemo(
+  const konfeti = useMemo(
     () =>
-      Array.from({ length: 40 }, (_, i) => ({
+      Array.from({ length: 48 }, (_, i) => ({
         left: Math.random() * 100,
-        delay: Math.random() * 2,
-        dur: 2.5 + Math.random() * 2.5,
-        emoji: ['🎉', '💖', '✨', '🧩', '💫'][i % 5],
+        delay: Math.random() * 2.5,
+        dur: 3 + Math.random() * 3,
+        en: 7 + Math.random() * 9,
+        donme: Math.round(Math.random() * 900 - 450),
+        renk: ['#e85d75', '#f2c94c', '#6fcf97', '#56ccf2', '#bb6bd9'][i % 5],
       })),
     [],
   )
   return (
     <>
-      {confetti.map((c, i) => (
-        <span
-          key={i}
-          className="confetti"
-          style={{
-            left: `${c.left}vw`,
-            animationDelay: `${c.delay}s`,
-            animationDuration: `${c.dur}s`,
-          }}
-        >
-          {c.emoji}
-        </span>
-      ))}
+      <div className="confetti-layer" aria-hidden="true">
+        {konfeti.map((c, i) => (
+          <span
+            key={i}
+            className="confetti"
+            style={{
+              left: `${c.left}%`,
+              width: c.en,
+              height: c.en * 0.55,
+              background: c.renk,
+              animationDelay: `${c.delay}s`,
+              animationDuration: `${c.dur}s`,
+              ['--spin' as string]: `${c.donme}deg`,
+            }}
+          />
+        ))}
+      </div>
       <div className="celebration">
-        <h2>Tamamlandı! 🎉</h2>
-        <div className="time">Süre: {formatTime(elapsed)}</div>
-        {surprise && <div className="surprise">{surprise}</div>}
-        <button className="btn-primary" onClick={onExit}>
-          Ana Sayfa
-        </button>
+        <div className="celebration-card">
+          {image && <img className="celebration-img" src={image} alt="" />}
+          <h2>Bitti</h2>
+          <p className="muted">
+            {title ? `${title} · ` : ''}
+            {formatTime(elapsed)}
+          </p>
+          {surprise && <blockquote className="surprise">{surprise}</blockquote>}
+          <button className="btn btn-primary" onClick={onExit}>
+            Tamam
+          </button>
+        </div>
       </div>
     </>
   )

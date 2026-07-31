@@ -146,7 +146,16 @@ export async function updateRemoteRoomCode(puzzleId: string, roomCode: string): 
   await supabase.from('puzzles').update({ room_code: roomCode }).eq('id', puzzleId)
 }
 
-export async function deleteRemotePuzzle(puzzleId: string): Promise<void> {
+/**
+ * Kaydı ve fotoğrafını sil. Silinemezse hata fırlatır ki arayüz kartı
+ * listede tutup kullanıcıya haber verebilsin.
+ */
+export async function deleteRemotePuzzle(puzzleId: string, imagePath?: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('puzzles').delete().eq('id', puzzleId)
+  const { data, error } = await supabase.from('puzzles').delete().eq('id', puzzleId).select('id')
+  if (error) throw new Error(error.message)
+  // RLS engellediğinde hata gelmez, sadece hiçbir satır silinmez
+  if (!data || data.length === 0) throw new Error('Bu kaydı silme yetkin yok')
+  // depodaki fotoğraf artık sahipsiz; o da gitsin
+  if (imagePath) await supabase.storage.from(BUCKET).remove([imagePath])
 }

@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { SAMPLES, sampleThumbUrl, sampleUrl, type Sample } from '../samples'
 import { listPuzzles, removePuzzle, toPuzzleImage, type SavedPuzzle } from '../storage'
 import { useAuth } from '../supabase/auth'
-import { listRemotePuzzles, type RemotePuzzle } from '../supabase/puzzles'
+import {
+  deleteRemotePuzzle,
+  listRemotePuzzles,
+  puzzleImageUrl,
+  type RemotePuzzle,
+} from '../supabase/puzzles'
 
 interface Props {
   /** title: hazır eser seçildiyse adı, kendi fotoğrafında boş */
@@ -13,22 +18,31 @@ interface Props {
   onSignIn: () => void
 }
 
+function tarih(s: string | number): string {
+  const d = new Date(s)
+  const fark = (Date.now() - d.getTime()) / 86400000
+  if (fark < 1) return 'bugün'
+  if (fark < 2) return 'dün'
+  if (fark < 7) return `${Math.floor(fark)} gün önce`
+  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })
+}
+
 export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSignIn }: Props) {
   const auth = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
   const [saved, setSaved] = useState<SavedPuzzle[]>(listPuzzles)
   const [busy, setBusy] = useState(false)
+  const [uzak, setUzak] = useState<RemotePuzzle[]>([])
+  const [uzakYukleniyor, setUzakYukleniyor] = useState(false)
+  const [kapaklar, setKapaklar] = useState<Record<string, string>>({})
+  const [siliniyor, setSiliniyor] = useState<string | null>(null)
 
   // Liste render sırasında okunuyor; oyundan çıkarken yazılan son kayıt bundan
-  // sonra düşüyor. Bağlandıktan sonra bir kez daha oku, yoksa hemen "devam et"
-  // denince son saniyeler/hamleler eksik geliyordu.
+  // sonra düşüyor. Bağlandıktan sonra bir kez daha oku.
   useEffect(() => {
     setSaved(listPuzzles())
   }, [])
-  const [uzak, setUzak] = useState<RemotePuzzle[]>([])
-  const [uzakYukleniyor, setUzakYukleniyor] = useState(false)
 
-  // giriş yapılmışsa ortak tabloları getir
   useEffect(() => {
     if (!auth.user) {
       setUzak([])
@@ -37,8 +51,16 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     let iptal = false
     setUzakYukleniyor(true)
     listRemotePuzzles()
-      .then((liste) => {
-        if (!iptal) setUzak(liste)
+      .then(async (liste) => {
+        if (iptal) return
+        setUzak(liste)
+        // kapak görsellerini getir
+        const girisler = await Promise.all(
+          liste.map(async (p) => [p.id, await puzzleImageUrl(p.image_path)] as const),
+        )
+        if (!iptal) {
+          setKapaklar(Object.fromEntries(girisler.filter(([, u]) => u) as [string, string][]))
+        }
       })
       .finally(() => {
         if (!iptal) setUzakYukleniyor(false)
@@ -48,7 +70,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     }
   }, [auth.user])
 
-  // Sunucuya kaydedilmiş bir puzzle hem "Tablolarım"da hem "Bu Cihazda"
+  // Sunucuya kaydedilmiş bir puzzle hem "Tablolarım"da hem "Bu cihazda"
   // görünmesin; yerel kayıt kimliği oda koduyla aynı olduğu için eşleşiyor.
   const uzakKodlar = new Set(uzak.map((p) => p.room_code))
   const yalnizcaYerel = saved.filter((p) => !uzakKodlar.has(p.id))
@@ -60,9 +82,27 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       const url = isSample ? sampleUrl(src) : src
       onPickImage(await toPuzzleImage(url), isSample ? src.title : '')
     } catch {
-      alert('Görsel yüklenemedi. Başka bir dosya dener misin?')
+      alert('Bu görsel açılamadı, başka bir tane dene.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  // Önce sunucudan sil, sonra listeden çıkar. Tersi olursa silinmemiş bir
+  // kayıt silinmiş gibi görünüp sayfa yenilenince geri geliyor.
+  const uzakSil = async (p: RemotePuzzle) => {
+    if (!confirm(`"${p.title || 'İsimsiz'}" silinsin mi?`)) return
+    setSiliniyor(p.id)
+    try {
+      await deleteRemotePuzzle(p.id, p.image_path)
+      setUzak((l) => l.filter((x) => x.id !== p.id))
+      // yerel kopyayı da at, yoksa tekilleştirme kalkınca listede geri belirir
+      removePuzzle(p.room_code)
+      setSaved(listPuzzles())
+    } catch {
+      alert('Silinemedi. Bağlantını kontrol edip tekrar dene.')
+    } finally {
+      setSiliniyor(null)
     }
   }
 
@@ -72,36 +112,34 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         <div className="account-bar">
           {auth.user ? (
             <>
-              <span>
-                Merhaba, <b>{auth.displayName}</b>
-              </span>
+              <span className="avatar">{(auth.displayName[0] ?? '?').toUpperCase()}</span>
+              <span>{auth.displayName}</span>
               <span className="spacer" />
-              <button onClick={() => void auth.signOut()}>Çıkış</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => void auth.signOut()}>
+                Çıkış
+              </button>
             </>
           ) : (
             <>
-              <span>Misafir olarak geziyorsun</span>
+              <span className="muted">Misafirsin</span>
               <span className="spacer" />
-              <button onClick={onSignIn}>Giriş Yap</button>
+              <button className="btn btn-ghost btn-sm" onClick={onSignIn}>
+                Giriş yap
+              </button>
             </>
           )}
         </div>
       )}
 
-      <h1 className="title">
-        Birlikte <span>Puzzle</span> 🧩
-      </h1>
-      <p className="subtitle">
-        Bir fotoğraf seç, parça sayısını belirle ve sevdiklerinle aynı puzzle'ı
-        gerçek zamanlı birlikte çöz.
-      </p>
+      <header className="hero">
+        <h1 className="title">
+          Birlikte <span>Puzzle</span>
+        </h1>
+        <p className="subtitle">Fotoğrafını seç, linki gönder, aynı puzzle'ı beraber çözün.</p>
+      </header>
 
-      <button
-        className="btn-primary"
-        disabled={busy}
-        onClick={() => fileRef.current?.click()}
-      >
-        📷 Fotoğraf Yükle
+      <button className="btn btn-primary btn-lg" disabled={busy} onClick={() => fileRef.current?.click()}>
+        {busy ? 'Hazırlanıyor…' : 'Fotoğraf yükle'}
       </button>
       <input
         ref={fileRef}
@@ -115,70 +153,64 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         }}
       />
 
-      <div className="section-label">Hazır Puzzle'lar</div>
-      <div className="sample-grid">
-        {SAMPLES.map((s) => (
-          <button
-            key={s.file}
-            onClick={() => void pick(s)}
-            disabled={busy}
-            title={s.artist ? `${s.title} — ${s.artist}` : s.title}
-          >
-            <img src={sampleThumbUrl(s)} alt={s.title} />
-            <span className="sample-caption">
-              <b>{s.title}</b>
-              {s.artist && (
-                <small>
-                  {s.artist}
-                  {s.year ? `, ${s.year}` : ''}
-                </small>
-              )}
-            </span>
-          </button>
-        ))}
-      </div>
-
       {auth.user && (uzak.length > 0 || uzakYukleniyor) && (
-        <>
-          <div className="section-label">Tablolarım</div>
+        <section className="block">
+          <h2 className="section-label">Tablolarım</h2>
           {uzakYukleniyor && uzak.length === 0 ? (
-            <small style={{ color: 'var(--muted)' }}>Yükleniyor…</small>
+            <div className="skeleton-list">
+              <div className="skeleton" />
+              <div className="skeleton" />
+            </div>
           ) : (
             <div className="resume-list">
               {uzak.map((p) => (
-                <div
-                  key={p.id}
-                  className="resume-card"
-                  role="button"
-                  onClick={() => onResumeRemote(p)}
-                >
+                <article key={p.id} className="resume-card" onClick={() => onResumeRemote(p)}>
+                  {kapaklar[p.id] ? (
+                    <img src={kapaklar[p.id]} alt="" />
+                  ) : (
+                    <div className="cover-fallback" />
+                  )}
                   <div className="info">
                     <b>{p.title || 'İsimsiz'}</b>
                     <small>
-                      {p.piece_count} parça {p.completed ? '· tamamlandı 🎉' : ''} ·{' '}
-                      {new Date(p.updated_at).toLocaleDateString('tr-TR')}
-                      {p.owner !== auth.user?.id ? ' · birlikte oynandı' : ''}
+                      {p.completed ? 'bitti · ' : ''}
+                      {p.piece_count} parça · {tarih(p.updated_at)}
+                      {p.owner !== auth.user?.id ? ' · beraber' : ''}
                     </small>
                   </div>
-                </div>
+                  <button
+                    className="del"
+                    title="Sil"
+                    disabled={siliniyor === p.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void uzakSil(p)
+                    }}
+                  >
+                    {siliniyor === p.id ? '…' : '✕'}
+                  </button>
+                </article>
               ))}
             </div>
           )}
-        </>
+        </section>
       )}
 
       {yalnizcaYerel.length > 0 && (
-        <>
-          <div className="section-label">Bu Cihazda</div>
+        <section className="block">
+          <h2 className="section-label">
+            Bu cihazda
+            {auth.enabled && !auth.user && <em className="field-hint">giriş yaparsan kaybolmaz</em>}
+          </h2>
           <div className="resume-list">
             {yalnizcaYerel.map((p) => (
-              <div key={p.id} className="resume-card" role="button" onClick={() => onResume(p)}>
+              <article key={p.id} className="resume-card" onClick={() => onResume(p)}>
                 <img src={p.imageDataUrl} alt="" />
                 <div className="info">
                   <b>{p.title || 'İsimsiz'}</b>
                   <small>
-                    {p.pieceCount} parça {p.completed ? '· tamamlandı 🎉' : ''} ·{' '}
-                    {new Date(p.updatedAt).toLocaleDateString('tr-TR')}
+                    {p.completed ? 'bitti · ' : ''}
+                    {p.pieceCount} parça · {tarih(p.updatedAt)}
                   </small>
                 </div>
                 <button
@@ -186,7 +218,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   title="Sil"
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (confirm(`"${p.title || 'İsimsiz'}" kaydı silinsin mi?`)) {
+                    if (confirm(`"${p.title || 'İsimsiz'}" silinsin mi?`)) {
                       removePuzzle(p.id)
                       setSaved(listPuzzles())
                     }
@@ -194,11 +226,32 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                 >
                   ✕
                 </button>
-              </div>
+              </article>
             ))}
           </div>
-        </>
+        </section>
       )}
+
+      <section className="block">
+        <h2 className="section-label">Hazır olanlar</h2>
+        <div className="sample-grid">
+          {SAMPLES.map((s) => (
+            <button
+              key={s.file}
+              className="sample"
+              onClick={() => void pick(s)}
+              disabled={busy}
+              title={s.artist ? `${s.title} — ${s.artist}` : s.title}
+            >
+              <img src={sampleThumbUrl(s)} alt={s.title} />
+              <span className="sample-caption">
+                <b>{s.title}</b>
+                {s.artist && <small>{s.artist}</small>}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }
