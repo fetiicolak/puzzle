@@ -19,8 +19,8 @@ import {
 } from '../supabase/puzzles'
 
 interface Props {
-  /** title: hazır eser seçildiyse adı, kendi fotoğrafında boş */
-  onPickImage: (imageDataUrl: string, title: string) => void
+  /** title/artist: hazır eser seçildiyse dolu, kendi fotoğrafında boş */
+  onPickImage: (imageDataUrl: string, title: string, artist: string) => void
   onResume: (saved: SavedPuzzle) => void
   onResumeRemote: (p: RemotePuzzle) => void
   /** Misafir olarak devam edilmişken giriş ekranına dön */
@@ -66,6 +66,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   const [uzakYukleniyor, setUzakYukleniyor] = useState(false)
   const [kapaklar, setKapaklar] = useState<Record<string, string>>({})
   const [siliniyor, setSiliniyor] = useState<string | null>(null)
+  const [hepsiniGoster, setHepsiniGoster] = useState(false)
 
   // Liste render sırasında okunuyor; oyundan çıkarken yazılan son kayıt bundan
   // sonra düşüyor. Bağlandıktan sonra bir kez daha oku.
@@ -110,7 +111,11 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     try {
       const isSample = !(src instanceof File)
       const url = isSample ? sampleUrl(src) : src
-      onPickImage(await toPuzzleImage(url), isSample ? src.title : '')
+      onPickImage(
+        await toPuzzleImage(url),
+        isSample ? src.title : '',
+        isSample ? (src.artist ?? '') : '',
+      )
     } catch {
       alert('Bu görsel açılamadı, başka bir tane dene.')
     } finally {
@@ -341,9 +346,12 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       )}
 
       <section className="block">
-        <h2 className="section-label">Hazır olanlar</h2>
+        <h2 className="section-label">
+          Hazır olanlar
+          <em className="field-hint">{SAMPLES.length} eser</em>
+        </h2>
         <div className="sample-grid">
-          {SAMPLES.map((s) => (
+          {(hepsiniGoster ? SAMPLES : SAMPLES.slice(0, 12)).map((s) => (
             <button
               key={s.file}
               className="sample"
@@ -359,6 +367,11 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
             </button>
           ))}
         </div>
+        {!hepsiniGoster && SAMPLES.length > 12 && (
+          <button className="btn btn-secondary" onClick={() => setHepsiniGoster(true)}>
+            Tümünü göster ({SAMPLES.length - 12} tane daha)
+          </button>
+        )}
       </section>
     </div>
   )

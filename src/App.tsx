@@ -2,6 +2,7 @@ import { useState } from 'react'
 import AuthScreen from './components/AuthScreen'
 import GameScreen, { type GameConfig } from './components/GameScreen'
 import HomeScreen from './components/HomeScreen'
+import JoinChoiceScreen from './components/JoinChoiceScreen'
 import SetupScreen, { type StartOptions } from './components/SetupScreen'
 import { randomRoomCode } from './net/peer'
 import { savePuzzle, type SavedPuzzle } from './storage'
@@ -10,29 +11,37 @@ import { createRemotePuzzle } from './supabase/puzzles'
 
 type Screen =
   | { s: 'home' }
-  | { s: 'setup'; imageDataUrl: string; defaultTitle: string }
+  | { s: 'setup'; imageDataUrl: string; defaultTitle: string; artist: string }
   | { s: 'game'; config: GameConfig }
+  /** Davet linkiyle gelindi: hesapla mı misafir mi devam edileceği soruluyor */
+  | { s: 'join'; roomCode: string }
+
+/** Davet linkindeki oda kodu (#room=abc123) */
+function davetKodu(): string | null {
+  return location.hash.match(/room=([a-z0-9]+)/)?.[1] ?? null
+}
 
 function initialScreen(): Screen {
-  // davet linki ile mi açıldı? (#room=abc123)
-  const m = location.hash.match(/room=([a-z0-9]+)/)
-  if (m) {
-    // Yerel kayıt kimliği olarak oda kodunu kullanıyoruz: aynı puzzle'a hangi
-    // yoldan girilirse girilsin (yerel / sunucu / davet linki) tek kayıt olur.
-    return {
-      s: 'game',
-      config: { puzzleId: m[1], mode: 'guest', roomCode: m[1] },
-    }
-  }
-  return { s: 'home' }
+  const kod = davetKodu()
+  return kod ? { s: 'join', roomCode: kod } : { s: 'home' }
+}
+
+/**
+ * Yerel kayıt kimliği olarak oda kodunu kullanıyoruz: aynı puzzle'a hangi
+ * yoldan girilirse girilsin (yerel / sunucu / davet linki) tek kayıt olur.
+ */
+function misafirConfig(kod: string): GameConfig {
+  return { puzzleId: kod, mode: 'guest', roomCode: kod }
 }
 
 export default function App() {
   const auth = useAuth()
   const [screen, setScreen] = useState<Screen>(initialScreen)
-  // Davet linkiyle gelen kişiyi giriş duvarına takma: oyun hemen açılsın.
-  // (Girişi ana ekrandaki "Giriş Yap" ile yapabilir; tablo o zaman geçmişine düşer.)
-  const [misafirDevam, setMisafirDevam] = useState(() => initialScreen().s === 'game')
+  // Davet linkiyle gelen kişi önce seçim ekranını görür; giriş duvarına
+  // ancak "hesabımla gireyim" derse takılır.
+  const [misafirDevam, setMisafirDevam] = useState(false)
+  /** Girişten sonra doğrudan odaya dönebilmek için beklemeye alınan davet */
+  const [bekleyenDavet, setBekleyenDavet] = useState<string | null>(null)
   const [saklaniyor, setSaklaniyor] = useState(false)
 
   const goHome = () => {
@@ -118,16 +127,54 @@ export default function App() {
       )
     }
 
+    // Davet linki: önce nasıl devam edileceği sorulur
+    if (screen.s === 'join') {
+      return (
+        <JoinChoiceScreen
+          roomCode={screen.roomCode}
+          onGiris={() => {
+            if (auth.user || !auth.enabled) {
+              setScreen({ s: 'game', config: misafirConfig(screen.roomCode) })
+            } else {
+              // giriş ekranına yolla, girince odaya devam edecek
+              setBekleyenDavet(screen.roomCode)
+              setMisafirDevam(false)
+              setScreen({ s: 'home' })
+            }
+          }}
+          onMisafir={() => {
+            setMisafirDevam(true)
+            setScreen({ s: 'game', config: misafirConfig(screen.roomCode) })
+          }}
+        />
+      )
+    }
+
     if (auth.enabled && !auth.user && !misafirDevam) {
       return <AuthScreen onSkip={() => setMisafirDevam(true)} />
+    }
+
+    // Giriş tamamlandıysa bekleyen davete geç
+    if (bekleyenDavet && auth.user) {
+      const kod = bekleyenDavet
+      queueMicrotask(() => {
+        setBekleyenDavet(null)
+        setScreen({ s: 'game', config: misafirConfig(kod) })
+      })
+      return (
+        <div className="overlay">
+          <div className="spinner" />
+          <p>Odaya bağlanılıyor</p>
+        </div>
+      )
     }
 
     switch (screen.s) {
       case 'home':
         return (
         <HomeScreen
-          onPickImage={(imageDataUrl, defaultTitle) =>
-            setScreen({ s: 'setup', imageDataUrl, defaultTitle })
+          onPickImage={(imageDataUrl, defaultTitle, artist) =>
+            setScreen({ s: 'setup', imageDataUrl, defaultTitle, artist })
           }
           onResume={(saved: SavedPuzzle) =>
             setScreen({
@@ -196,6 +243,7 @@ export default function App() {
                 autoHost: opts.withPartner,
                 roomCode: kod,
                 title: opts.title,
+                artist: screen.artist,
                 imageDataUrl: screen.imageDataUrl,
                 seed,
                 pieceCount: opts.pieceCount,

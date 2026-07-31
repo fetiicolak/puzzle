@@ -364,43 +364,90 @@ export function isEdgePiece(state: GameState, p: PieceState): boolean {
   )
 }
 
+/** Bir grubun sol-üst köşesi */
+function grupKose(state: GameState, ids: number[]): { x: number; y: number } {
+  let x = Infinity
+  let y = Infinity
+  for (const id of ids) {
+    x = Math.min(x, state.pieces[id].x)
+    y = Math.min(y, state.pieces[id].y)
+  }
+  return { x, y }
+}
+
+/** Yerleşmemiş gruplar, büyük öbekler önce */
+function yerlesmemisGruplar(state: GameState): [number, number[]][] {
+  return [...state.groups.entries()]
+    .filter(([g]) => !isGroupPlaced(state, g))
+    .sort((a, b) => b[1].length - a[1].length)
+}
+
 /**
- * Yerleşmemiş parçaları çerçevenin altındaki tepsi bölgesine düzgün diz.
- * Birleşmiş gruplar bozulmadan, grup olarak yerleştirilir.
+ * Yerleşmemiş parçaları çerçevenin SOLUNA ve SAĞINA sütunlar halinde diz.
+ * Yanlara koymak, ekranı aşağı kaydırmadan hem çerçeveyi hem parçaları
+ * aynı anda görebilmeyi sağlıyor (altta diziliyken kaydırmak gerekiyordu).
  */
 export function arrangeTray(state: GameState): void {
   const { cut } = state
   const W = cut.cols * cut.cellW
   const H = cut.rows * cut.cellH
-  const bosluk = Math.max(cut.cellW, cut.cellH) * 0.18
+  const bosluk = Math.max(cut.cellW, cut.cellH) * 0.16
   const adimX = cut.cellW + bosluk
   const adimY = cut.cellH + bosluk
-  const sutun = Math.max(4, Math.floor(W / adimX))
-  const basY = H + Math.max(cut.cellW, cut.cellH) * 0.9
+  // çerçeve yüksekliğine kaç parça sığıyor
+  const satir = Math.max(3, Math.floor(H / adimY))
+  const kenarBosluk = Math.max(cut.cellW, cut.cellH) * 0.7
 
-  // yerleşmemiş gruplar, büyükten küçüğe (büyük öbekler öne)
-  const gruplar = [...state.groups.entries()]
-    .filter(([g]) => !isGroupPlaced(state, g))
-    .sort((a, b) => b[1].length - a[1].length)
+  const gruplar = yerlesmemisGruplar(state)
+  // yarısı sola, yarısı sağa
+  const yarim = Math.ceil(gruplar.length / 2)
 
-  let i = 0
-  for (const [g, ids] of gruplar) {
-    // grubun sol-üst köşesi
-    let minX = Infinity
-    let minY = Infinity
-    for (const id of ids) {
-      minX = Math.min(minX, state.pieces[id].x)
-      minY = Math.min(minY, state.pieces[id].y)
+  gruplar.forEach(([g, ids], i) => {
+    const solda = i < yarim
+    const sira = solda ? i : i - yarim
+    const sutunNo = Math.floor(sira / satir)
+    const satirNo = sira % satir
+    const kose = grupKose(state, ids)
+
+    const hedefY = satirNo * adimY
+    const hedefX = solda
+      ? -kenarBosluk - (sutunNo + 1) * adimX
+      : W + kenarBosluk + sutunNo * adimX
+
+    moveGroup(state, g, hedefX - kose.x, hedefY - kose.y)
+  })
+}
+
+/**
+ * Yerleşmemiş parçaları yeniden rastgele dağıt (karıştır).
+ * Seed dışarıdan verilir ki her iki uçta aynı sonuç çıksın.
+ */
+export function shufflePieces(state: GameState, seed: number): void {
+  const rng = mulberry32(seed)
+  const { cut } = state
+  const W = cut.cols * cut.cellW
+  const H = cut.rows * cut.cellH
+  const margin = Math.max(cut.cellW, cut.cellH) * 1.3
+
+  for (const [g, ids] of yerlesmemisGruplar(state)) {
+    const kose = grupKose(state, ids)
+    const yan = Math.floor(rng() * 4)
+    let x: number
+    let y: number
+    if (yan === 0) {
+      x = rng() * W
+      y = -margin - rng() * margin
+    } else if (yan === 1) {
+      x = rng() * W
+      y = H + margin * 0.2 + rng() * margin
+    } else if (yan === 2) {
+      x = -margin - rng() * margin * 0.7
+      y = rng() * H
+    } else {
+      x = W + margin * 0.2 + rng() * margin * 0.7
+      y = rng() * H
     }
-    const hedefX = (i % sutun) * adimX
-    const hedefY = basY + Math.floor(i / sutun) * adimY
-    moveGroup(state, g, hedefX - minX, hedefY - minY)
-    // çok parçalı gruplar birden fazla hücre kaplar, o kadar yer atla
-    let genislik = 1
-    for (const id of ids) {
-      genislik = Math.max(genislik, Math.round((state.pieces[id].x - hedefX) / adimX) + 1)
-    }
-    i += genislik
+    moveGroup(state, g, x - kose.x, y - kose.y)
   }
 }
 

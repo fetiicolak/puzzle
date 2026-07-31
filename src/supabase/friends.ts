@@ -123,3 +123,88 @@ export async function arkadasligiSil(id: string): Promise<void> {
   const { error } = await supabase.from('friendships').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
+
+// ------------------------------------------------------------- mesajlaşma
+
+export interface Mesaj {
+  id: string
+  metin: string
+  benMi: boolean
+  ts: string
+  okundu: boolean
+}
+
+/** Bir arkadaşla olan yazışma, eskiden yeniye */
+export async function mesajlariGetir(kisiId: string): Promise<Mesaj[]> {
+  if (!supabase) return []
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+  if (!ben) return []
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .or(
+      `and(sender.eq.${ben},receiver.eq.${kisiId}),and(sender.eq.${kisiId},receiver.eq.${ben})`,
+    )
+    .order('created_at', { ascending: true })
+    .limit(200)
+  if (error) return []
+
+  return (data ?? []).map((m) => {
+    const s = m as { id: string; body: string; sender: string; created_at: string; read_at: string | null }
+    return { id: s.id, metin: s.body, benMi: s.sender === ben, ts: s.created_at, okundu: !!s.read_at }
+  })
+}
+
+export async function mesajGonder(kisiId: string, metin: string): Promise<void> {
+  if (!supabase) return
+  const temiz = metin.trim().slice(0, 1000)
+  if (!temiz) return
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+  if (!ben) throw new Error('Önce giriş yapmalısın')
+  const { error } = await supabase
+    .from('messages')
+    .insert({ sender: ben, receiver: kisiId, body: temiz })
+  if (error) {
+    throw new Error(
+      error.message.includes('row-level security')
+        ? 'Yalnızca arkadaşlarına mesaj gönderebilirsin.'
+        : error.message,
+    )
+  }
+}
+
+/** Gelen mesajları okundu işaretle */
+export async function okunduIsaretle(kisiId: string): Promise<void> {
+  if (!supabase) return
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+  if (!ben) return
+  await supabase
+    .from('messages')
+    .update({ read_at: new Date().toISOString() })
+    .eq('sender', kisiId)
+    .eq('receiver', ben)
+    .is('read_at', null)
+}
+
+/** Kişi başına okunmamış mesaj sayısı */
+export async function okunmamisSayilari(): Promise<Map<string, number>> {
+  const harita = new Map<string, number>()
+  if (!supabase) return harita
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+  if (!ben) return harita
+  const { data } = await supabase
+    .from('messages')
+    .select('sender')
+    .eq('receiver', ben)
+    .is('read_at', null)
+  for (const m of data ?? []) {
+    const s = (m as { sender: string }).sender
+    harita.set(s, (harita.get(s) ?? 0) + 1)
+  }
+  return harita
+}

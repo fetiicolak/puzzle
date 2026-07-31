@@ -227,6 +227,64 @@ create policy friendships_delete on public.friendships
   for delete to authenticated
   using (requester = auth.uid() or addressee = auth.uid());
 
+-- ------------------------------------------------------------ özel mesajlar
+-- Yalnızca arkadaş olan kişiler birbirine yazabilir.
+
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  sender uuid not null references auth.users on delete cascade,
+  receiver uuid not null references auth.users on delete cascade,
+  body text not null check (char_length(body) between 1 and 1000),
+  read_at timestamptz,
+  created_at timestamptz not null default now(),
+  check (sender <> receiver)
+);
+
+alter table public.messages enable row level security;
+
+create index if not exists messages_ikili_idx
+  on public.messages (sender, receiver, created_at desc);
+create index if not exists messages_receiver_idx on public.messages (receiver, read_at);
+
+-- İki kullanıcı arkadaş mı (RLS özyinelemesini önlemek için security definer)
+create or replace function public.arkadas_mi(p_kisi uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.friendships
+    where status = 'accepted'
+      and ((requester = auth.uid() and addressee = p_kisi)
+        or (addressee = auth.uid() and requester = p_kisi))
+  );
+$$;
+
+drop policy if exists messages_select on public.messages;
+create policy messages_select on public.messages
+  for select to authenticated
+  using (sender = auth.uid() or receiver = auth.uid());
+
+-- Göndermek için arkadaş olmak şart
+drop policy if exists messages_insert on public.messages;
+create policy messages_insert on public.messages
+  for insert to authenticated
+  with check (sender = auth.uid() and public.arkadas_mi(receiver));
+
+-- Alıcı okundu işaretleyebilir
+drop policy if exists messages_update on public.messages;
+create policy messages_update on public.messages
+  for update to authenticated
+  using (receiver = auth.uid())
+  with check (receiver = auth.uid());
+
+drop policy if exists messages_delete on public.messages;
+create policy messages_delete on public.messages
+  for delete to authenticated
+  using (sender = auth.uid());
+
 -- ---------------------------------------------------------------- depolama
 -- Fotoğraflar için özel (public olmayan) kova; erişim imzalı URL ile verilir.
 

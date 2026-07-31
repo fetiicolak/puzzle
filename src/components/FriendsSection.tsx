@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import MessageBox from './MessageBox'
 import {
   arkadaslikIste,
   arkadasligiKabulEt,
   arkadasligiSil,
   arkadasliklariGetir,
   birlikteOynananlar,
+  okunmamisSayilari,
   type Arkadaslik,
   type Kisi,
 } from '../supabase/friends'
@@ -14,12 +16,15 @@ export default function FriendsSection() {
   const [oneriler, setOneriler] = useState<Kisi[]>([])
   const [yukleniyor, setYukleniyor] = useState(true)
   const [islemdeki, setIslemdeki] = useState<string | null>(null)
+  const [okunmamis, setOkunmamis] = useState<Map<string, number>>(new Map())
+  const [acikSohbet, setAcikSohbet] = useState<Kisi | null>(null)
 
   const tazele = useCallback(async () => {
     const liste = await arkadasliklariGetir()
     setArkadasliklar(liste)
     // zaten arkadaş olduğun ya da istek gidip gelen kişileri önerme
     setOneriler(await birlikteOynananlar(liste.map((a) => a.kisi.id)))
+    setOkunmamis(await okunmamisSayilari())
   }, [])
 
   useEffect(() => {
@@ -62,6 +67,16 @@ export default function FriendsSection() {
         {gelenler.length > 0 && <span className="badge">{gelenler.length}</span>}
       </h2>
 
+      {acikSohbet && (
+        <MessageBox
+          kisi={acikSohbet}
+          onKapat={() => {
+            setAcikSohbet(null)
+            void tazele()
+          }}
+        />
+      )}
+
       {gelenler.length > 0 && (
         <div className="friend-list">
           {gelenler.map((a) => (
@@ -98,6 +113,15 @@ export default function FriendsSection() {
               <div className="info">
                 <b>{a.kisi.ad}</b>
               </div>
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => setAcikSohbet(a.kisi)}
+              >
+                Mesaj
+                {(okunmamis.get(a.kisi.id) ?? 0) > 0 && (
+                  <span className="badge">{okunmamis.get(a.kisi.id)}</span>
+                )}
+              </button>
               <button
                 className="del"
                 title="Arkadaşlıktan çıkar"

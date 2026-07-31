@@ -589,6 +589,98 @@ button {
   color: var(--err);
 }
 
+/* ---------------------------------------------------- davet seçimi */
+
+.oda-kodu {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--accent-soft);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+}
+
+.join-secenekler {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  width: 100%;
+  max-width: 420px;
+}
+.join-kart {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+  padding: 17px 19px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(255, 93, 125, 0.16), rgba(255, 154, 90, 0.1));
+  border: 1px solid rgba(255, 93, 125, 0.4);
+  transition: transform 0.15s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.join-kart:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+.join-kart.sade {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.join-kart.sade:hover {
+  border-color: var(--line-strong);
+}
+.join-kart b {
+  font-size: 1.02rem;
+}
+.join-kart small {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+/* ---------------------------------------------------- mesaj kutusu */
+
+.modal-arka {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(10, 7, 16, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fade 0.2s ease;
+}
+.mesaj-kutusu {
+  width: min(94vw, 420px);
+  max-height: min(78vh, 620px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(26, 20, 38, 0.98);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: rise 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+.mesaj-kutusu .chat-head {
+  gap: 10px;
+  justify-content: flex-start;
+}
+.mesaj-kutusu .chat-head .spacer {
+  flex: 1;
+}
+.mesaj-kutusu .chat-body {
+  min-height: 180px;
+}
+.friend-row .badge {
+  margin-left: 6px;
+}
+
 /* ---------------------------------------------------- istatistikler */
 
 .stats {
@@ -966,12 +1058,36 @@ button {
   flex: none;
 }
 
+/* Araç grubu: geniş ekranda hep açık, dar ekranda "⋯" ile açılır */
+.tool-group {
+  display: flex;
+  gap: 8px;
+}
+.tool-more {
+  display: none;
+}
+
 .game-canvas {
   flex: 1;
   min-height: 0;
   touch-action: none;
   display: block;
   width: 100%;
+}
+
+.game-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.game-artist {
+  font-style: normal;
+  font-weight: 500;
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* çözerken orijinale bakma */
@@ -992,6 +1108,18 @@ button {
 .peek img {
   width: 100%;
   display: block;
+}
+/* Sohbet açıkken önizleme onun soluna kayar; ikisi sağ altta çakışıyordu. */
+.peek.kaydir {
+  right: calc(min(88vw, 320px) + 22px);
+}
+@media (max-width: 700px) {
+  /* dar ekranda yan yana sığmaz: önizleme sohbetin üstüne çıkar */
+  .peek.kaydir {
+    right: 12px;
+    bottom: calc(min(62vh, 460px) + 20px);
+    width: 34vw;
+  }
 }
 
 .game-banner {
@@ -1196,14 +1324,42 @@ button {
     display: none;
   }
   .progress {
-    width: 62px;
-    height: 20px;
+    width: 52px;
+    height: 19px;
   }
+  .progress-text {
+    font-size: 0.65rem;
+  }
+  /* araç sayısı arttı; tek satırda kalabilmek için hepsi biraz küçülüyor */
   .icon-btn {
-    width: 30px;
-    height: 30px;
-    font-size: 0.82rem;
-    border-radius: 9px;
+    width: 27px;
+    height: 27px;
+    font-size: 0.76rem;
+    border-radius: 8px;
+  }
+  .game-topbar .stat {
+    font-size: 0.74rem;
+  }
+  .game-topbar .btn-sm {
+    padding: 5px 8px;
+    font-size: 0.74rem;
+  }
+  /* İkincil araçlar varsayılan olarak gizli; "⋯" ile açılıp alt satıra iner */
+  .tool-more {
+    display: inline-flex;
+  }
+  .tool-group {
+    display: none;
+    gap: 5px;
+  }
+  .tool-group.acik {
+    display: flex;
+    order: 10;
+    width: 100%;
+    justify-content: flex-end;
+    padding-top: 5px;
+    border-top: 1px solid var(--line);
+    margin-top: 3px;
   }
   .btn-sm {
     padding: 6px 10px;

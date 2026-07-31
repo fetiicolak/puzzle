@@ -8,6 +8,8 @@ export interface MetaMsg {
   seed: number
   pieceCount: number
   title: string
+  /** hazır eser seçildiyse ressamı */
+  artist?: string
   message: string
   /** base64 chunk sayısı */
   imgChunks: number
@@ -57,6 +59,14 @@ export interface CursorMsg {
   t: 'cursor'
   x: number
   y: number
+  /** Gönderenin adı — imlecin yanında gösterilir */
+  ad?: string
+}
+
+/** Yerleşmemiş parçaları yeniden dağıt */
+export interface ShuffleMsg {
+  t: 'shuffle'
+  seed: number
 }
 
 /** Birleşmiş bir parçayı grubundan koparma */
@@ -110,6 +120,7 @@ export type Msg = (
   | ChatMsg
   | RotateMsg
   | TrayMsg
+  | ShuffleMsg
 ) & {
   /** Host yansıtırken kaynağı işaretler; doğrudan gelen mesajlarda boştur */
   from?: string

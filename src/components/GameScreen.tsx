@@ -4,6 +4,7 @@ import { generateCut, renderPieceBitmaps } from '../engine/cutter'
 import {
   arrangeTray,
   canSplit,
+  shufflePieces,
   createGameState,
   dropGroup,
   nextFreeGroupId,
@@ -57,6 +58,8 @@ export interface GameConfig {
   rotation?: boolean
   /** Özel gün: bu tarihe kadar kilitli (ISO) */
   unlockAt?: string | null
+  /** Hazır eser seçildiyse ressamı */
+  artist?: string
 }
 
 export interface ChatSatiri {
@@ -137,6 +140,7 @@ export default function GameScreen({ config, onExit }: Props) {
   /** Orijinal görseli köşede göster */
   const [peek, setPeek] = useState(false)
   const [edgeOnly, setEdgeOnly] = useState(false)
+  const [araclarAcik, setAraclarAcik] = useState(false)
   const [chatAcik, setChatAcik] = useState(false)
   const [chat, setChat] = useState<ChatSatiri[]>([])
   const [okunmamis, setOkunmamis] = useState(0)
@@ -148,6 +152,7 @@ export default function GameScreen({ config, onExit }: Props) {
   const [ghost, setGhost] = useState(true)
   const [surprise, setSurprise] = useState(config.message ?? '')
   const [title, setTitle] = useState(config.title ?? '')
+  const [artist, setArtist] = useState(config.artist ?? '')
 
   const refs = useRef<EngineRefs>({
     board: null,
@@ -258,7 +263,7 @@ export default function GameScreen({ config, onExit }: Props) {
         const now = performance.now()
         if (now - r.lastCursorSent > 60) {
           r.lastCursorSent = now
-          r.room?.send({ t: 'cursor', x, y })
+          r.room?.send({ t: 'cursor', x, y, ad: auth.displayName || 'Partner' })
         }
       },
       onRotate: (g) => {
@@ -326,6 +331,7 @@ export default function GameScreen({ config, onExit }: Props) {
         setElapsed(msg.elapsed)
         setSurprise(msg.message)
         setTitle(msg.title)
+        setArtist(msg.artist ?? '')
         r.rotation = msg.rotation ?? false
         r.imgChunks = []
         r.imgTotal = msg.imgChunks
@@ -385,7 +391,12 @@ export default function GameScreen({ config, onExit }: Props) {
       }
       case 'cursor': {
         if (r.board) {
-          r.board.remoteCursors.set(from, { x: msg.x, y: msg.y, at: Date.now() })
+          r.board.remoteCursors.set(from, {
+            x: msg.x,
+            y: msg.y,
+            at: Date.now(),
+            ad: msg.ad,
+          })
           r.board.invalidate()
         }
         break
@@ -406,6 +417,12 @@ export default function GameScreen({ config, onExit }: Props) {
       case 'tray': {
         if (!r.game) break
         arrangeTray(r.game)
+        afterStateChange(false)
+        break
+      }
+      case 'shuffle': {
+        if (!r.game) break
+        shufflePieces(r.game, msg.seed)
         afterStateChange(false)
         break
       }
@@ -489,6 +506,7 @@ export default function GameScreen({ config, onExit }: Props) {
       seed: r.seed,
       pieceCount: r.pieceCount,
       title: titleRef.current,
+      artist: config.artist ?? '',
       message: surpriseRef.current,
       imgChunks: chunks.length,
       elapsed: r.elapsed,
@@ -689,6 +707,16 @@ export default function GameScreen({ config, onExit }: Props) {
     r.board?.fitView()
   }
 
+  const karistir = () => {
+    const r = refs.current
+    if (!r.game) return
+    const seed = (Math.random() * 0xffffffff) >>> 0
+    shufflePieces(r.game, seed)
+    r.room?.send({ t: 'shuffle', seed })
+    afterStateChange(false)
+    r.board?.fitView()
+  }
+
   const copyInvite = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink)
@@ -706,8 +734,9 @@ export default function GameScreen({ config, onExit }: Props) {
           ←
         </button>
         {title && (
-          <span className="game-title" title={title}>
+          <span className="game-title" title={artist ? `${title} — ${artist}` : title}>
             {title}
+            {artist && <em className="game-artist">{artist}</em>}
           </span>
         )}
         <span className="stat tabular">{formatTime(elapsed)}</span>
@@ -761,22 +790,49 @@ export default function GameScreen({ config, onExit }: Props) {
             {okunmamis > 0 && <span className="dot-badge">{okunmamis}</span>}
           </button>
         )}
-        <button className="icon-btn" onClick={tepsiyeDiz} title="Parçaları tepsiye diz">
-          ☰
-        </button>
+        {/* İkincil araçlar: dar ekranda "⋯" ile açılır, geniş ekranda hep görünür */}
+        <div className={`tool-group ${araclarAcik ? 'acik' : ''}`}>
+          <button className="icon-btn" onClick={tepsiyeDiz} title="Parçaları yanlara diz">
+            ⫴
+          </button>
+          <button className="icon-btn" onClick={karistir} title="Karıştır">
+            🔀
+          </button>
+          <button
+            className={`icon-btn ${edgeOnly ? 'on' : ''}`}
+            onClick={() => {
+              const b = refs.current.board
+              if (b) {
+                b.edgeOnly = !b.edgeOnly
+                setEdgeOnly(b.edgeOnly)
+                b.invalidate()
+              }
+            }}
+            title="Sadece kenarlar"
+          >
+            ⬚
+          </button>
+          <button
+            className={`icon-btn ${ghost ? 'on' : ''}`}
+            onClick={() => {
+              const b = refs.current.board
+              if (b) {
+                b.showGhost = !b.showGhost
+                setGhost(b.showGhost)
+                b.invalidate()
+              }
+            }}
+            title="Izgara"
+          >
+            ⊞
+          </button>
+        </div>
         <button
-          className={`icon-btn ${edgeOnly ? 'on' : ''}`}
-          onClick={() => {
-            const b = refs.current.board
-            if (b) {
-              b.edgeOnly = !b.edgeOnly
-              setEdgeOnly(b.edgeOnly)
-              b.invalidate()
-            }
-          }}
-          title="Sadece kenarlar"
+          className={`icon-btn tool-more ${araclarAcik ? 'on' : ''}`}
+          onClick={() => setAraclarAcik((v) => !v)}
+          title="Diğer araçlar"
         >
-          ⬚
+          ⋯
         </button>
         <button
           className={`icon-btn ${peek ? 'on' : ''}`}
@@ -784,20 +840,6 @@ export default function GameScreen({ config, onExit }: Props) {
           title="Orijinali göster"
         >
           🖼
-        </button>
-        <button
-          className={`icon-btn ${ghost ? 'on' : ''}`}
-          onClick={() => {
-            const b = refs.current.board
-            if (b) {
-              b.showGhost = !b.showGhost
-              setGhost(b.showGhost)
-              b.invalidate()
-            }
-          }}
-          title="Izgara"
-        >
-          ⊞
         </button>
         <button
           className="icon-btn"
@@ -811,7 +853,11 @@ export default function GameScreen({ config, onExit }: Props) {
       <canvas ref={canvasRef} className="game-canvas" />
 
       {peek && refs.current.imageDataUrl && (
-        <button className="peek" onClick={() => setPeek(false)} title="Kapat">
+        <button
+          className={`peek ${chatAcik ? 'kaydir' : ''}`}
+          onClick={() => setPeek(false)}
+          title="Kapat"
+        >
           <img src={refs.current.imageDataUrl} alt="Orijinal" />
         </button>
       )}

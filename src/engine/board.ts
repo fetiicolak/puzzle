@@ -29,8 +29,10 @@ export interface BoardCallbacks {
 export interface RemoteCursor {
   x: number
   y: number
-  /** Son hareket zamanı — bir süre kıpırdamayan imleç solar */
+  /** Son hareket zamanı */
   at: number
+  /** Katılımcının görünen adı (imlecin yanında yazar) */
+  ad?: string
 }
 
 /** Katılımcı kimliğinden sabit bir renk üret (herkeste aynı renk görünür) */
@@ -422,15 +424,17 @@ export class PuzzleBoard {
     ctx.lineWidth = 2 / this.scale
     ctx.strokeRect(0, 0, W, H)
 
-    // tepsi bölgesi: yerleşmemiş parçaların dizildiği alan
+    // tepsi bölgeleri: çerçevenin iki yanı
     {
-      const tepsiY = H + Math.max(cut.cellW, cut.cellH) * 0.9
+      const pay = Math.max(cut.cellW, cut.cellH) * 0.35
       ctx.strokeStyle = 'rgba(255,255,255,0.07)'
       ctx.setLineDash([12 / this.scale, 10 / this.scale])
       ctx.lineWidth = 1.5 / this.scale
       ctx.beginPath()
-      ctx.moveTo(-cut.cellW * 0.4, tepsiY - cut.cellH * 0.35)
-      ctx.lineTo(W + cut.cellW * 0.4, tepsiY - cut.cellH * 0.35)
+      ctx.moveTo(-pay, -pay)
+      ctx.lineTo(-pay, H + pay)
+      ctx.moveTo(W + pay, -pay)
+      ctx.lineTo(W + pay, H + pay)
       ctx.stroke()
       ctx.setLineDash([])
     }
@@ -483,14 +487,16 @@ export class PuzzleBoard {
       }
     }
 
-    // diğer katılımcıların imleçleri
-    const simdi = Date.now()
+    // Diğer katılımcıların imleçleri. Bağlantı sürdüğü sürece görünür
+    // kalırlar: parça tutulmasa, hatta bir süre kıpırdanmasa bile karşı
+    // tarafın nereye baktığını görmek işe yarıyor.
     for (const [id, cur] of this.remoteCursors) {
-      // 8 saniyedir kıpırdamayan imleci gizle (sekmeyi kapatmış olabilir)
-      if (simdi - cur.at > 8000) continue
       const { x, y } = cur
-      const s = 10 / this.scale
-      ctx.fillStyle = peerColor(id)
+      const s = 11 / this.scale
+      const renk = peerColor(id)
+      ctx.save()
+      // ok
+      ctx.fillStyle = renk
       ctx.beginPath()
       ctx.moveTo(x, y)
       ctx.lineTo(x + s * 0.9, y + s * 1.3)
@@ -500,9 +506,27 @@ export class PuzzleBoard {
       ctx.lineTo(x + s * 0.1, y + s * 1.35)
       ctx.closePath()
       ctx.fill()
-      ctx.strokeStyle = '#fff'
-      ctx.lineWidth = 1.5 / this.scale
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+      ctx.lineWidth = 1.4 / this.scale
       ctx.stroke()
+
+      // ad etiketi — kimin imleci olduğu belli olsun
+      if (cur.ad) {
+        const yazi = cur.ad.slice(0, 14)
+        ctx.font = `${12 / this.scale}px ui-sans-serif, system-ui, sans-serif`
+        const w = ctx.measureText(yazi).width
+        const px = x + s * 1.1
+        const py = y + s * 2.1
+        const yuk = 17 / this.scale
+        ctx.fillStyle = renk
+        ctx.beginPath()
+        ctx.roundRect(px, py, w + 10 / this.scale, yuk, 6 / this.scale)
+        ctx.fill()
+        ctx.fillStyle = '#1a1020'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(yazi, px + 5 / this.scale, py + yuk / 2)
+      }
+      ctx.restore()
     }
 
     ctx.restore()

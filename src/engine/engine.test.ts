@@ -14,6 +14,7 @@ import {
   restore,
   rotateGroup,
   rotateVec,
+  shufflePieces,
   snapshot,
   splitPiece,
 } from './state'
@@ -309,12 +310,28 @@ describe('kenar parçaları ve tepsi', () => {
     }
   })
 
-  it('tepsiye dizince yerleşmemiş parçalar çerçevenin altına iner', () => {
+  it('tepsiye dizince yerleşmemiş parçalar çerçevenin iki yanına gider', () => {
+    const s = makeState()
+    const W = s.cut.cols * s.cut.cellW
+    arrangeTray(s)
+    // her parça ya solda ya sağda; çerçevenin üzerine binmemeli
+    for (const p of s.pieces) {
+      const sagKenar = p.x + s.cut.cellW
+      expect(sagKenar < 0 || p.x > W).toBe(true)
+    }
+    // iki taraf da kullanılmalı, hepsi tek yana yığılmamalı
+    expect(s.pieces.some((p) => p.x < 0)).toBe(true)
+    expect(s.pieces.some((p) => p.x > W)).toBe(true)
+  })
+
+  it('tepsiye dizilen parçalar çerçeve yüksekliğini aşmaz', () => {
     const s = makeState()
     const H = s.cut.rows * s.cut.cellH
     arrangeTray(s)
+    // dikeyde çerçeveyle aynı hizada kalsınlar ki ekranı kaydırmak gerekmesin
     for (const p of s.pieces) {
-      expect(p.y).toBeGreaterThan(H)
+      expect(p.y).toBeGreaterThanOrEqual(-s.cut.cellH)
+      expect(p.y).toBeLessThan(H + s.cut.cellH)
     }
   })
 
@@ -327,6 +344,35 @@ describe('kenar parçaları ve tepsi', () => {
     arrangeTray(s)
     expect(p.x).toBeCloseTo(cp.x)
     expect(p.y).toBeCloseTo(cp.y)
+  })
+
+  it('karıştırınca parçalar yer değiştirir, yerleşmişler korunur', () => {
+    const s = makeState()
+    const sabit = s.pieces[0]
+    const cp = correctPos(s.cut, sabit)
+    moveGroup(s, sabit.group, cp.x - sabit.x, cp.y - sabit.y)
+    dropGroup(s, sabit.group)
+
+    const oncekiler = s.pieces.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`)
+    shufflePieces(s, 1234)
+    const sonrakiler = s.pieces.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`)
+
+    // yerleşmiş parça yerinde kaldı
+    expect(sabit.x).toBeCloseTo(cp.x)
+    expect(sabit.y).toBeCloseTo(cp.y)
+    // diğerlerinin çoğu yer değiştirdi
+    const degisen = oncekiler.filter((v, i) => v !== sonrakiler[i]).length
+    expect(degisen).toBeGreaterThan(s.pieces.length / 2)
+  })
+
+  it('aynı seed aynı karışımı verir (ağ senkronu)', () => {
+    const a = makeState()
+    const b = makeState()
+    shufflePieces(a, 777)
+    shufflePieces(b, 777)
+    expect(a.pieces.map((p) => [Math.round(p.x), Math.round(p.y)])).toEqual(
+      b.pieces.map((p) => [Math.round(p.x), Math.round(p.y)]),
+    )
   })
 
   it('tepsiye dizmek birleşmiş grubu dağıtmaz', () => {
