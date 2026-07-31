@@ -405,6 +405,18 @@ create policy puzzle_images_select on storage.objects
   for select to authenticated
   using (bucket_id = 'puzzle-images' and public.foto_gorulebilir(name));
 
+-- Kendi dosyasının üzerine yazabilmeli (upsert bunu UPDATE olarak yapar;
+-- bu politika olmadan aynı yola ikinci kez yükleme RLS'e takılıyordu)
+drop policy if exists puzzle_images_update on storage.objects;
+create policy puzzle_images_update on storage.objects
+  for update to authenticated
+  using (bucket_id = 'puzzle-images' and owner = auth.uid())
+  with check (
+    bucket_id = 'puzzle-images'
+    and owner = auth.uid()
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
 drop policy if exists puzzle_images_delete on storage.objects;
 create policy puzzle_images_delete on storage.objects
   for delete to authenticated

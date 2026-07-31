@@ -90,13 +90,21 @@ export async function createRemotePuzzle(opts: {
   const kullanici = oturum.user
   if (!kullanici) return null
 
-  const yol = `${kullanici.id}/${opts.roomCode}.jpg`
-  const { error: yuklemeHatasi } = await supabase.storage
+  // Not: upsert kullanmıyoruz. Depoda upsert bir UPDATE olarak işlendiği için
+  // ayrı bir güncelleme izni gerektiriyor; yolun zaten benzersiz olduğu bu
+  // akışta gerekmiyor. Yine de çakışma olursa yola son ek verip tekrar deniyoruz.
+  const blob = dataUrlToBlob(opts.imageDataUrl)
+  let yol = `${kullanici.id}/${opts.roomCode}.jpg`
+  let { error: yuklemeHatasi } = await supabase.storage
     .from(BUCKET)
-    .upload(yol, dataUrlToBlob(opts.imageDataUrl), {
-      contentType: 'image/jpeg',
-      upsert: true,
-    })
+    .upload(yol, blob, { contentType: 'image/jpeg' })
+
+  if (yuklemeHatasi && /exist|duplicate|409/i.test(yuklemeHatasi.message)) {
+    yol = `${kullanici.id}/${opts.roomCode}-${Date.now().toString(36)}.jpg`
+    ;({ error: yuklemeHatasi } = await supabase.storage
+      .from(BUCKET)
+      .upload(yol, blob, { contentType: 'image/jpeg' }))
+  }
   if (yuklemeHatasi) throw new Error(`Fotoğraf yüklenemedi: ${yuklemeHatasi.message}`)
 
   const { data, error } = await supabase
