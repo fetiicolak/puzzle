@@ -44,6 +44,10 @@ create table if not exists public.puzzles (
   message text not null default '',
   -- odaya aynı anda kaç kişi katılabilir
   max_players int not null default 2,
+  -- parçalar rastgele açıyla mı başlıyor
+  rotation boolean not null default false,
+  -- doluysa puzzle bu zamana kadar kilitli
+  unlock_at timestamptz,
   -- parça konumları (engine/state.ts -> StateSnapshot)
   state jsonb,
   elapsed int not null default 0,
@@ -55,6 +59,9 @@ create table if not exists public.puzzles (
 -- Şema daha önce çalıştırıldıysa eksik sütunları tamamla
 alter table public.puzzles add column if not exists title text not null default '';
 alter table public.puzzles add column if not exists max_players int not null default 2;
+alter table public.puzzles add column if not exists rotation boolean not null default false;
+-- Özel gün puzzle'ı: bu zamana kadar kilitli kalır
+alter table public.puzzles add column if not exists unlock_at timestamptz;
 
 alter table public.puzzles enable row level security;
 

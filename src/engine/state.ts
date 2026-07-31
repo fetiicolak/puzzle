@@ -12,6 +12,8 @@ export interface PieceState {
   x: number
   y: number
   group: number
+  /** Çeyrek tur cinsinden dönüş (0-3). Bir gruptaki parçalarda hep aynıdır. */
+  rot: number
 }
 
 export interface GameState {
@@ -21,6 +23,22 @@ export interface GameState {
   groups: Map<number, number[]>
   /** Çizim sırası: gruplar alttan üste */
   zOrder: number[]
+  /** Döndürmeli zorluk açık mı */
+  rotation: boolean
+}
+
+/** (x,y) vektörünü çeyrek tur cinsinden döndür */
+export function rotateVec(x: number, y: number, rot: number): { x: number; y: number } {
+  switch (((rot % 4) + 4) % 4) {
+    case 1:
+      return { x: -y, y: x }
+    case 2:
+      return { x: -x, y: -y }
+    case 3:
+      return { x: y, y: -x }
+    default:
+      return { x, y }
+  }
 }
 
 export function pieceId(cut: CutSpec, row: number, col: number): number {
@@ -36,7 +54,11 @@ export function correctPos(cut: CutSpec, p: { row: number; col: number }) {
  * Başlangıç durumu: parçalar çerçevenin etrafına seed'e göre deterministik dağıtılır.
  * Her iki oyuncu aynı seed'i kullanır → aynı dağılım.
  */
-export function createGameState(cut: CutSpec, scatterSeed: number): GameState {
+export function createGameState(
+  cut: CutSpec,
+  scatterSeed: number,
+  rotation = false,
+): GameState {
   const rng = mulberry32(scatterSeed)
   const W = cut.cols * cut.cellW
   const H = cut.rows * cut.cellH
@@ -65,12 +87,48 @@ export function createGameState(cut: CutSpec, scatterSeed: number): GameState {
         x = W + margin * 0.2 + rng() * margin * 0.6
         y = rng() * H
       }
-      pieces.push({ id, row: r, col: c, x, y, group: id })
+      // döndürmeli modda her parça rastgele bir çeyrek turla başlar
+      const rot = rotation ? Math.floor(rng() * 4) : 0
+      pieces.push({ id, row: r, col: c, x, y, group: id, rot })
       groups.set(id, [id])
       zOrder.push(id)
     }
   }
-  return { cut, pieces, groups, zOrder }
+  return { cut, pieces, groups, zOrder, rotation }
+}
+
+/** Grubun parça merkezlerinin ortalaması — döndürme ekseni */
+function groupCenter(state: GameState, groupId: number): { x: number; y: number } {
+  const ids = state.groups.get(groupId) ?? []
+  const { cellW, cellH } = state.cut
+  let sx = 0
+  let sy = 0
+  for (const id of ids) {
+    const p = state.pieces[id]
+    sx += p.x + cellW / 2
+    sy += p.y + cellH / 2
+  }
+  return { x: sx / ids.length, y: sy / ids.length }
+}
+
+/**
+ * Grubu merkezi etrafında çeyrek tur döndür. Parçaların birbirine göre
+ * dizilimi korunur; her parça ayrıca kendi merkezinde döner (çizimde).
+ */
+export function rotateGroup(state: GameState, groupId: number, delta = 1): void {
+  const ids = state.groups.get(groupId)
+  if (!ids) return
+  const c = groupCenter(state, groupId)
+  const { cellW, cellH } = state.cut
+  for (const id of ids) {
+    const p = state.pieces[id]
+    const px = p.x + cellW / 2 - c.x
+    const py = p.y + cellH / 2 - c.y
+    const r = rotateVec(px, py, delta)
+    p.x = c.x + r.x - cellW / 2
+    p.y = c.y + r.y - cellH / 2
+    p.rot = (((p.rot + delta) % 4) + 4) % 4
+  }
 }
 
 /** Grubu z-sıralamasında en üste getir */
@@ -107,21 +165,36 @@ function snapTolerance(cut: CutSpec): number {
   return Math.min(cut.cellW, cut.cellH) * 0.25
 }
 
+/**
+ * Bir parçanın, referans parçaya göre olması gereken konumu.
+ * Grup döndürülmüşse aradaki vektör de aynı açıyla döner.
+ */
+function beklenenKonum(
+  state: GameState,
+  ref: PieceState,
+  hedef: { row: number; col: number },
+  rot: number,
+): { x: number; y: number } {
+  const { cut } = state
+  const dc = hedef.col - ref.col
+  const dr = hedef.row - ref.row
+  const v = rotateVec(dc * cut.cellW, dr * cut.cellH, rot)
+  return { x: ref.x + v.x, y: ref.y + v.y }
+}
+
 /** İki grubu birleştir: b, a'nın içine katılır ve a'nın hizasına çekilir */
 function mergeInto(state: GameState, a: number, b: number): void {
   if (a === b) return
   const aIds = state.groups.get(a)!
   const bIds = state.groups.get(b)!
-  // a grubunun delta'sı (gerçek konum - doğru konum)
   const ref = state.pieces[aIds[0]]
-  const refCorrect = correctPos(state.cut, ref)
-  const dx = ref.x - refCorrect.x
-  const dy = ref.y - refCorrect.y
+  const rot = ref.rot
   for (const id of bIds) {
     const p = state.pieces[id]
-    const cp = correctPos(state.cut, p)
-    p.x = cp.x + dx
-    p.y = cp.y + dy
+    const hedef = beklenenKonum(state, ref, p, rot)
+    p.x = hedef.x
+    p.y = hedef.y
+    p.rot = rot
     p.group = a
     aIds.push(id)
   }
@@ -151,16 +224,18 @@ export function dropGroup(state: GameState, groupId: number): DropResult {
   let ids = state.groups.get(groupId)
   if (!ids) return { groupId, snappedToFrame: false, merges: 0, completed: isCompleted(state) }
 
-  // 1) çerçeveye mutlak snap
+  // 1) çerçeveye mutlak snap — yalnızca grup düz duruyorsa
   let snappedToFrame = false
   {
     const p = state.pieces[ids[0]]
-    const cp = correctPos(cut, p)
-    const dx = p.x - cp.x
-    const dy = p.y - cp.y
-    if (Math.hypot(dx, dy) < tol) {
-      moveGroup(state, groupId, -dx, -dy)
-      snappedToFrame = true
+    if (p.rot === 0) {
+      const cp = correctPos(cut, p)
+      const dx = p.x - cp.x
+      const dy = p.y - cp.y
+      if (Math.hypot(dx, dy) < tol) {
+        moveGroup(state, groupId, -dx, -dy)
+        snappedToFrame = true
+      }
     }
   }
 
@@ -182,12 +257,13 @@ export function dropGroup(state: GameState, groupId: number): DropResult {
         if (n.r < 0 || n.r >= cut.rows || n.c < 0 || n.c >= cut.cols) continue
         const q = state.pieces[n.r * cut.cols + n.c]
         if (q.group === groupId) continue
-        // beklenen göreli vektör (doğru dizilimde)
-        const ex = (n.c - p.col) * cut.cellW
-        const ey = (n.r - p.row) * cut.cellH
+        // açıları tutmayan parçalar birleşmez
+        if (q.rot !== p.rot) continue
+        // beklenen göreli vektör — grup döndürülmüşse o da döner
+        const e = rotateVec((n.c - p.col) * cut.cellW, (n.r - p.row) * cut.cellH, p.rot)
         const ax = q.x - p.x
         const ay = q.y - p.y
-        if (Math.hypot(ax - ex, ay - ey) < tol) {
+        if (Math.hypot(ax - e.x, ay - e.y) < tol) {
           // hedef grubun hizasına katıl: q'nun grubu kalır, bizimki ona uyar
           const target = q.group
           mergeInto(state, target, groupId)
@@ -257,39 +333,85 @@ export function canSplit(state: GameState, pieceId: number): boolean {
   return !!ids && ids.length > 1
 }
 
-export function isGroupPlaced(state: GameState, groupId: number): boolean {
-  const ids = state.groups.get(groupId)
-  if (!ids) return false
-  const p = state.pieces[ids[0]]
+/** Parça doğru yerinde ve düz duruyor mu */
+function yerindeMi(state: GameState, p: PieceState): boolean {
+  if (p.rot !== 0) return false
   const cp = correctPos(state.cut, p)
   return Math.hypot(p.x - cp.x, p.y - cp.y) < 0.5
 }
 
+export function isGroupPlaced(state: GameState, groupId: number): boolean {
+  const ids = state.groups.get(groupId)
+  if (!ids) return false
+  return yerindeMi(state, state.pieces[ids[0]])
+}
+
 export function isCompleted(state: GameState): boolean {
-  return state.pieces.every((p) => {
-    const cp = correctPos(state.cut, p)
-    return Math.hypot(p.x - cp.x, p.y - cp.y) < 0.5
-  })
+  return state.pieces.every((p) => yerindeMi(state, p))
 }
 
 /** Doğru yerine oturmuş parça oranı (ilerleme göstergesi) */
 export function progress(state: GameState): number {
   let placed = 0
-  for (const p of state.pieces) {
-    const cp = correctPos(state.cut, p)
-    if (Math.hypot(p.x - cp.x, p.y - cp.y) < 0.5) placed++
-  }
+  for (const p of state.pieces) if (yerindeMi(state, p)) placed++
   return placed / state.pieces.length
+}
+
+/** Kenar parçası mı (çerçevenin dış sırasında) */
+export function isEdgePiece(state: GameState, p: PieceState): boolean {
+  return (
+    p.row === 0 || p.col === 0 || p.row === state.cut.rows - 1 || p.col === state.cut.cols - 1
+  )
+}
+
+/**
+ * Yerleşmemiş parçaları çerçevenin altındaki tepsi bölgesine düzgün diz.
+ * Birleşmiş gruplar bozulmadan, grup olarak yerleştirilir.
+ */
+export function arrangeTray(state: GameState): void {
+  const { cut } = state
+  const W = cut.cols * cut.cellW
+  const H = cut.rows * cut.cellH
+  const bosluk = Math.max(cut.cellW, cut.cellH) * 0.18
+  const adimX = cut.cellW + bosluk
+  const adimY = cut.cellH + bosluk
+  const sutun = Math.max(4, Math.floor(W / adimX))
+  const basY = H + Math.max(cut.cellW, cut.cellH) * 0.9
+
+  // yerleşmemiş gruplar, büyükten küçüğe (büyük öbekler öne)
+  const gruplar = [...state.groups.entries()]
+    .filter(([g]) => !isGroupPlaced(state, g))
+    .sort((a, b) => b[1].length - a[1].length)
+
+  let i = 0
+  for (const [g, ids] of gruplar) {
+    // grubun sol-üst köşesi
+    let minX = Infinity
+    let minY = Infinity
+    for (const id of ids) {
+      minX = Math.min(minX, state.pieces[id].x)
+      minY = Math.min(minY, state.pieces[id].y)
+    }
+    const hedefX = (i % sutun) * adimX
+    const hedefY = basY + Math.floor(i / sutun) * adimY
+    moveGroup(state, g, hedefX - minX, hedefY - minY)
+    // çok parçalı gruplar birden fazla hücre kaplar, o kadar yer atla
+    let genislik = 1
+    for (const id of ids) {
+      genislik = Math.max(genislik, Math.round((state.pieces[id].x - hedefX) / adimX) + 1)
+    }
+    i += genislik
+  }
 }
 
 /** Kayıt/yükleme için düz snapshot */
 export interface StateSnapshot {
-  positions: { x: number; y: number; group: number }[]
+  positions: { x: number; y: number; group: number; rot?: number }[]
 }
 
 export function snapshot(state: GameState): StateSnapshot {
   return {
-    positions: state.pieces.map((p) => ({ x: p.x, y: p.y, group: p.group })),
+    positions: state.pieces.map((p) => ({ x: p.x, y: p.y, group: p.group, rot: p.rot })),
   }
 }
 
@@ -303,6 +425,8 @@ export function restore(state: GameState, snap: StateSnapshot): void {
     p.x = pos.x
     p.y = pos.y
     p.group = pos.group
+    // eski kayıtlarda rot yok; düz kabul edilir
+    p.rot = pos.rot ?? 0
     let ids = state.groups.get(pos.group)
     if (!ids) {
       ids = []

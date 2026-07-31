@@ -12,6 +12,8 @@ export interface MetaMsg {
   /** base64 chunk sayısı */
   imgChunks: number
   elapsed: number
+  /** döndürmeli zorluk açık mı */
+  rotation?: boolean
 }
 
 export interface ImgChunkMsg {
@@ -71,6 +73,29 @@ export interface FullMsg {
   t: 'full'
 }
 
+/** Oda içi sohbet */
+export interface ChatMsg {
+  t: 'chat'
+  /** Gönderenin görünen adı */
+  ad: string
+  metin: string
+  /** Gönderim zamanı (gönderenin saati) */
+  ts: number
+}
+
+/** Grubu çeyrek tur döndür */
+export interface RotateMsg {
+  t: 'rot'
+  g: number
+  /** Kaç çeyrek tur */
+  d: number
+}
+
+/** Parçaları tepsiye diz (herkeste aynı sonucu verir) */
+export interface TrayMsg {
+  t: 'tray'
+}
+
 export type Msg = (
   | MetaMsg
   | ImgChunkMsg
@@ -82,6 +107,9 @@ export type Msg = (
   | CursorMsg
   | SplitMsg
   | FullMsg
+  | ChatMsg
+  | RotateMsg
+  | TrayMsg
 ) & {
   /** Host yansıtırken kaynağı işaretler; doğrudan gelen mesajlarda boştur */
   from?: string

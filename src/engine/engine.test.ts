@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { computeGrid, generateCut, mulberry32 } from './cutter'
 import {
+  arrangeTray,
   canSplit,
   correctPos,
   createGameState,
   dropGroup,
   isCompleted,
+  isEdgePiece,
   moveGroup,
   nextFreeGroupId,
   progress,
   restore,
+  rotateGroup,
+  rotateVec,
   snapshot,
   splitPiece,
 } from './state'
@@ -199,6 +203,144 @@ describe('splitPiece', () => {
     const s = makeState()
     const id = nextFreeGroupId(s)
     expect(s.groups.has(id)).toBe(false)
+  })
+})
+
+describe('döndürme', () => {
+  it('rotateVec çeyrek turları doğru uygular', () => {
+    expect(rotateVec(10, 0, 0)).toEqual({ x: 10, y: 0 })
+    expect(rotateVec(10, 0, 1)).toEqual({ x: -0, y: 10 })
+    expect(rotateVec(10, 0, 2)).toEqual({ x: -10, y: -0 })
+    expect(rotateVec(10, 0, 3)).toEqual({ x: 0, y: -10 })
+    // 4 tur başa döner
+    expect(rotateVec(7, -3, 4)).toEqual({ x: 7, y: -3 })
+  })
+
+  it('döndürmeli modda parçalar rastgele açıyla başlar', () => {
+    const cut = generateCut(400, 400, 16, 5)
+    const s = createGameState(cut, 6, true)
+    expect(s.rotation).toBe(true)
+    expect(s.pieces.some((p) => p.rot !== 0)).toBe(true)
+  })
+
+  it('düz modda tüm parçalar düz başlar', () => {
+    const s = makeState()
+    expect(s.pieces.every((p) => p.rot === 0)).toBe(true)
+  })
+
+  it('grup döndürünce açı değişir, 4 turda başa döner', () => {
+    const s = makeState()
+    const p = s.pieces[0]
+    const bas = { x: p.x, y: p.y }
+    rotateGroup(s, p.group, 1)
+    expect(p.rot).toBe(1)
+    rotateGroup(s, p.group, 3)
+    expect(p.rot).toBe(0)
+    // tek parçalık grupta konum da yerine döner
+    expect(p.x).toBeCloseTo(bas.x)
+    expect(p.y).toBeCloseTo(bas.y)
+  })
+
+  it('çevrilmiş parça çerçeveye oturmaz, düzeltilince oturur', () => {
+    const cut = generateCut(400, 400, 16, 5)
+    const s = createGameState(cut, 6, true)
+    const p = s.pieces[0]
+    // doğru konuma getir ama çevrili bırak
+    const cp = correctPos(s.cut, p)
+    moveGroup(s, p.group, cp.x - p.x, cp.y - p.y)
+    p.rot = 1
+    expect(dropGroup(s, p.group).snappedToFrame).toBe(false)
+
+    p.rot = 0
+    moveGroup(s, p.group, cp.x - p.x, cp.y - p.y)
+    expect(dropGroup(s, p.group).snappedToFrame).toBe(true)
+  })
+
+  it('açıları farklı komşular birleşmez', () => {
+    const s = makeState()
+    const a = s.pieces[0]
+    const b = s.pieces[1]
+    moveGroup(s, a.group, 900 - a.x, 900 - a.y)
+    moveGroup(s, b.group, a.x + s.cut.cellW - b.x, a.y - b.y)
+    b.rot = 2 // açı uyuşmuyor
+    expect(dropGroup(s, b.group).merges).toBe(0)
+    expect(a.group).not.toBe(b.group)
+  })
+
+  it('döndürülmüş grup komşusuyla döndürülmüş hizada birleşir', () => {
+    const s = makeState()
+    const a = s.pieces[0] // (0,0)
+    const b = s.pieces[1] // (0,1) — normalde a'nın sağında
+    moveGroup(s, a.group, 900 - a.x, 900 - a.y)
+    a.rot = 1
+    b.rot = 1
+    // 1 çeyrek tur dönmüşse komşu sağda değil, altta beklenir
+    const v = rotateVec(s.cut.cellW, 0, 1)
+    moveGroup(s, b.group, a.x + v.x + 3 - b.x, a.y + v.y - 2 - b.y)
+    const res = dropGroup(s, b.group)
+    expect(res.merges).toBe(1)
+    expect(a.group).toBe(b.group)
+  })
+
+  it('çevrili parça tamamlanmış sayılmaz', () => {
+    const s = makeState()
+    for (const p of s.pieces) {
+      const cp = correctPos(s.cut, p)
+      moveGroup(s, p.group, cp.x - p.x, cp.y - p.y)
+      dropGroup(s, p.group)
+    }
+    expect(isCompleted(s)).toBe(true)
+    s.pieces[3].rot = 1
+    expect(isCompleted(s)).toBe(false)
+  })
+})
+
+describe('kenar parçaları ve tepsi', () => {
+  it('kenar parçaları doğru tespit edilir', () => {
+    const s = makeState()
+    const { rows, cols } = s.cut
+    for (const p of s.pieces) {
+      const beklenen = p.row === 0 || p.col === 0 || p.row === rows - 1 || p.col === cols - 1
+      expect(isEdgePiece(s, p)).toBe(beklenen)
+    }
+    // ortadaki bir parça kenar olmamalı (grid en az 3x3 ise)
+    if (rows > 2 && cols > 2) {
+      expect(isEdgePiece(s, s.pieces[cols + 1])).toBe(false)
+    }
+  })
+
+  it('tepsiye dizince yerleşmemiş parçalar çerçevenin altına iner', () => {
+    const s = makeState()
+    const H = s.cut.rows * s.cut.cellH
+    arrangeTray(s)
+    for (const p of s.pieces) {
+      expect(p.y).toBeGreaterThan(H)
+    }
+  })
+
+  it('tepsiye dizmek yerleşmiş parçaları bozmaz', () => {
+    const s = makeState()
+    const p = s.pieces[0]
+    const cp = correctPos(s.cut, p)
+    moveGroup(s, p.group, cp.x - p.x, cp.y - p.y)
+    dropGroup(s, p.group)
+    arrangeTray(s)
+    expect(p.x).toBeCloseTo(cp.x)
+    expect(p.y).toBeCloseTo(cp.y)
+  })
+
+  it('tepsiye dizmek birleşmiş grubu dağıtmaz', () => {
+    const s = makeState()
+    const a = s.pieces[0]
+    const b = s.pieces[1]
+    moveGroup(s, a.group, 900 - a.x, 900 - a.y)
+    moveGroup(s, b.group, a.x + s.cut.cellW - b.x, a.y - b.y)
+    dropGroup(s, b.group)
+    expect(a.group).toBe(b.group)
+    arrangeTray(s)
+    expect(a.group).toBe(b.group)
+    expect(b.x - a.x).toBeCloseTo(s.cut.cellW)
+    expect(b.y - a.y).toBeCloseTo(0)
   })
 })
 

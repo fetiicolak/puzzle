@@ -2,7 +2,14 @@
 // React'ten bağımsız; GameState'i çizer ve kullanıcı eylemlerini callback'lerle bildirir.
 
 import { pieceMargin, piecePath, type PieceBitmap } from './cutter'
-import { bringToTop, moveGroup, type GameState } from './state'
+import {
+  bringToTop,
+  isEdgePiece,
+  isGroupPlaced,
+  moveGroup,
+  rotateVec,
+  type GameState,
+} from './state'
 
 export interface BoardCallbacks {
   /** Kullanıcı bir grubu tutmak istedi. false dönerse (örn. partner kilitlemiş) engellenir. */
@@ -15,6 +22,8 @@ export interface BoardCallbacks {
   onCursor?: (x: number, y: number) => void
   /** Parçayı grubundan koparma isteği (sağ tık / uzun basma) */
   onSplit?: (pieceId: number) => void
+  /** Grubu çeyrek tur döndürme isteği (döndürmeli modda çift tık) */
+  onRotate?: (groupId: number) => void
 }
 
 export interface RemoteCursor {
@@ -66,6 +75,8 @@ export class PuzzleBoard {
   lockedGroups = new Map<number, string>()
   /** Önizleme (hayalet görsel) açık mı */
   showGhost = true
+  /** Yalnızca kenar parçalarını öne çıkar */
+  edgeOnly = false
 
   private detachFns: (() => void)[] = []
 
@@ -162,6 +173,16 @@ export class PuzzleBoard {
       const [sx, sy] = this.local(e as unknown as PointerEvent)
       const hit = this.hitTest(...this.screenToWorld(sx, sy))
       if (hit !== null) this.requestSplit(hit)
+    })
+    // döndürmeli modda çift tık grubu çeyrek tur çevirir
+    on('dblclick', (e) => {
+      if (!this.state.rotation) return
+      const [sx, sy] = this.local(e as unknown as PointerEvent)
+      const hit = this.hitTest(...this.screenToWorld(sx, sy))
+      if (hit === null) return
+      const g = this.state.pieces[hit].group
+      if (this.lockedGroups.has(g)) return
+      this.callbacks.onRotate?.(g)
     })
 
     const ro = new ResizeObserver(() => {
@@ -342,14 +363,23 @@ export class PuzzleBoard {
       if (!ids) continue
       for (const id of ids) {
         const p = state.pieces[id]
-        // dünya → parça yerel (görsel koordinatı): path hücre mutlak konumunda tanımlı
-        const lx = wx - p.x + p.col * state.cut.cellW
-        const ly = wy - p.y + p.row * state.cut.cellH
-        const bx = p.col * state.cut.cellW
-        const by = p.row * state.cut.cellH
+        const { cellW, cellH } = state.cut
+        // Dünya noktasını parçanın yerel (kesim) koordinatına çevir.
+        // Parça döndürülmüşse, önce kendi merkezi etrafında ters yönde döndür.
+        let dx = wx - (p.x + cellW / 2)
+        let dy = wy - (p.y + cellH / 2)
+        if (p.rot) {
+          const r = rotateVec(dx, dy, -p.rot)
+          dx = r.x
+          dy = r.y
+        }
+        const bx = p.col * cellW
+        const by = p.row * cellH
+        const lx = bx + cellW / 2 + dx
+        const ly = by + cellH / 2 + dy
         if (
-          lx < bx - margin || lx > bx + state.cut.cellW + margin ||
-          ly < by - margin || ly > by + state.cut.cellH + margin
+          lx < bx - margin || lx > bx + cellW + margin ||
+          ly < by - margin || ly > by + cellH + margin
         ) continue
         if (this.ctx.isPointInPath(this.paths[id], lx, ly)) return id
       }
@@ -392,6 +422,19 @@ export class PuzzleBoard {
     ctx.lineWidth = 2 / this.scale
     ctx.strokeRect(0, 0, W, H)
 
+    // tepsi bölgesi: yerleşmemiş parçaların dizildiği alan
+    {
+      const tepsiY = H + Math.max(cut.cellW, cut.cellH) * 0.9
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+      ctx.setLineDash([12 / this.scale, 10 / this.scale])
+      ctx.lineWidth = 1.5 / this.scale
+      ctx.beginPath()
+      ctx.moveTo(-cut.cellW * 0.4, tepsiY - cut.cellH * 0.35)
+      ctx.lineTo(W + cut.cellW * 0.4, tepsiY - cut.cellH * 0.35)
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
     // hayalet önizleme (grid çizgileri)
     if (this.showGhost) {
       ctx.strokeStyle = 'rgba(255,255,255,0.07)'
@@ -419,13 +462,24 @@ export class PuzzleBoard {
       for (const id of ids) {
         const p = state.pieces[id]
         const bm = this.bitmaps[p.row][p.col]
+        // kenar filtresi açıkken iç parçalar soluklaşır
+        const solgun = this.edgeOnly && !isEdgePiece(state, p) && !isGroupPlaced(state, gid)
+        ctx.save()
+        if (solgun) ctx.globalAlpha = 0.16
         if (sahip) {
-          ctx.save()
           ctx.shadowColor = peerColor(sahip)
           ctx.shadowBlur = 12 / this.scale
         }
+        if (p.rot) {
+          // parça kendi merkezi etrafında döner
+          const cx = p.x + cut.cellW / 2
+          const cy = p.y + cut.cellH / 2
+          ctx.translate(cx, cy)
+          ctx.rotate((p.rot * Math.PI) / 2)
+          ctx.translate(-cx, -cy)
+        }
         ctx.drawImage(bm.canvas, p.x + bm.offsetX, p.y + bm.offsetY)
-        if (sahip) ctx.restore()
+        ctx.restore()
       }
     }
 

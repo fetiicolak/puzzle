@@ -35,6 +35,12 @@ const JOIN_RETRIES = 4
 const RECONNECT_ATTEMPTS = 3
 /** Oda kodu meşgulse aynı kodla kaç kez beklenip denenecek */
 const ID_RETRIES = 3
+/**
+ * Giden bağlantı bu sürede açılmazsa iptal edilip yeniden denenir.
+ * WebRTC el sıkışması bazen hata vermeden asılı kalıyor; bu olmadan
+ * kullanıcı sonsuza kadar "Bağlanıyor" ekranında bekliyordu.
+ */
+const CONNECT_TIMEOUT = 8000
 
 const PEER_OPTIONS = {
   config: {
@@ -83,6 +89,7 @@ export class Room {
   private reconnectAttempt = 0
   private idAttempt = 0
   private retryTimer: ReturnType<typeof setTimeout> | null = null
+  private connectTimer: ReturnType<typeof setTimeout> | null = null
 
   private queue: Outgoing[] = []
   private draining = false
@@ -175,7 +182,27 @@ export class Room {
   private startOutgoing(): void {
     if (this.closed || this.outgoingStarted || !this.peer) return
     this.outgoingStarted = true
-    this.attach(this.peer.connect(PREFIX + this.code, { reliable: true }))
+    const conn = this.peer.connect(PREFIX + this.code, { reliable: true })
+    this.attach(conn)
+
+    // El sıkışması hata vermeden asılı kalırsa iptal edip tekrar dene
+    if (this.connectTimer) clearTimeout(this.connectTimer)
+    this.connectTimer = setTimeout(() => {
+      if (this.closed || conn.open) return
+      try {
+        conn.close()
+      } catch {
+        // zaten kapanmış olabilir
+      }
+      if (this.joinAttempt < JOIN_RETRIES) {
+        this.joinAttempt++
+        this.events.onStatus('connecting', `deneme ${this.joinAttempt}/${JOIN_RETRIES}`)
+        this.outgoingStarted = false
+        this.startOutgoing()
+      } else {
+        this.events.onStatus('error', 'timeout')
+      }
+    }, CONNECT_TIMEOUT)
   }
 
   private handlePeerError(err: { type?: string }): void {
@@ -223,6 +250,10 @@ export class Room {
 
     conn.on('open', () => {
       if (this.closed) return
+      if (this.connectTimer) {
+        clearTimeout(this.connectTimer)
+        this.connectTimer = null
+      }
       this.conns.set(id, conn)
       this.joinAttempt = 0
       this.reconnectAttempt = 0
@@ -351,6 +382,7 @@ export class Room {
   close(): void {
     this.closed = true
     if (this.retryTimer) clearTimeout(this.retryTimer)
+    if (this.connectTimer) clearTimeout(this.connectTimer)
     this.queue.length = 0
     for (const c of this.conns.values()) c.close()
     this.conns.clear()

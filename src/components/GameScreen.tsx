@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { PuzzleBoard } from '../engine/board'
 import { generateCut, renderPieceBitmaps } from '../engine/cutter'
 import {
+  arrangeTray,
   canSplit,
   createGameState,
   dropGroup,
   nextFreeGroupId,
   progress,
   restore,
+  rotateGroup,
   setGroupPos,
   snapshot,
   splitPiece,
@@ -51,6 +53,17 @@ export interface GameConfig {
   snap?: StateSnapshot | null
   /** Sunucudaki kayıt kimliği (ortak geçmişten devam ederken) */
   remoteId?: string | null
+  /** Döndürmeli zorluk */
+  rotation?: boolean
+  /** Özel gün: bu tarihe kadar kilitli (ISO) */
+  unlockAt?: string | null
+}
+
+export interface ChatSatiri {
+  ad: string
+  metin: string
+  ts: number
+  benMi: boolean
 }
 
 interface Props {
@@ -72,6 +85,8 @@ interface EngineRefs {
   lastChunkAt: number
   /** Sunucudaki puzzle kaydının kimliği (giriş yapılmışsa) */
   remoteId: string | null
+  /** Döndürmeli zorluk (misafirde meta ile gelir) */
+  rotation: boolean
   lastRemoteSave: number
   lastMoveSent: number
   lastCursorSent: number
@@ -121,6 +136,11 @@ export default function GameScreen({ config, onExit }: Props) {
   const [roomCode, setRoomCode] = useState(config.roomCode ?? '')
   /** Orijinal görseli köşede göster */
   const [peek, setPeek] = useState(false)
+  const [edgeOnly, setEdgeOnly] = useState(false)
+  const [chatAcik, setChatAcik] = useState(false)
+  const [chat, setChat] = useState<ChatSatiri[]>([])
+  const [okunmamis, setOkunmamis] = useState(0)
+  const [chatMetni, setChatMetni] = useState('')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [elapsed, setElapsed] = useState(config.elapsed ?? 0)
@@ -141,6 +161,7 @@ export default function GameScreen({ config, onExit }: Props) {
     pendingSnap: config.snap ?? null,
     lastChunkAt: 0,
     remoteId: config.remoteId ?? null,
+    rotation: config.rotation ?? false,
     lastRemoteSave: 0,
     lastMoveSent: 0,
     lastCursorSent: 0,
@@ -201,7 +222,7 @@ export default function GameScreen({ config, onExit }: Props) {
     if (r.destroyed || !canvasRef.current) return
     const cut = generateCut(img.naturalWidth, img.naturalHeight, pieceCount, seed)
     const bitmaps = renderPieceBitmaps(img, cut)
-    const game = createGameState(cut, seed + 1)
+    const game = createGameState(cut, seed + 1, r.rotation)
     if (r.pendingSnap) {
       restore(game, r.pendingSnap)
       r.pendingSnap = null
@@ -238,6 +259,12 @@ export default function GameScreen({ config, onExit }: Props) {
           r.lastCursorSent = now
           r.room?.send({ t: 'cursor', x, y })
         }
+      },
+      onRotate: (g) => {
+        rotateGroup(game, g, 1)
+        r.room?.send({ t: 'rot', g, d: 1 })
+        const res = dropGroup(game, g)
+        afterStateChange(res.completed)
       },
       onSplit: (pieceId) => {
         if (!canSplit(game, pieceId)) return
@@ -298,6 +325,7 @@ export default function GameScreen({ config, onExit }: Props) {
         setElapsed(msg.elapsed)
         setSurprise(msg.message)
         setTitle(msg.title)
+        r.rotation = msg.rotation ?? false
         r.imgChunks = []
         r.imgTotal = msg.imgChunks
         setLoadText('Fotoğraf geliyor')
@@ -365,6 +393,27 @@ export default function GameScreen({ config, onExit }: Props) {
         if (!r.game) break
         splitPiece(r.game, msg.piece, msg.group, msg.x, msg.y)
         afterStateChange(false)
+        break
+      }
+      case 'rot': {
+        if (!r.game) break
+        rotateGroup(r.game, msg.g, msg.d)
+        const res = dropGroup(r.game, msg.g)
+        afterStateChange(res.completed)
+        break
+      }
+      case 'tray': {
+        if (!r.game) break
+        arrangeTray(r.game)
+        afterStateChange(false)
+        break
+      }
+      case 'chat': {
+        setChat((l) => [...l.slice(-99), { ad: msg.ad, metin: msg.metin, ts: msg.ts, benMi: false }])
+        setChatAcik((acik) => {
+          if (!acik) setOkunmamis((n) => n + 1)
+          return acik
+        })
         break
       }
     }
@@ -442,6 +491,7 @@ export default function GameScreen({ config, onExit }: Props) {
       message: surpriseRef.current,
       imgChunks: chunks.length,
       elapsed: r.elapsed,
+      rotation: r.rotation,
     })
     chunks.forEach((data, i) => yolla({ t: 'img', i, data }))
     yolla({ t: 'state', snap: snapshot(r.game) })
@@ -477,6 +527,8 @@ export default function GameScreen({ config, onExit }: Props) {
         pieceCount: r.pieceCount,
         message: surpriseRef.current,
         maxPlayers: config.maxPlayers ?? 2,
+        rotation: r.rotation,
+        unlockAt: config.unlockAt ?? null,
       })
       if (uzak && !r.destroyed) r.remoteId = uzak.id
     } catch {
@@ -617,6 +669,25 @@ export default function GameScreen({ config, onExit }: Props) {
     return () => clearInterval(id)
   }, [config.mode, phase, roomStatus])
 
+  const chatGonder = (metin: string) => {
+    const temiz = metin.trim().slice(0, 300)
+    if (!temiz) return
+    const ad = auth.displayName || 'Ben'
+    const ts = Date.now()
+    refs.current.room?.send({ t: 'chat', ad, metin: temiz, ts })
+    setChat((l) => [...l.slice(-99), { ad, metin: temiz, ts, benMi: true }])
+    setChatMetni('')
+  }
+
+  const tepsiyeDiz = () => {
+    const r = refs.current
+    if (!r.game) return
+    arrangeTray(r.game)
+    r.room?.send({ t: 'tray' })
+    afterStateChange(false)
+    r.board?.fitView()
+  }
+
   const copyInvite = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink)
@@ -676,6 +747,36 @@ export default function GameScreen({ config, onExit }: Props) {
             Davet
           </button>
         )}
+        {roomStatus !== 'idle' && (
+          <button
+            className={`icon-btn ${chatAcik ? 'on' : ''}`}
+            onClick={() => {
+              setChatAcik((v) => !v)
+              setOkunmamis(0)
+            }}
+            title="Sohbet"
+          >
+            💬
+            {okunmamis > 0 && <span className="dot-badge">{okunmamis}</span>}
+          </button>
+        )}
+        <button className="icon-btn" onClick={tepsiyeDiz} title="Parçaları tepsiye diz">
+          ☰
+        </button>
+        <button
+          className={`icon-btn ${edgeOnly ? 'on' : ''}`}
+          onClick={() => {
+            const b = refs.current.board
+            if (b) {
+              b.edgeOnly = !b.edgeOnly
+              setEdgeOnly(b.edgeOnly)
+              b.invalidate()
+            }
+          }}
+          title="Sadece kenarlar"
+        >
+          ⬚
+        </button>
         <button
           className={`icon-btn ${peek ? 'on' : ''}`}
           onClick={() => setPeek((v) => !v)}
@@ -712,6 +813,17 @@ export default function GameScreen({ config, onExit }: Props) {
         <button className="peek" onClick={() => setPeek(false)} title="Kapat">
           <img src={refs.current.imageDataUrl} alt="Orijinal" />
         </button>
+      )}
+
+      {chatAcik && (
+        <ChatPanel
+          satirlar={chat}
+          metin={chatMetni}
+          bagli={roomStatus === 'connected'}
+          onMetin={setChatMetni}
+          onGonder={chatGonder}
+          onKapat={() => setChatAcik(false)}
+        />
       )}
 
       {phase === 'loading' && !error && (
@@ -765,6 +877,83 @@ export default function GameScreen({ config, onExit }: Props) {
         />
       )}
     </div>
+  )
+}
+
+const TEPKILER = ['👍', '😄', '❤️', '🤔', '🎉', '😭']
+
+function ChatPanel({
+  satirlar,
+  metin,
+  bagli,
+  onMetin,
+  onGonder,
+  onKapat,
+}: {
+  satirlar: ChatSatiri[]
+  metin: string
+  bagli: boolean
+  onMetin: (v: string) => void
+  onGonder: (v: string) => void
+  onKapat: () => void
+}) {
+  const sonRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    sonRef.current?.scrollIntoView({ block: 'end' })
+  }, [satirlar.length])
+
+  return (
+    <aside className="chat">
+      <header className="chat-head">
+        <b>Sohbet</b>
+        <button className="icon-btn" onClick={onKapat} title="Kapat">
+          ✕
+        </button>
+      </header>
+
+      <div className="chat-body">
+        {satirlar.length === 0 && (
+          <p className="muted chat-bos">
+            {bagli ? 'Henüz mesaj yok.' : 'Karşı taraf bağlanınca yazabilirsin.'}
+          </p>
+        )}
+        {satirlar.map((s, i) => (
+          <div key={i} className={`chat-satir ${s.benMi ? 'ben' : ''}`}>
+            {!s.benMi && <small className="chat-ad">{s.ad}</small>}
+            <span className="chat-balon">{s.metin}</span>
+          </div>
+        ))}
+        <div ref={sonRef} />
+      </div>
+
+      <div className="chat-tepkiler">
+        {TEPKILER.map((t) => (
+          <button key={t} className="tepki" disabled={!bagli} onClick={() => onGonder(t)}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      <form
+        className="chat-form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          onGonder(metin)
+        }}
+      >
+        <input
+          className="input"
+          placeholder={bagli ? 'Bir şeyler yaz…' : 'Bağlantı bekleniyor…'}
+          value={metin}
+          maxLength={300}
+          disabled={!bagli}
+          onChange={(e) => onMetin(e.target.value)}
+        />
+        <button className="btn btn-primary btn-sm" type="submit" disabled={!bagli}>
+          Gönder
+        </button>
+      </form>
+    </aside>
   )
 }
 

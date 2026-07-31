@@ -21,11 +21,47 @@ export interface RemotePuzzle {
   piece_count: number
   message: string
   max_players: number
+  rotation: boolean
+  /** Doluysa bu zamana kadar kilitli */
+  unlock_at: string | null
   state: StateSnapshot | null
   elapsed: number
   completed: boolean
   created_at: string
   updated_at: string
+}
+
+/** Puzzle hâlâ kilitli mi (özel gün) */
+export function kilitliMi(p: { unlock_at: string | null }): boolean {
+  return !!p.unlock_at && new Date(p.unlock_at).getTime() > Date.now()
+}
+
+export interface Istatistik {
+  toplamPuzzle: number
+  bitenPuzzle: number
+  toplamSure: number
+  toplamParca: number
+  enHizli: { title: string; elapsed: number } | null
+  birlikteCozulen: number
+}
+
+/** Tablolardan özet istatistik çıkar */
+export function istatistikCikar(liste: RemotePuzzle[], benimId: string): Istatistik {
+  const bitenler = liste.filter((p) => p.completed)
+  let enHizli: { title: string; elapsed: number } | null = null
+  for (const p of bitenler) {
+    if (p.elapsed > 0 && (!enHizli || p.elapsed < enHizli.elapsed)) {
+      enHizli = { title: p.title || 'İsimsiz', elapsed: p.elapsed }
+    }
+  }
+  return {
+    toplamPuzzle: liste.length,
+    bitenPuzzle: bitenler.length,
+    toplamSure: liste.reduce((t, p) => t + (p.elapsed || 0), 0),
+    toplamParca: bitenler.reduce((t, p) => t + (p.piece_count || 0), 0),
+    enHizli,
+    birlikteCozulen: liste.filter((p) => p.owner !== benimId || p.max_players > 1).length,
+  }
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -46,6 +82,8 @@ export async function createRemotePuzzle(opts: {
   pieceCount: number
   message: string
   maxPlayers: number
+  rotation?: boolean
+  unlockAt?: string | null
 }): Promise<RemotePuzzle | null> {
   if (!supabase) return null
   const { data: oturum } = await supabase.auth.getUser()
@@ -72,6 +110,8 @@ export async function createRemotePuzzle(opts: {
       piece_count: opts.pieceCount,
       message: opts.message,
       max_players: opts.maxPlayers,
+      rotation: opts.rotation ?? false,
+      unlock_at: opts.unlockAt ?? null,
     })
     .select()
     .single()

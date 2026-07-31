@@ -5,6 +5,8 @@ import { listPuzzles, removePuzzle, toPuzzleImage, type SavedPuzzle } from '../s
 import { useAuth } from '../supabase/auth'
 import {
   deleteRemotePuzzle,
+  istatistikCikar,
+  kilitliMi,
   listRemotePuzzles,
   puzzleImageUrl,
   type RemotePuzzle,
@@ -17,6 +19,27 @@ interface Props {
   onResumeRemote: (p: RemotePuzzle) => void
   /** Misafir olarak devam edilmişken giriş ekranına dön */
   onSignIn: () => void
+}
+
+function sureMetni(sn: number): string {
+  const s = Math.max(0, Math.round(sn))
+  const saat = Math.floor(s / 3600)
+  const dk = Math.floor((s % 3600) / 60)
+  if (saat > 0) return `${saat} sa ${dk} dk`
+  if (dk > 0) return `${dk} dk`
+  return `${s} sn`
+}
+
+/** Kilide kalan süre, insan diliyle */
+function geriSayim(iso: string): string {
+  const fark = new Date(iso).getTime() - Date.now()
+  if (fark <= 0) return 'açıldı'
+  const gun = Math.floor(fark / 86400000)
+  const saat = Math.floor((fark % 86400000) / 3600000)
+  const dk = Math.floor((fark % 3600000) / 60000)
+  if (gun > 0) return `${gun} gün ${saat} saat kaldı`
+  if (saat > 0) return `${saat} saat ${dk} dk kaldı`
+  return `${dk} dk kaldı`
 }
 
 function tarih(s: string | number): string {
@@ -154,6 +177,36 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         }}
       />
 
+      {auth.user && uzak.length > 0 && (
+        <section className="stats">
+          {(() => {
+            const s = istatistikCikar(uzak, auth.user!.id)
+            return (
+              <>
+                <div className="stat-box">
+                  <b>{s.bitenPuzzle}</b>
+                  <small>biten puzzle</small>
+                </div>
+                <div className="stat-box">
+                  <b>{sureMetni(s.toplamSure)}</b>
+                  <small>toplam süre</small>
+                </div>
+                <div className="stat-box">
+                  <b>{s.toplamParca}</b>
+                  <small>çözülen parça</small>
+                </div>
+                {s.enHizli && (
+                  <div className="stat-box">
+                    <b>{sureMetni(s.enHizli.elapsed)}</b>
+                    <small>en hızlı · {s.enHizli.title}</small>
+                  </div>
+                )}
+              </>
+            )
+          })()}
+        </section>
+      )}
+
       {auth.user && <FriendsSection />}
 
       {auth.user && (uzak.length > 0 || uzakYukleniyor) && (
@@ -166,19 +219,39 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
             </div>
           ) : (
             <div className="resume-list">
-              {uzak.map((p) => (
-                <article key={p.id} className="resume-card" onClick={() => onResumeRemote(p)}>
-                  {kapaklar[p.id] ? (
+              {uzak.map((p) => {
+                const kilitli = kilitliMi(p)
+                return (
+                <article
+                  key={p.id}
+                  className={`resume-card ${kilitli ? 'kilitli' : ''}`}
+                  onClick={() => {
+                    if (kilitli) {
+                      alert(
+                        `Bu puzzle ${new Date(p.unlock_at!).toLocaleString('tr-TR')} tarihinde açılacak.`,
+                      )
+                      return
+                    }
+                    onResumeRemote(p)
+                  }}
+                >
+                  {kapaklar[p.id] && !kilitli ? (
                     <img src={kapaklar[p.id]} alt="" />
                   ) : (
-                    <div className="cover-fallback" />
+                    <div className="cover-fallback">{kilitli ? '🔒' : ''}</div>
                   )}
                   <div className="info">
                     <b>{p.title || 'İsimsiz'}</b>
                     <small>
-                      {p.completed ? 'bitti · ' : ''}
-                      {p.piece_count} parça · {tarih(p.updated_at)}
-                      {p.owner !== auth.user?.id ? ' · beraber' : ''}
+                      {kilitli ? (
+                        <span className="kilit-yazi">{geriSayim(p.unlock_at!)}</span>
+                      ) : (
+                        <>
+                          {p.completed ? 'bitti · ' : ''}
+                          {p.piece_count} parça · {tarih(p.updated_at)}
+                          {p.owner !== auth.user?.id ? ' · beraber' : ''}
+                        </>
+                      )}
                     </small>
                   </div>
                   <button
@@ -193,7 +266,8 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                     {siliniyor === p.id ? '…' : '✕'}
                   </button>
                 </article>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>

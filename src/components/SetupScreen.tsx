@@ -11,6 +11,10 @@ export interface StartOptions {
   message: string
   withPartner: boolean
   maxPlayers: number
+  /** Parçalar rastgele açıyla başlasın */
+  rotation: boolean
+  /** Belirtilirse puzzle bu tarihe kadar kilitli kalır (ISO) */
+  unlockAt: string | null
 }
 
 interface Props {
@@ -26,6 +30,9 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
   const [pieces, setPieces] = useState(100)
   const [message, setMessage] = useState('')
   const [maxPlayers, setMaxPlayers] = useState(2)
+  const [rotation, setRotation] = useState(false)
+  const [ozelGun, setOzelGun] = useState(false)
+  const [tarih, setTarih] = useState('')
   const [olculer, setOlculer] = useState<{ w: number; h: number } | null>(null)
 
   // Seçilen sayı yaklaşıktır: ızgara, hücreler kareye yakın olacak şekilde
@@ -52,6 +59,8 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
       message,
       withPartner,
       maxPlayers,
+      rotation,
+      unlockAt: ozelGun && tarih ? new Date(tarih).toISOString() : null,
     })
 
   return (
@@ -115,6 +124,21 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
         </div>
       </div>
 
+      <div className="field">
+        <span className="field-label">Zorluk</span>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={rotation}
+            onChange={(e) => setRotation(e.target.checked)}
+          />
+          <span>
+            Parçalar çevrilmiş gelsin
+            <em className="field-hint"> çift tıkla döndürürsün</em>
+          </span>
+        </label>
+      </div>
+
       <label className="field">
         <span className="field-label">
           Gizli not <em className="field-hint">isteğe bağlı</em>
@@ -127,6 +151,29 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
           onChange={(e) => setMessage(e.target.value)}
         />
       </label>
+
+      <div className="field">
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={ozelGun}
+            onChange={(e) => setOzelGun(e.target.checked)}
+          />
+          <span>
+            Özel gün için sakla
+            <em className="field-hint"> o tarihe kadar kilitli kalır</em>
+          </span>
+        </label>
+        {ozelGun && (
+          <input
+            className="input"
+            type="datetime-local"
+            value={tarih}
+            min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+            onChange={(e) => setTarih(e.target.value)}
+          />
+        )}
+      </div>
 
       <div className="action-row">
         <button className="btn btn-ghost" onClick={onBack}>

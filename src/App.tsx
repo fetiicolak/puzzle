@@ -134,6 +134,8 @@ export default function App() {
                 pieceCount: opts.pieceCount,
                 message: opts.message,
                 maxPlayers: opts.maxPlayers,
+                rotation: opts.rotation,
+                unlockAt: opts.unlockAt,
                 elapsed: 0,
                 snap: null,
               },
