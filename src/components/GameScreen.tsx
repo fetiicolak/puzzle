@@ -314,6 +314,11 @@ export default function GameScreen({ config, onExit }: Props) {
     if (completed && !r.completed) {
       r.completed = true
       setPhase('done')
+      // Tamamlanma bilgisi beklemeden sunucuya yazılmalı. Normal kayıt 8
+      // saniyede bir yapıldığı için, son kayıttan hemen sonra biten puzzle
+      // "bitmemiş" olarak kalıyordu ve istatistiklere hiç yansımıyordu.
+      save(true)
+      return
     }
     save()
   }
@@ -545,7 +550,9 @@ export default function GameScreen({ config, onExit }: Props) {
         title: titleRef.current,
         imageDataUrl: r.imageDataUrl,
         seed: r.seed,
-        pieceCount: r.pieceCount,
+        // Seçilen sayı yaklaşıktır (100 seçilince 104 parça çıkabilir).
+        // İstatistikler doğru olsun diye gerçek parça sayısını yazıyoruz.
+        pieceCount: r.game?.pieces.length ?? r.pieceCount,
         message: surpriseRef.current,
         maxPlayers: config.maxPlayers ?? 2,
         rotation: r.rotation,
