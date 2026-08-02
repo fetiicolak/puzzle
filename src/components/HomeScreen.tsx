@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import FriendsSection from './FriendsSection'
+import RenameDialog from './RenameDialog'
 import { SAMPLES, sampleThumbUrl, sampleUrl, type Sample } from '../samples'
 import {
   listPuzzles,
@@ -72,6 +73,10 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   const [siliniyor, setSiliniyor] = useState<string | null>(null)
   const [hepsiniGoster, setHepsiniGoster] = useState(false)
   const [surukleniyor, setSurukleniyor] = useState(false)
+  /** Adı değiştirilmekte olan kayıt (pencere bunun için açılır) */
+  const [adlandirilan, setAdlandirilan] = useState<
+    { tur: 'uzak'; p: RemotePuzzle } | { tur: 'yerel'; p: SavedPuzzle } | null
+  >(null)
 
   // Liste render sırasında okunuyor; oyundan çıkarken yazılan son kayıt bundan
   // sonra düşüyor. Bağlandıktan sonra bir kez daha oku.
@@ -131,21 +136,21 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     }
   }
 
-  const uzakAdlandir = async (p: RemotePuzzle) => {
-    const yeni = prompt('Yeni ad', p.title || '')
-    if (yeni === null) return
-    const ad = yeni.trim()
-    if (!ad || ad === p.title) return
-    try {
-      await yenidenAdlandir(p.id, ad)
-      setUzak((l) => l.map((x) => (x.id === p.id ? { ...x, title: ad } : x)))
-      // cihazdaki kopyanın adı da güncellensin
-      const yerel = listPuzzles().find((s) => s.id === p.room_code)
-      if (yerel) savePuzzle({ ...yerel, title: ad, updatedAt: Date.now() })
-      setSaved(listPuzzles())
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Ad değiştirilemedi')
-    }
+  /** Sunucudaki kaydın adını değiştir (cihazdaki kopya da güncellenir) */
+  const uzakAdKaydet = async (p: RemotePuzzle, ad: string) => {
+    await yenidenAdlandir(p.id, ad)
+    setUzak((l) => l.map((x) => (x.id === p.id ? { ...x, title: ad } : x)))
+    const yerel = listPuzzles().find((s) => s.id === p.room_code)
+    if (yerel) savePuzzle({ ...yerel, title: ad, updatedAt: Date.now() })
+    setSaved(listPuzzles())
+    setAdlandirilan(null)
+  }
+
+  /** Yalnızca bu cihazdaki kaydın adını değiştir */
+  const yerelAdKaydet = (p: SavedPuzzle, ad: string) => {
+    savePuzzle({ ...p, title: ad, updatedAt: Date.now() })
+    setSaved(listPuzzles())
+    setAdlandirilan(null)
   }
 
   // Önce sunucudan sil, sonra listeden çıkar. Tersi olursa silinmemiş bir
@@ -207,6 +212,20 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
+      {adlandirilan && (
+        <RenameDialog
+          mevcutAd={
+            adlandirilan.tur === 'uzak' ? adlandirilan.p.title : adlandirilan.p.title
+          }
+          onIptal={() => setAdlandirilan(null)}
+          onKaydet={(ad) =>
+            adlandirilan.tur === 'uzak'
+              ? uzakAdKaydet(adlandirilan.p, ad)
+              : yerelAdKaydet(adlandirilan.p, ad)
+          }
+        />
+      )}
+
       {surukleniyor && (
         <div className="birak-katmani">
           <div className="birak-kutu">
@@ -343,7 +362,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                     title="Yeniden adlandır"
                     onClick={(e) => {
                       e.stopPropagation()
-                      void uzakAdlandir(p)
+                      setAdlandirilan({ tur: 'uzak', p })
                     }}
                   >
                     ✎
@@ -408,6 +427,16 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                     )}
                   </small>
                 </div>
+                <button
+                  className="del"
+                  title="Yeniden adlandır"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setAdlandirilan({ tur: 'yerel', p })
+                  }}
+                >
+                  ✎
+                </button>
                 <button
                   className="del"
                   title="Sil"

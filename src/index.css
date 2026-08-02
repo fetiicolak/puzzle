@@ -681,6 +681,31 @@ button {
   margin-left: 6px;
 }
 
+/* ---------------------------------------------------- küçük pencere */
+
+.dialog {
+  width: min(94vw, 380px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  background: linear-gradient(180deg, rgba(46, 35, 60, 0.98), rgba(26, 20, 38, 0.98));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: rise 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+.dialog h3 {
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.dialog-butonlar {
+  display: flex;
+  gap: 9px;
+  justify-content: flex-end;
+}
+
 /* ---------------------------------------------------- istatistikler */
 
 .stats {
