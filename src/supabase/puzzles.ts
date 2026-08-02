@@ -245,9 +245,12 @@ export async function katilimcilariGetir(
   const { data: oturum } = await supabase.auth.getUser()
   const ben = oturum.user?.id
 
+  // Odadan çıkarılanlar sayılmaz: kaydı duruyor ama artık o tabloyu birlikte
+  // çözmüş sayılmıyor (bkz. schema.sql -> oyuncu_cikar).
   const { data: satirlar } = await supabase
     .from('puzzle_players')
     .select('puzzle_id,user_id')
+    .eq('banned', false)
     .in('puzzle_id', puzzleIdler)
   if (!satirlar || satirlar.length === 0) return harita
 

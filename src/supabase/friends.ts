@@ -96,16 +96,20 @@ export async function birlikteOynananlar(haricTut: string[]): Promise<Kisi[]> {
   const ben = oturum.user?.id
   if (!ben) return []
 
+  // banned = odadan çıkarılmış. Ne çıkarıldığın odalar ne de çıkardığın
+  // kişiler "birlikte oynadıkların" sayılır.
   const { data: benimkiler } = await supabase
     .from('puzzle_players')
     .select('puzzle_id')
     .eq('user_id', ben)
+    .eq('banned', false)
   const puzzleIdler = (benimkiler ?? []).map((r) => (r as { puzzle_id: string }).puzzle_id)
   if (puzzleIdler.length === 0) return []
 
   const { data: hepsi } = await supabase
     .from('puzzle_players')
     .select('user_id')
+    .eq('banned', false)
     .in('puzzle_id', puzzleIdler)
 
   const disla = new Set([ben, ...haricTut])
