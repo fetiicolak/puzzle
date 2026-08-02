@@ -217,20 +217,50 @@ export async function listRemotePuzzles(): Promise<RemotePuzzle[]> {
   return (data ?? []) as RemotePuzzle[]
 }
 
-/** Bir tabloya katılan kişilerin adları */
-export async function puzzlePlayerNames(puzzleId: string): Promise<string[]> {
-  if (!supabase) return []
-  const { data } = await supabase
+/**
+ * Birden çok puzzle'ın katılımcı adlarını tek seferde getirir.
+ * Kendi adın listede yer almaz — kart üzerinde "kiminle oynandığı" yazacak.
+ * Puzzle başına ayrı sorgu atmamak için hepsi iki istekte toplanıyor.
+ */
+export async function katilimcilariGetir(
+  puzzleIdler: string[],
+): Promise<Map<string, string[]>> {
+  const harita = new Map<string, string[]>()
+  if (!supabase || puzzleIdler.length === 0) return harita
+
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+
+  const { data: satirlar } = await supabase
     .from('puzzle_players')
-    .select('user_id')
-    .eq('puzzle_id', puzzleId)
-  const idler = (data ?? []).map((r) => (r as { user_id: string }).user_id)
-  if (idler.length === 0) return []
+    .select('puzzle_id,user_id')
+    .in('puzzle_id', puzzleIdler)
+  if (!satirlar || satirlar.length === 0) return harita
+
+  const kayitlar = satirlar as { puzzle_id: string; user_id: string }[]
+  const kisiIdler = [...new Set(kayitlar.map((r) => r.user_id))].filter((id) => id !== ben)
+  if (kisiIdler.length === 0) return harita
+
   const { data: profiller } = await supabase
     .from('profiles')
-    .select('display_name')
-    .in('id', idler)
-  return (profiller ?? []).map((p) => (p as { display_name: string }).display_name)
+    .select('id,display_name')
+    .in('id', kisiIdler)
+  const adlar = new Map(
+    (profiller ?? []).map((p) => {
+      const s = p as { id: string; display_name: string }
+      return [s.id, s.display_name || 'İsimsiz']
+    }),
+  )
+
+  for (const r of kayitlar) {
+    if (r.user_id === ben) continue
+    const ad = adlar.get(r.user_id)
+    if (!ad) continue
+    const mevcut = harita.get(r.puzzle_id) ?? []
+    if (!mevcut.includes(ad)) mevcut.push(ad)
+    harita.set(r.puzzle_id, mevcut)
+  }
+  return harita
 }
 
 /** Oda kodu çakışma sonrası değiştiyse sunucudaki kaydı da güncelle */

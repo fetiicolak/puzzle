@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ConfirmDialog from './ConfirmDialog'
 import FriendsSection from './FriendsSection'
 import RenameDialog from './RenameDialog'
 import { SAMPLES, sampleThumbUrl, sampleUrl, type Sample } from '../samples'
@@ -15,6 +16,7 @@ import {
   bitmisleriOnar,
   deleteRemotePuzzle,
   gercektenBitti,
+  katilimcilariGetir,
   istatistikCikar,
   kilitliMi,
   listRemotePuzzles,
@@ -77,6 +79,12 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   const [adlandirilan, setAdlandirilan] = useState<
     { tur: 'uzak'; p: RemotePuzzle } | { tur: 'yerel'; p: SavedPuzzle } | null
   >(null)
+  /** Silinmek üzere onay bekleyen kayıt */
+  const [silinecek, setSilinecek] = useState<
+    { tur: 'uzak'; p: RemotePuzzle } | { tur: 'yerel'; p: SavedPuzzle } | null
+  >(null)
+  /** puzzle kimliği -> birlikte oynanan kişilerin adları */
+  const [katilimcilar, setKatilimcilar] = useState<Map<string, string[]>>(new Map())
 
   // Liste render sırasında okunuyor; oyundan çıkarken yazılan son kayıt bundan
   // sonra düşüyor. Bağlandıktan sonra bir kez daha oku.
@@ -98,6 +106,12 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         await bitmisleriOnar(liste)
         if (iptal) return
         setUzak([...liste])
+        // kimlerle oynandığını getir (tek seferde)
+        katilimcilariGetir(liste.map((p) => p.id))
+          .then((m) => {
+            if (!iptal) setKatilimcilar(m)
+          })
+          .catch(() => {})
         // kapak görsellerini getir
         const girisler = await Promise.all(
           liste.map(async (p) => [p.id, await puzzleImageUrl(p.image_path)] as const),
@@ -156,7 +170,6 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   // Önce sunucudan sil, sonra listeden çıkar. Tersi olursa silinmemiş bir
   // kayıt silinmiş gibi görünüp sayfa yenilenince geri geliyor.
   const uzakSil = async (p: RemotePuzzle) => {
-    if (!confirm(`"${p.title || 'İsimsiz'}" silinsin mi?`)) return
     setSiliniyor(p.id)
     try {
       await deleteRemotePuzzle(p.id, p.image_path)
@@ -164,11 +177,25 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       // yerel kopyayı da at, yoksa tekilleştirme kalkınca listede geri belirir
       removePuzzle(p.room_code)
       setSaved(listPuzzles())
-    } catch {
-      alert('Silinemedi. Bağlantını kontrol edip tekrar dene.')
+      setSilinecek(null)
     } finally {
       setSiliniyor(null)
     }
+  }
+
+  /** Silme penceresinde gösterilecek açıklama */
+  const silmeMesaji = (): string => {
+    if (!silinecek) return ''
+    const ad = silinecek.p.title || 'İsimsiz'
+    if (silinecek.tur === 'yerel') {
+      return `"${ad}" bu cihazdan silinecek. İlerlemen kaybolur, geri alınamaz.`
+    }
+    const kisiler = katilimcilar.get(silinecek.p.id) ?? []
+    const kimle =
+      kisiler.length > 0
+        ? ` ${kisiler.join(', ')} ile birlikte çözdüğünüz bu tablo herkesin geçmişinden kalkar.`
+        : ''
+    return `"${ad}" kalıcı olarak silinecek; fotoğrafı da sunucudan kaldırılır.${kimle} Geri alınamaz.`
   }
 
   // Sürükle bırak: dosyayı sayfanın herhangi bir yerine bırakmak yeterli.
@@ -223,6 +250,25 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
               ? uzakAdKaydet(adlandirilan.p, ad)
               : yerelAdKaydet(adlandirilan.p, ad)
           }
+        />
+      )}
+
+      {silinecek && (
+        <ConfirmDialog
+          baslik="Puzzle'ı sil"
+          mesaj={silmeMesaji()}
+          onayYazisi="Sil"
+          tehlikeli
+          onIptal={() => setSilinecek(null)}
+          onOnayla={async () => {
+            if (silinecek.tur === 'uzak') {
+              await uzakSil(silinecek.p)
+            } else {
+              removePuzzle(silinecek.p.id)
+              setSaved(listPuzzles())
+              setSilinecek(null)
+            }
+          }}
         />
       )}
 
@@ -352,10 +398,24 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                         <>
                           {gercektenBitti(p) ? 'bitti · ' : ''}
                           {p.piece_count} parça · {tarih(p.updated_at)}
-                          {p.owner !== auth.user?.id ? ' · beraber' : ''}
                         </>
                       )}
                     </small>
+                    {!kilitli && (katilimcilar.get(p.id)?.length ?? 0) > 0 && (
+                      <span className="birlikte">
+                        {katilimcilar.get(p.id)!.slice(0, 3).map((ad) => (
+                          <span key={ad} className="rozet-kisi">
+                            <span className="avatar mini">{(ad[0] ?? '?').toUpperCase()}</span>
+                            {ad}
+                          </span>
+                        ))}
+                        {katilimcilar.get(p.id)!.length > 3 && (
+                          <span className="rozet-kisi">
+                            +{katilimcilar.get(p.id)!.length - 3}
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <button
                     className="del"
@@ -373,7 +433,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                     disabled={siliniyor === p.id}
                     onClick={(e) => {
                       e.stopPropagation()
-                      void uzakSil(p)
+                      setSilinecek({ tur: 'uzak', p })
                     }}
                   >
                     {siliniyor === p.id ? '…' : '✕'}
@@ -442,10 +502,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   title="Sil"
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (confirm(`"${p.title || 'İsimsiz'}" silinsin mi?`)) {
-                      removePuzzle(p.id)
-                      setSaved(listPuzzles())
-                    }
+                    setSilinecek({ tur: 'yerel', p })
                   }}
                 >
                   ✕

@@ -575,6 +575,35 @@ button {
   color: var(--muted);
   font-size: 0.81rem;
 }
+/* kartta "kiminle oynandı" rozetleri */
+.birlikte {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.rozet-kisi {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 2px 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 0.73rem;
+  color: var(--text);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.avatar.mini {
+  width: 18px;
+  height: 18px;
+  font-size: 0.62rem;
+  flex: none;
+}
+
 .resume-card .del {
   flex: none;
   width: 32px;
@@ -685,6 +714,9 @@ button {
 
 .dialog {
   width: min(94vw, 380px);
+  /* yatay tutulan telefonda uzun metin taşmasın */
+  max-height: 88dvh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
