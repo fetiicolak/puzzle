@@ -295,9 +295,11 @@ export class Room {
       const msg = data as Msg & { t: string; from?: string }
       // Host merkezdir: gelen mesajı diğer katılımcılara aynen ilet
       if (this.isHost) {
-        const relay = { ...msg, from: id }
+        const relay = { ...msg, from: id } as Msg
         for (const [otherId, other] of this.conns) {
-          if (otherId !== id && other.open) this.queue.push({ msg: relay as Msg, to: otherId })
+          if (otherId === id || !other.open) continue
+          if (this.birlestir(relay, otherId)) continue
+          this.queue.push({ msg: relay, to: otherId })
         }
         void this.drain()
       }
@@ -346,16 +348,43 @@ export class Room {
 
   // ---- gönderim (akış kontrollü) ----
 
-  /** Herkese gönder */
+  /**
+   * Herkese gönder.
+   *
+   * Konum ve imleç mesajları "en yenisi geçerli" cinsindendir. Kanal tıkalıyken
+   * bunları kuyruğa eklemek yerine bekleyenin üstüne yazıyoruz: yoksa sürükleme
+   * sırasında onlarca eskimiş konum birikip, tıkanma açılınca hepsi birden
+   * gidiyor. Bu hem bant genişliğini boşa harcayıp görüntüyü dondurabiliyor
+   * hem de karşı tarafta hareketi sıçratıyordu.
+   */
   send(msg: Msg): void {
     if (this.conns.size === 0) return
+    if (this.birlestir(msg, undefined)) return
     this.queue.push({ msg })
     void this.drain()
+  }
+
+  /** Kuyrukta bekleyen aynı türden mesajın üstüne yaz; yazdıysa true */
+  private birlestir(msg: Msg, to: string | undefined): boolean {
+    if (msg.t !== 'move' && msg.t !== 'cursor') return false
+    for (let i = this.queue.length - 1; i >= 0; i--) {
+      const q = this.queue[i]
+      if (q.to !== to || q.msg.t !== msg.t) continue
+      // Host yansıtırken kaynağı işaretler; farklı kişilerin imleçleri
+      // birbirinin yerine geçmemeli.
+      if (q.msg.from !== msg.from) continue
+      // move'lar yalnızca aynı grup içinse birbirinin yerini alabilir
+      if (msg.t === 'move' && (q.msg as { g: number }).g !== msg.g) continue
+      this.queue[i] = { msg, to }
+      return true
+    }
+    return false
   }
 
   /** Yalnızca bir katılımcıya gönder (host, yeni gelene tam senkron atarken) */
   sendTo(id: string, msg: Msg): void {
     if (!this.conns.has(id)) return
+    if (this.birlestir(msg, id)) return
     this.queue.push({ msg, to: id })
     void this.drain()
   }
@@ -413,7 +442,10 @@ export class Room {
     this.mediaBaglantilari.set(id, { cagri, bizimAkisGitti })
 
     cagri.on('stream', (akis) => {
-      if (!this.closed) this.events.onRemoteStream?.(id, akis)
+      if (this.closed) return
+      // Bağlantı kurulduğunda kodlayıcıyı sınırla (aşağıya bak)
+      void this.kodlayiciyiSinirla(cagri)
+      this.events.onRemoteStream?.(id, akis)
     })
     const bitti = () => {
       // Bu çağrı yerine yenisi geçtiyse "görüntü kesildi" deme; eskiden bu
@@ -425,6 +457,36 @@ export class Room {
     }
     cagri.on('close', bitti)
     cagri.on('error', bitti)
+  }
+
+  /**
+   * Giden görüntüye tavan koy.
+   *
+   * Varsayılanda tarayıcı bant genişliğinin izin verdiği kadarını almaya
+   * çalışıyor; oyun zaten tuvali sürekli çizdiği için CPU sıkışınca kodlayıcı
+   * geride kalıyor ve görüntü saniyelerce donuyordu. Küçük bir pencerede
+   * gösterildiği için yüksek bit hızına gerek yok.
+   *
+   * degradationPreference = maintain-framerate: sıkışınca çözünürlükten ver,
+   * akıcılığı koru. Donma yerine biraz bulanıklık tercih ediliyor.
+   */
+  private async kodlayiciyiSinirla(cagri: MediaConnection): Promise<void> {
+    const pc = (cagri as unknown as { peerConnection?: RTCPeerConnection }).peerConnection
+    if (!pc) return
+    for (const gonderici of pc.getSenders()) {
+      if (gonderici.track?.kind !== 'video') continue
+      try {
+        const par = gonderici.getParameters()
+        if (!par.encodings || par.encodings.length === 0) par.encodings = [{}]
+        par.encodings[0].maxBitrate = 400_000
+        par.encodings[0].maxFramerate = 20
+        ;(par as { degradationPreference?: string }).degradationPreference =
+          'maintain-framerate'
+        await gonderici.setParameters(par)
+      } catch {
+        // bazı tarayıcılar setParameters'ı kısıtlıyor; varsayılanla devam
+      }
+    }
   }
 
   /**

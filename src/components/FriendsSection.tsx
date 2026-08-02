@@ -84,7 +84,10 @@ export default function FriendsSection() {
     )
   }
 
-  const toplam = arkadaslar.length + gelenler.length + gidenler.length + oneriler.length
+  // Başlıktaki sayı yalnızca kabul edilmiş arkadaşları sayar. Eskiden bekleyen
+  // istekler ve "birlikte çözdüklerin" önerileri de eklendiği için, tek
+  // arkadaşın varken 2 görünüyordu.
+  const toplam = arkadaslar.length
 
   return (
     <section className="block">

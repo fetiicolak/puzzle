@@ -275,7 +275,11 @@ export default function GameScreen({ config, onExit }: Props) {
       },
       onCursor: (x, y) => {
         const now = performance.now()
-        if (now - r.lastCursorSent > 60) {
+        // Görüşme açıkken imleç daha seyrek gönderiliyor: veri kanalı ile
+        // görüntü aynı bağlantıyı paylaştığı için sık gönderim görüntüyü
+        // dondurabiliyor.
+        const aralik = r.room?.yayindaMi ? 110 : 60
+        if (now - r.lastCursorSent > aralik) {
           r.lastCursorSent = now
           r.room?.send({ t: 'cursor', x, y, ad: auth.displayName || 'Partner' })
         }
@@ -837,10 +841,17 @@ export default function GameScreen({ config, onExit }: Props) {
       ? [{ video: false, audio: SES_AYARI }, { video: false, audio: true }]
       : [
           {
-            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+            // Kare hızına tavan: küçük pencerede 30 fps gerekmiyor ve
+            // kodlayıcı sıkışmadığı için görüntü daha az donuyor.
+            video: {
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              frameRate: { ideal: 20, max: 24 },
+              facingMode: 'user',
+            },
             audio: SES_AYARI,
           },
-          { video: true, audio: SES_AYARI },
+          { video: { frameRate: { ideal: 20, max: 24 } }, audio: SES_AYARI },
           { video: true, audio: true },
         ]
 

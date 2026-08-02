@@ -22,6 +22,7 @@ interface Props {
 function Video({ akis, sessiz }: { akis: MediaStream; sessiz?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null)
   const [dokunGerek, setDokunGerek] = useState(false)
+  const [takildi, setTakildi] = useState(false)
 
   useEffect(() => {
     const el = ref.current
@@ -36,9 +37,57 @@ function Video({ akis, sessiz }: { akis: MediaStream; sessiz?: boolean }) {
     el.play().catch(() => setDokunGerek(true))
   }, [akis])
 
+  /**
+   * Donma nöbetçisi.
+   *
+   * Akış canlı görünürken görüntünün saatinin ilerlemediği oluyor (ağda kısa
+   * bir kopma, sekmenin arka plana atılması, kod çözücünün takılması). Tarayıcı
+   * bunu kendiliğinden toparlamıyor; öğe sessizce son karede kalıyor. İki
+   * saniye ilerleme yoksa önce play(), sürerse akışı yeniden bağlıyoruz.
+   */
+  useEffect(() => {
+    const el = ref.current
+    if (!el || sessiz) return
+    let sonZaman = -1
+    let takiliSayac = 0
+
+    const id = setInterval(() => {
+      const canli = akis.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted)
+      if (!canli) {
+        setTakildi(false)
+        takiliSayac = 0
+        return
+      }
+      if (el.currentTime === sonZaman && !el.paused) {
+        takiliSayac++
+        if (takiliSayac === 2) {
+          setTakildi(true)
+          el.play().catch(() => {})
+        } else if (takiliSayac >= 4) {
+          // hâlâ duruyorsa akışı yeniden bağla
+          takiliSayac = 0
+          try {
+            el.srcObject = null
+            el.srcObject = akis
+            void el.play()
+          } catch {
+            // yapılamadıysa bir sonraki turda tekrar denenir
+          }
+        }
+      } else {
+        if (takiliSayac > 0) setTakildi(false)
+        takiliSayac = 0
+      }
+      sonZaman = el.currentTime
+    }, 1000)
+
+    return () => clearInterval(id)
+  }, [akis, sessiz])
+
   return (
     <>
       <video ref={ref} autoPlay playsInline muted={sessiz} />
+      {takildi && !dokunGerek && <span className="video-takildi">görüntü takıldı…</span>}
       {dokunGerek && (
         <button
           className="video-dokun"

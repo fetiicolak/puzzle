@@ -1127,6 +1127,18 @@ select.input {
   color: var(--muted);
   font-size: 0.8rem;
 }
+/* görüntü donduğunda kısa uyarı; toparlanınca kendiliğinden kalkar */
+.video-takildi {
+  position: absolute;
+  left: 6px;
+  top: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffd9a0;
+  font-size: 0.64rem;
+}
+
 /* iOS otomatik oynatmayı reddederse kullanıcı dokunup başlatsın */
 .video-dokun {
   position: absolute;
