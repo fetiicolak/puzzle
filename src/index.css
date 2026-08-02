@@ -700,10 +700,28 @@ button {
   font-weight: 700;
   letter-spacing: -0.02em;
 }
+.dialog-mesaj {
+  color: var(--muted);
+  font-size: 0.93rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+  margin-top: -4px;
+}
 .dialog-butonlar {
   display: flex;
   gap: 9px;
   justify-content: flex-end;
+}
+
+/* geri alınamayan işlemler için */
+.btn-danger {
+  background: linear-gradient(135deg, #ff6b6b, #e04848);
+  color: #2a0d0d;
+  box-shadow: 0 8px 22px rgba(255, 107, 107, 0.3);
+}
+.btn-danger:hover:not(:disabled) {
+  box-shadow: 0 12px 30px rgba(255, 107, 107, 0.4);
+  transform: translateY(-1px);
 }
 
 /* ---------------------------------------------------- istatistikler */

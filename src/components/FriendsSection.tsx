@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import ConfirmDialog from './ConfirmDialog'
 import MessageBox from './MessageBox'
 import {
   arkadaslikIste,
@@ -18,6 +19,8 @@ export default function FriendsSection() {
   const [islemdeki, setIslemdeki] = useState<string | null>(null)
   const [okunmamis, setOkunmamis] = useState<Map<string, number>>(new Map())
   const [acikSohbet, setAcikSohbet] = useState<Kisi | null>(null)
+  /** Arkadaşlıktan çıkarılmak üzere onay bekleyen kişi */
+  const [cikarilacak, setCikarilacak] = useState<Arkadaslik | null>(null)
 
   const tazele = useCallback(async () => {
     const liste = await arkadasliklariGetir()
@@ -77,6 +80,21 @@ export default function FriendsSection() {
         />
       )}
 
+      {cikarilacak && (
+        <ConfirmDialog
+          baslik="Arkadaşlıktan çıkar"
+          mesaj={`${cikarilacak.kisi.ad} arkadaş listenden çıkarılacak. Birbirinize mesaj gönderemezsiniz; birlikte çözdüğünüz tablolar durmaya devam eder.`}
+          onayYazisi="Çıkar"
+          tehlikeli
+          onIptal={() => setCikarilacak(null)}
+          onOnayla={async () => {
+            await arkadasligiSil(cikarilacak.id)
+            setCikarilacak(null)
+            await tazele()
+          }}
+        />
+      )}
+
       {gelenler.length > 0 && (
         <div className="friend-list">
           {gelenler.map((a) => (
@@ -126,11 +144,7 @@ export default function FriendsSection() {
                 className="del"
                 title="Arkadaşlıktan çıkar"
                 disabled={islemdeki === a.id}
-                onClick={() => {
-                  if (confirm(`${a.kisi.ad} arkadaşlıktan çıkarılsın mı?`)) {
-                    void sarmala(a.id, () => arkadasligiSil(a.id))
-                  }
-                }}
+                onClick={() => setCikarilacak(a)}
               >
                 ✕
               </button>
