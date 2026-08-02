@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AuthScreen from './components/AuthScreen'
 import GameScreen, { type GameConfig } from './components/GameScreen'
 import HomeScreen from './components/HomeScreen'
@@ -36,7 +36,34 @@ function misafirConfig(kod: string): GameConfig {
 
 export default function App() {
   const auth = useAuth()
-  const [screen, setScreen] = useState<Screen>(initialScreen)
+  const [screen, setScreenRaw] = useState<Screen>(initialScreen)
+
+  /**
+   * Ekran değişimlerini tarayıcı geçmişine yazar; böylece telefondaki ya da
+   * tarayıcıdaki geri tuşu bir önceki ekrana döner. Eskiden tek bir geçmiş
+   * girdisi olduğu için geri tuşu siteden tamamen çıkıyordu.
+   */
+  const setScreen = (yeni: Screen) => {
+    setScreenRaw(yeni)
+    history.pushState({ ekran: yeni.s }, '')
+  }
+
+  useEffect(() => {
+    // ilk girdiyi işaretle ki geri tuşu buraya dönebilsin
+    history.replaceState({ ekran: 'home' }, '')
+    const geri = () => {
+      // Geçmişte geri gidildi: oyun/kurulum ekranındaysak ana ekrana dön.
+      setScreenRaw((mevcut) => {
+        if (mevcut.s === 'home') return mevcut
+        if (location.hash) {
+          history.replaceState(null, '', location.pathname + location.search)
+        }
+        return { s: 'home' }
+      })
+    }
+    window.addEventListener('popstate', geri)
+    return () => window.removeEventListener('popstate', geri)
+  }, [])
   // Davet linkiyle gelen kişi önce seçim ekranını görür; giriş duvarına
   // ancak "hesabımla gireyim" derse takılır.
   const [misafirDevam, setMisafirDevam] = useState(false)

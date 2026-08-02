@@ -104,6 +104,8 @@ export interface RotateMsg {
 /** Parçaları tepsiye diz (herkeste aynı sonucu verir) */
 export interface TrayMsg {
   t: 'tray'
+  /** Dizilim sırasını karıştırmak için ortak tohum */
+  seed: number
 }
 
 export type Msg = (

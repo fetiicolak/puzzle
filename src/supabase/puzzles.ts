@@ -6,7 +6,7 @@
 // Fotoğraf depoda tutulduğu için odaya katılan kişi görseli doğrudan sunucudan
 // indirir; cihazdan cihaza aktarıma (ve onun bağlantı kırılganlığına) gerek kalmaz.
 
-import type { StateSnapshot } from '../engine/state'
+import { snapshotTamamlanmis, type StateSnapshot } from '../engine/state'
 import { supabase } from './client'
 
 const BUCKET = 'puzzle-images'
@@ -45,9 +45,36 @@ export interface Istatistik {
   birlikteCozulen: number
 }
 
+/**
+ * Puzzle gerçekten bitmiş mi. Bayrağa tek başına güvenilmiyor: eski
+ * kayıtlarda tamamlanma sunucuya ulaşmadan kalabildiği için parça
+ * konumlarından da doğruluyoruz.
+ */
+export function gercektenBitti(p: RemotePuzzle): boolean {
+  return p.completed || snapshotTamamlanmis(p.state)
+}
+
+/**
+ * Bayrağı eksik kalmış kayıtları sunucuda düzeltir (bir kerelik onarım).
+ * Sessizce çalışır; başarısız olursa istatistikler yine doğru gösterilir.
+ */
+export async function bitmisleriOnar(liste: RemotePuzzle[]): Promise<number> {
+  if (!supabase) return 0
+  const bozuk = liste.filter((p) => !p.completed && snapshotTamamlanmis(p.state))
+  for (const p of bozuk) {
+    try {
+      await supabase.from('puzzles').update({ completed: true }).eq('id', p.id)
+      p.completed = true
+    } catch {
+      // yetki yoksa veya çevrimdışıysak boş ver
+    }
+  }
+  return bozuk.length
+}
+
 /** Tablolardan özet istatistik çıkar */
 export function istatistikCikar(liste: RemotePuzzle[], benimId: string): Istatistik {
-  const bitenler = liste.filter((p) => p.completed)
+  const bitenler = liste.filter(gercektenBitti)
   let enHizli: { title: string; elapsed: number } | null = null
   for (const p of bitenler) {
     if (p.elapsed > 0 && (!enHizli || p.elapsed < enHizli.elapsed)) {
@@ -216,6 +243,15 @@ export async function updateRemoteRoomCode(puzzleId: string, roomCode: string): 
  * Kaydı ve fotoğrafını sil. Silinemezse hata fırlatır ki arayüz kartı
  * listede tutup kullanıcıya haber verebilsin.
  */
+/** Puzzle'ın adını değiştir (yalnızca katılımcılar) */
+export async function yenidenAdlandir(puzzleId: string, yeniAd: string): Promise<void> {
+  if (!supabase) return
+  const ad = yeniAd.trim().slice(0, 60)
+  if (!ad) throw new Error('Ad boş olamaz')
+  const { error } = await supabase.from('puzzles').update({ title: ad }).eq('id', puzzleId)
+  if (error) throw new Error(error.message)
+}
+
 export async function deleteRemotePuzzle(puzzleId: string, imagePath?: string): Promise<void> {
   if (!supabase) return
   const { data, error } = await supabase.from('puzzles').delete().eq('id', puzzleId).select('id')

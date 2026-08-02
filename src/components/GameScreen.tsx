@@ -17,6 +17,7 @@ import {
   type GameState,
   type StateSnapshot,
 } from '../engine/state'
+import VideoPanel from './VideoPanel'
 import { Room, type RoomStatus } from '../net/peer'
 import { chunkDataUrl, type Msg } from '../net/protocol'
 import { loadImage, savePuzzle, urlToDataUrl } from '../storage'
@@ -143,6 +144,10 @@ export default function GameScreen({ config, onExit }: Props) {
   const [peek, setPeek] = useState(false)
   const [edgeOnly, setEdgeOnly] = useState(false)
   const [araclarAcik, setAraclarAcik] = useState(false)
+  const [yerelAkis, setYerelAkis] = useState<MediaStream | null>(null)
+  const [uzakAkislar, setUzakAkislar] = useState<Map<string, MediaStream>>(new Map())
+  const [kameraAcik, setKameraAcik] = useState(true)
+  const [sesAcik, setSesAcik] = useState(true)
   const [chatAcik, setChatAcik] = useState(false)
   const [chat, setChat] = useState<ChatSatiri[]>([])
   const [okunmamis, setOkunmamis] = useState(0)
@@ -423,7 +428,7 @@ export default function GameScreen({ config, onExit }: Props) {
       }
       case 'tray': {
         if (!r.game) break
-        arrangeTray(r.game)
+        arrangeTray(r.game, msg.seed)
         afterStateChange(false)
         break
       }
@@ -445,6 +450,17 @@ export default function GameScreen({ config, onExit }: Props) {
   }
 
   const roomEvents = {
+    onRemoteStream: (id: string, akis: MediaStream) => {
+      if (!refs.current.destroyed) setUzakAkislar((m) => new Map(m).set(id, akis))
+    },
+    onRemoteStreamEnded: (id: string) => {
+      if (refs.current.destroyed) return
+      setUzakAkislar((m) => {
+        const y = new Map(m)
+        y.delete(id)
+        return y
+      })
+    },
     onCodeChanged: (code: string) => {
       const r = refs.current
       if (r.destroyed) return
@@ -718,8 +734,9 @@ export default function GameScreen({ config, onExit }: Props) {
   const tepsiyeDiz = () => {
     const r = refs.current
     if (!r.game) return
-    arrangeTray(r.game)
-    r.room?.send({ t: 'tray' })
+    const seed = (Math.random() * 0xffffffff) >>> 0
+    arrangeTray(r.game, seed)
+    r.room?.send({ t: 'tray', seed })
     afterStateChange(false)
     r.board?.fitView()
   }
@@ -732,6 +749,56 @@ export default function GameScreen({ config, onExit }: Props) {
     r.room?.send({ t: 'shuffle', seed })
     afterStateChange(false)
     r.board?.fitView()
+  }
+
+  /** Kamerayı aç ve odadakilerle görüntülü görüşmeyi başlat */
+  const gorusmeBaslat = async () => {
+    const r = refs.current
+    if (!r.room) return
+    try {
+      const akis = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: { echoCancellation: true, noiseSuppression: true },
+      })
+      if (r.destroyed) {
+        akis.getTracks().forEach((t) => t.stop())
+        return
+      }
+      setYerelAkis(akis)
+      setKameraAcik(true)
+      setSesAcik(true)
+      await r.room.yayiniBaslat(akis)
+    } catch (e) {
+      const ad = e instanceof Error ? e.name : ''
+      alert(
+        ad === 'NotAllowedError'
+          ? 'Kamera izni verilmedi. Tarayıcı ayarlarından izin verebilirsin.'
+          : ad === 'NotFoundError'
+            ? 'Kamera bulunamadı.'
+            : 'Kamera açılamadı.',
+      )
+    }
+  }
+
+  const gorusmeBitir = () => {
+    yerelAkis?.getTracks().forEach((t) => t.stop())
+    setYerelAkis(null)
+    setUzakAkislar(new Map())
+    refs.current.room?.yayiniDurdur()
+  }
+
+  const kamerayiDegistir = () => {
+    const iz = yerelAkis?.getVideoTracks()[0]
+    if (!iz) return
+    iz.enabled = !iz.enabled
+    setKameraAcik(iz.enabled)
+  }
+
+  const sesiDegistir = () => {
+    const iz = yerelAkis?.getAudioTracks()[0]
+    if (!iz) return
+    iz.enabled = !iz.enabled
+    setSesAcik(iz.enabled)
   }
 
   const copyInvite = async () => {
@@ -792,6 +859,15 @@ export default function GameScreen({ config, onExit }: Props) {
         {config.mode !== 'guest' && (
           <button className="btn btn-sm btn-secondary" onClick={createRoom}>
             Davet
+          </button>
+        )}
+        {roomStatus !== 'idle' && (
+          <button
+            className={`icon-btn ${yerelAkis ? 'on' : ''}`}
+            onClick={() => (yerelAkis ? gorusmeBitir() : void gorusmeBaslat())}
+            title={yerelAkis ? 'Görüşmeyi bitir' : 'Görüntülü konuş'}
+          >
+            📹
           </button>
         )}
         {roomStatus !== 'idle' && (
@@ -877,6 +953,18 @@ export default function GameScreen({ config, onExit }: Props) {
         >
           <img src={refs.current.imageDataUrl} alt="Orijinal" />
         </button>
+      )}
+
+      {(yerelAkis || uzakAkislar.size > 0) && (
+        <VideoPanel
+          yerel={yerelAkis}
+          uzaklar={uzakAkislar}
+          sesAcik={sesAcik}
+          kameraAcik={kameraAcik}
+          onSes={sesiDegistir}
+          onKamera={kamerayiDegistir}
+          onKapat={gorusmeBitir}
+        />
       )}
 
       {chatAcik && (

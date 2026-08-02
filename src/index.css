@@ -734,6 +734,111 @@ button {
   font-weight: 600;
 }
 
+/* ---------------------------------------------------- sürükle bırak */
+
+.birak-katmani {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(10, 7, 16, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
+  animation: fade 0.15s ease;
+}
+.birak-kutu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 40px 48px;
+  border-radius: 26px;
+  border: 2px dashed var(--accent);
+  background: rgba(255, 93, 125, 0.1);
+}
+.birak-kutu b {
+  font-size: 1.35rem;
+}
+.birak-kutu small {
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------- görüntülü konuşma */
+
+.video-panel {
+  position: absolute;
+  top: 64px;
+  right: 12px;
+  width: min(80vw, 230px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(26, 20, 38, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 7;
+  animation: pop 0.2s ease;
+}
+.video-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.video-kutu {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 4 / 3;
+}
+.video-kutu video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* kendini aynada görür gibi */
+  transform: scaleX(-1);
+}
+.video-kutu.ben {
+  border: 1px solid var(--accent);
+}
+.video-etiket {
+  position: absolute;
+  left: 6px;
+  bottom: 5px;
+  font-size: 0.66rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text);
+}
+.video-bos {
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 14px 8px;
+}
+.video-araclar {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+
+@media (max-width: 700px) {
+  .video-panel {
+    width: 38vw;
+    top: 56px;
+    right: 8px;
+  }
+}
+
 /* ---------------------------------------------------- sohbet */
 
 .chat {

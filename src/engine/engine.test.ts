@@ -16,6 +16,7 @@ import {
   rotateVec,
   shufflePieces,
   snapshot,
+  snapshotTamamlanmis,
   splitPiece,
 } from './state'
 
@@ -387,6 +388,61 @@ describe('kenar parçaları ve tepsi', () => {
     expect(a.group).toBe(b.group)
     expect(b.x - a.x).toBeCloseTo(s.cut.cellW)
     expect(b.y - a.y).toBeCloseTo(0)
+  })
+})
+
+describe('kayıttan tamamlanmışlık çıkarma', () => {
+  function bitmisState() {
+    const s = makeState()
+    for (const p of s.pieces) {
+      const cp = correctPos(s.cut, p)
+      moveGroup(s, p.group, cp.x - p.x, cp.y - p.y)
+      dropGroup(s, p.group)
+    }
+    return s
+  }
+
+  it('tamamlanmış puzzle bitmiş olarak tanınır', () => {
+    const s = bitmisState()
+    expect(isCompleted(s)).toBe(true)
+    expect(snapshotTamamlanmis(snapshot(s))).toBe(true)
+  })
+
+  it('yarım kalmış puzzle bitmiş sayılmaz', () => {
+    const s = makeState()
+    const p = s.pieces[0]
+    const cp = correctPos(s.cut, p)
+    moveGroup(s, p.group, cp.x - p.x, cp.y - p.y)
+    dropGroup(s, p.group)
+    expect(snapshotTamamlanmis(snapshot(s))).toBe(false)
+  })
+
+  it('tüm parçalar birleşmiş ama çerçeveye oturmamışsa bitmiş sayılmaz', () => {
+    const s = bitmisState()
+    // hepsini birlikte kaydır: dizilim doğru ama yerinde değil
+    moveGroup(s, s.pieces[0].group, 500, 500)
+    expect(snapshotTamamlanmis(snapshot(s))).toBe(false)
+  })
+
+  it('bir parça çevriliyse bitmiş sayılmaz', () => {
+    const s = bitmisState()
+    const snap = snapshot(s)
+    snap.positions[2].rot = 1
+    expect(snapshotTamamlanmis(snap)).toBe(false)
+  })
+
+  it('boş veya eksik kayıt bitmiş sayılmaz', () => {
+    expect(snapshotTamamlanmis(null)).toBe(false)
+    expect(snapshotTamamlanmis(undefined)).toBe(false)
+    expect(snapshotTamamlanmis({ positions: [] })).toBe(false)
+  })
+
+  it('eski kayıtlarda rot alanı yoksa da çalışır', () => {
+    const s = bitmisState()
+    const snap = snapshot(s)
+    // eski sürüm rot yazmıyordu
+    snap.positions.forEach((p) => delete p.rot)
+    expect(snapshotTamamlanmis(snap)).toBe(true)
   })
 })
 

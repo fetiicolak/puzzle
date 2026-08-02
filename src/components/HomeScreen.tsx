@@ -4,17 +4,21 @@ import { SAMPLES, sampleThumbUrl, sampleUrl, type Sample } from '../samples'
 import {
   listPuzzles,
   removePuzzle,
+  savePuzzle,
   toPuzzleImage,
   yerelKilitliMi,
   type SavedPuzzle,
 } from '../storage'
 import { useAuth } from '../supabase/auth'
 import {
+  bitmisleriOnar,
   deleteRemotePuzzle,
+  gercektenBitti,
   istatistikCikar,
   kilitliMi,
   listRemotePuzzles,
   puzzleImageUrl,
+  yenidenAdlandir,
   type RemotePuzzle,
 } from '../supabase/puzzles'
 
@@ -67,6 +71,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   const [kapaklar, setKapaklar] = useState<Record<string, string>>({})
   const [siliniyor, setSiliniyor] = useState<string | null>(null)
   const [hepsiniGoster, setHepsiniGoster] = useState(false)
+  const [surukleniyor, setSurukleniyor] = useState(false)
 
   // Liste render sırasında okunuyor; oyundan çıkarken yazılan son kayıt bundan
   // sonra düşüyor. Bağlandıktan sonra bir kez daha oku.
@@ -84,7 +89,10 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     listRemotePuzzles()
       .then(async (liste) => {
         if (iptal) return
-        setUzak(liste)
+        // eski kayıtlarda eksik kalmış "bitti" bayrağını onar
+        await bitmisleriOnar(liste)
+        if (iptal) return
+        setUzak([...liste])
         // kapak görsellerini getir
         const girisler = await Promise.all(
           liste.map(async (p) => [p.id, await puzzleImageUrl(p.image_path)] as const),
@@ -123,6 +131,23 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     }
   }
 
+  const uzakAdlandir = async (p: RemotePuzzle) => {
+    const yeni = prompt('Yeni ad', p.title || '')
+    if (yeni === null) return
+    const ad = yeni.trim()
+    if (!ad || ad === p.title) return
+    try {
+      await yenidenAdlandir(p.id, ad)
+      setUzak((l) => l.map((x) => (x.id === p.id ? { ...x, title: ad } : x)))
+      // cihazdaki kopyanın adı da güncellensin
+      const yerel = listPuzzles().find((s) => s.id === p.room_code)
+      if (yerel) savePuzzle({ ...yerel, title: ad, updatedAt: Date.now() })
+      setSaved(listPuzzles())
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ad değiştirilemedi')
+    }
+  }
+
   // Önce sunucudan sil, sonra listeden çıkar. Tersi olursa silinmemiş bir
   // kayıt silinmiş gibi görünüp sayfa yenilenince geri geliyor.
   const uzakSil = async (p: RemotePuzzle) => {
@@ -141,8 +166,55 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     }
   }
 
+  // Sürükle bırak: dosyayı sayfanın herhangi bir yerine bırakmak yeterli.
+  // dragenter/dragleave iç içe öğelerde çok kez tetiklendiği için sayaç tutuyoruz.
+  const surukleSayac = useRef(0)
+  const dosyaVarMi = (e: React.DragEvent) =>
+    Array.from(e.dataTransfer?.types ?? []).includes('Files')
+
+  const onDragEnter = (e: React.DragEvent) => {
+    if (!dosyaVarMi(e)) return
+    e.preventDefault()
+    surukleSayac.current++
+    setSurukleniyor(true)
+  }
+  const onDragOver = (e: React.DragEvent) => {
+    if (dosyaVarMi(e)) e.preventDefault()
+  }
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!dosyaVarMi(e)) return
+    surukleSayac.current--
+    if (surukleSayac.current <= 0) {
+      surukleSayac.current = 0
+      setSurukleniyor(false)
+    }
+  }
+  const onDrop = (e: React.DragEvent) => {
+    if (!dosyaVarMi(e)) return
+    e.preventDefault()
+    surukleSayac.current = 0
+    setSurukleniyor(false)
+    const dosya = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith('image/'))
+    if (dosya) void pick(dosya)
+    else alert('Sadece resim dosyası bırakabilirsin.')
+  }
+
   return (
-    <div className="screen">
+    <div
+      className="screen"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {surukleniyor && (
+        <div className="birak-katmani">
+          <div className="birak-kutu">
+            <b>Bırak gitsin</b>
+            <small>Fotoğrafı buraya bırak, puzzle'a çevireyim</small>
+          </div>
+        </div>
+      )}
       {auth.enabled && (
         <div className="account-bar">
           {auth.user ? (
@@ -176,6 +248,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       <button className="btn btn-primary btn-lg" disabled={busy} onClick={() => fileRef.current?.click()}>
         {busy ? 'Hazırlanıyor…' : 'Fotoğraf yükle'}
       </button>
+      <small className="muted">ya da fotoğrafı sürükleyip buraya bırak</small>
       <input
         ref={fileRef}
         type="file"
@@ -258,13 +331,23 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                         <span className="kilit-yazi">{geriSayim(p.unlock_at!)}</span>
                       ) : (
                         <>
-                          {p.completed ? 'bitti · ' : ''}
+                          {gercektenBitti(p) ? 'bitti · ' : ''}
                           {p.piece_count} parça · {tarih(p.updated_at)}
                           {p.owner !== auth.user?.id ? ' · beraber' : ''}
                         </>
                       )}
                     </small>
                   </div>
+                  <button
+                    className="del"
+                    title="Yeniden adlandır"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void uzakAdlandir(p)
+                    }}
+                  >
+                    ✎
+                  </button>
                   <button
                     className="del"
                     title="Sil"

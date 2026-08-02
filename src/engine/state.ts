@@ -382,12 +382,23 @@ function yerlesmemisGruplar(state: GameState): [number, number[]][] {
     .sort((a, b) => b[1].length - a[1].length)
 }
 
+/** Diziyi seed'e göre karıştır (Fisher–Yates); iki uçta aynı sonuç */
+function karistir<T>(dizi: T[], seed: number): T[] {
+  const rng = mulberry32(seed)
+  const d = [...dizi]
+  for (let i = d.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[d[i], d[j]] = [d[j], d[i]]
+  }
+  return d
+}
+
 /**
  * Yerleşmemiş parçaları çerçevenin SOLUNA ve SAĞINA sütunlar halinde diz.
  * Yanlara koymak, ekranı aşağı kaydırmadan hem çerçeveyi hem parçaları
  * aynı anda görebilmeyi sağlıyor (altta diziliyken kaydırmak gerekiyordu).
  */
-export function arrangeTray(state: GameState): void {
+export function arrangeTray(state: GameState, seed = 1): void {
   const { cut } = state
   const W = cut.cols * cut.cellW
   const H = cut.rows * cut.cellH
@@ -398,7 +409,9 @@ export function arrangeTray(state: GameState): void {
   const satir = Math.max(3, Math.floor(H / adimY))
   const kenarBosluk = Math.max(cut.cellW, cut.cellH) * 0.7
 
-  const gruplar = yerlesmemisGruplar(state)
+  // Sıralı bırakılırsa kenar parçaları yan yana dizilip oyunu kolaylaştırıyor;
+  // bu yüzden yerleştirme sırası karıştırılıyor.
+  const gruplar = karistir(yerlesmemisGruplar(state), seed)
   // yarısı sola, yarısı sağa
   const yarim = Math.ceil(gruplar.length / 2)
 
@@ -454,6 +467,24 @@ export function shufflePieces(state: GameState, seed: number): void {
 /** Kayıt/yükleme için düz snapshot */
 export interface StateSnapshot {
   positions: { x: number; y: number; group: number; rot?: number }[]
+}
+
+/**
+ * Kayıttaki parça konumlarından tamamlanmışlığı çıkarır.
+ *
+ * Tamamlanmış bir puzzle'da tüm parçalar tek gruba birleşmiş, hepsi düz
+ * durur ve ilk parça (sol üst) çerçeve başlangıcındadır. Birleşme zaten
+ * göreli dizilimi doğru tuttuğu için bu üç koşul yeterlidir.
+ *
+ * Buna ihtiyaç var çünkü "bitti" bayrağı eskiden sunucuya ulaşmayabiliyordu;
+ * bayrağa güvenmek yerine kaydın kendisinden okumak daha sağlam.
+ */
+export function snapshotTamamlanmis(snap: StateSnapshot | null | undefined): boolean {
+  const p = snap?.positions
+  if (!p || p.length === 0) return false
+  const ilk = p[0]
+  if (Math.abs(ilk.x) > 0.5 || Math.abs(ilk.y) > 0.5) return false
+  return p.every((q) => q.group === ilk.group && (q.rot ?? 0) === 0)
 }
 
 export function snapshot(state: GameState): StateSnapshot {
