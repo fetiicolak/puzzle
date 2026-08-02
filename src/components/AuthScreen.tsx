@@ -5,9 +5,29 @@ import { useAuth } from '../supabase/auth'
 interface Props {
   /** Girişi atlayıp misafir olarak devam et */
   onSkip: () => void
+  baslik?: React.ReactNode
+  altYazi?: string
+  /** Atlama düğmesinin yazısı */
+  atlaYazisi?: string
+  /** Giriş başarılı olduğunda (davet akışında odaya geçmek için) */
+  onBasarili?: () => void
+  /**
+   * Zaten açık bir oturum varken şifre sormadan devam etme seçeneği.
+   * Verilmezse gösterilmez.
+   */
+  mevcutHesap?: string | null
+  onMevcutlaDevam?: () => void
 }
 
-export default function AuthScreen({ onSkip }: Props) {
+export default function AuthScreen({
+  onSkip,
+  baslik,
+  altYazi,
+  atlaYazisi = 'Misafir olarak devam et',
+  onBasarili,
+  mevcutHesap,
+  onMevcutlaDevam,
+}: Props) {
   const { signIn, signUp } = useAuth()
   const [mod, setMod] = useState<'giris' | 'kayit'>('giris')
   const [email, setEmail] = useState('')
@@ -33,6 +53,8 @@ export default function AuthScreen({ onSkip }: Props) {
       } else if (mod === 'kayit') {
         setBilgi('Hesap açıldı. Şimdi giriş yapabilirsin.')
         setMod('giris')
+      } else {
+        onBasarili?.()
       }
     } finally {
       setBekle(false)
@@ -43,10 +65,22 @@ export default function AuthScreen({ onSkip }: Props) {
     <div className="screen screen-center">
       <header className="hero">
         <h1 className="title">
-          Birlikte <span>Puzzle</span>
+          {baslik ?? (
+            <>
+              Birlikte <span>Puzzle</span>
+            </>
+          )}
         </h1>
-        <p className="subtitle">Tabloların kaybolmasın, beraber çözdüklerin ikinizde de dursun.</p>
+        <p className="subtitle">
+          {altYazi ?? 'Tabloların kaybolmasın, beraber çözdüklerin ikinizde de dursun.'}
+        </p>
       </header>
+
+      {mevcutHesap && onMevcutlaDevam && (
+        <button className="btn btn-secondary" onClick={onMevcutlaDevam}>
+          <b>{mevcutHesap}</b> olarak devam et
+        </button>
+      )}
 
       <div className="tabs">
         <button
@@ -121,7 +155,7 @@ export default function AuthScreen({ onSkip }: Props) {
       </form>
 
       <button className="btn btn-ghost" onClick={onSkip}>
-        Misafir olarak devam et
+        {atlaYazisi}
       </button>
     </div>
   )

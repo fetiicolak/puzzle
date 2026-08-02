@@ -12,13 +12,22 @@ interface Props {
   onKapat: () => void
 }
 
+/** Yazma barının üstündeki hızlı emojiler */
+const EMOJILER = [
+  '😄', '😅', '😍', '😘', '🥰', '😎', '🤔', '😢',
+  '😴', '🙈', '👍', '👏', '🙌', '❤️', '🔥', '🎉',
+  '🧩', '☕', '🌙', '✨',
+]
+
 /** Bir arkadaşla yazışma penceresi */
 export default function MessageBox({ kisi, onKapat }: Props) {
   const [mesajlar, setMesajlar] = useState<Mesaj[]>([])
   const [metin, setMetin] = useState('')
   const [yukleniyor, setYukleniyor] = useState(true)
   const [gonderiliyor, setGonderiliyor] = useState(false)
+  const [emojiAcik, setEmojiAcik] = useState(false)
   const sonRef = useRef<HTMLDivElement>(null)
+  const girdiRef = useRef<HTMLInputElement>(null)
 
   const tazele = async () => {
     setMesajlar(await mesajlariGetir(kisi.id))
@@ -62,6 +71,24 @@ export default function MessageBox({ kisi, onKapat }: Props) {
   const saat = (iso: string) =>
     new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
 
+  /** Emojiyi imlecin bulunduğu yere ekle, odağı yazı alanında bırak */
+  const emojiEkle = (e: string) => {
+    const el = girdiRef.current
+    if (!el) {
+      setMetin((m) => (m + e).slice(0, 1000))
+      return
+    }
+    const bas = el.selectionStart ?? metin.length
+    const son = el.selectionEnd ?? metin.length
+    const yeni = (metin.slice(0, bas) + e + metin.slice(son)).slice(0, 1000)
+    setMetin(yeni)
+    requestAnimationFrame(() => {
+      el.focus()
+      const yer = Math.min(bas + e.length, yeni.length)
+      el.setSelectionRange(yer, yer)
+    })
+  }
+
   return (
     <div className="modal-arka" onClick={onKapat}>
       <div className="mesaj-kutusu" onClick={(e) => e.stopPropagation()}>
@@ -88,8 +115,32 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           <div ref={sonRef} />
         </div>
 
+        <div className={`emoji-cubuk ${emojiAcik ? 'genis' : ''}`}>
+          {(emojiAcik ? EMOJILER : EMOJILER.slice(0, 8)).map((e) => (
+            <button
+              key={e}
+              type="button"
+              className="tepki"
+              disabled={gonderiliyor}
+              title={`${e} ekle`}
+              onClick={() => emojiEkle(e)}
+            >
+              {e}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="tepki emoji-daha"
+            title={emojiAcik ? 'Daha az göster' : 'Daha fazla emoji'}
+            onClick={() => setEmojiAcik((v) => !v)}
+          >
+            {emojiAcik ? '▴' : '⋯'}
+          </button>
+        </div>
+
         <form className="chat-form" onSubmit={gonder}>
           <input
+            ref={girdiRef}
             className="input"
             placeholder="Mesaj yaz…"
             value={metin}

@@ -93,6 +93,25 @@ export interface ChatMsg {
   ts: number
 }
 
+/**
+ * Kimlik tanıtma. Bağlantı kurulur kurulmaz gönderilir; odadaki kişi
+ * listesinde misafirlerin de görünmesini sağlar (hesap kaydı olmayanlar
+ * puzzle_players tablosunda yer almaz).
+ */
+export interface HelloMsg {
+  t: 'hello'
+  ad: string
+  /** Giriş yapılmışsa hesap kimliği, misafirde null */
+  uid: string | null
+}
+
+/** Odadan çıkarıldın — sunucu kaydı silmeden önce karşı tarafa haber ver */
+export interface KickMsg {
+  t: 'kick'
+  /** Çıkarılan kişinin hesap kimliği */
+  uid: string
+}
+
 /** Grubu çeyrek tur döndür */
 export interface RotateMsg {
   t: 'rot'
@@ -123,6 +142,8 @@ export type Msg = (
   | RotateMsg
   | TrayMsg
   | ShuffleMsg
+  | HelloMsg
+  | KickMsg
 ) & {
   /** Host yansıtırken kaynağı işaretler; doğrudan gelen mesajlarda boştur */
   from?: string

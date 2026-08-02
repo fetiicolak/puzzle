@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import FriendsSection from './FriendsSection'
+import ProfileDialog from './ProfileDialog'
 import RenameDialog from './RenameDialog'
 import { SAMPLES, sampleThumbUrl, sampleUrl, type Sample } from '../samples'
 import {
@@ -12,6 +13,7 @@ import {
   type SavedPuzzle,
 } from '../storage'
 import { useAuth } from '../supabase/auth'
+import { avatarUrl, profilimiGetir } from '../supabase/profile'
 import {
   bitmisleriOnar,
   deleteRemotePuzzle,
@@ -55,6 +57,37 @@ function geriSayim(iso: string): string {
   return `${dk} dk kaldı`
 }
 
+export type Siralama = 'yeni' | 'eski' | 'cokParca' | 'azParca'
+
+const SIRALAMA_ADI: Record<Siralama, string> = {
+  yeni: 'Yeniden eskiye',
+  eski: 'Eskiden yeniye',
+  cokParca: 'En çok parçadan aza',
+  azParca: 'En az parçadan çoğa',
+}
+
+/** Listeyi seçilen ölçüte göre sırala (kaynak diziyi bozmadan) */
+function sirala<T>(
+  liste: T[],
+  nasil: Siralama,
+  al: (x: T) => { zaman: number; parca: number },
+): T[] {
+  return [...liste].sort((a, b) => {
+    const x = al(a)
+    const y = al(b)
+    switch (nasil) {
+      case 'yeni':
+        return y.zaman - x.zaman
+      case 'eski':
+        return x.zaman - y.zaman
+      case 'cokParca':
+        return y.parca - x.parca || y.zaman - x.zaman
+      case 'azParca':
+        return x.parca - y.parca || y.zaman - x.zaman
+    }
+  })
+}
+
 function tarih(s: string | number): string {
   const d = new Date(s)
   const fark = (Date.now() - d.getTime()) / 86400000
@@ -85,6 +118,11 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   >(null)
   /** puzzle kimliği -> birlikte oynanan kişilerin adları */
   const [katilimcilar, setKatilimcilar] = useState<Map<string, string[]>>(new Map())
+  const [siralama, setSiralama] = useState<Siralama>('yeni')
+  const [profilAcik, setProfilAcik] = useState(false)
+  const [benimAvatar, setBenimAvatar] = useState<string | null>(null)
+  /** Profilde ad değişince üst çubuk hemen güncellensin */
+  const [gorunenAd, setGorunenAd] = useState('')
 
   // Liste render sırasında okunuyor; oyundan çıkarken yazılan son kayıt bundan
   // sonra düşüyor. Bağlandıktan sonra bir kez daha oku.
@@ -128,10 +166,41 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     }
   }, [auth.user])
 
-  // Sunucuya kaydedilmiş bir puzzle hem "Tablolarım"da hem "Bu cihazda"
-  // görünmesin; yerel kayıt kimliği oda koduyla aynı olduğu için eşleşiyor.
+  // Profil fotoğrafı ve adı (üst çubuk için)
+  useEffect(() => {
+    if (!auth.user) {
+      setBenimAvatar(null)
+      setGorunenAd('')
+      return
+    }
+    let iptal = false
+    profilimiGetir()
+      .then(async (p) => {
+        if (iptal || !p) return
+        setGorunenAd(p.ad === 'İsimsiz' ? '' : p.ad)
+        const u = await avatarUrl(p.avatarPath)
+        if (!iptal) setBenimAvatar(u)
+      })
+      .catch(() => {})
+    return () => {
+      iptal = true
+    }
+  }, [auth.user, profilAcik])
+
+  // Giriş yapılmışken cihazdaki kayıtlar gösterilmiyor: misafirken çözülenler
+  // hesabın geçmişi değil, listeye karışmasınlar. Girişliyken oynananlar zaten
+  // sunucuya da yazıldığı için "Tablolarım"da duruyor.
   const uzakKodlar = new Set(uzak.map((p) => p.room_code))
-  const yalnizcaYerel = saved.filter((p) => !uzakKodlar.has(p.id))
+  const yalnizcaYerel = auth.user ? [] : saved.filter((p) => !uzakKodlar.has(p.id))
+
+  const siraliUzak = sirala(uzak, siralama, (p) => ({
+    zaman: new Date(p.updated_at).getTime(),
+    parca: p.piece_count,
+  }))
+  const siraliYerel = sirala(yalnizcaYerel, siralama, (p) => ({
+    zaman: p.updatedAt,
+    parca: p.pieceCount,
+  }))
 
   const pick = async (src: File | Sample) => {
     setBusy(true)
@@ -280,13 +349,30 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
           </div>
         </div>
       )}
+      {profilAcik && <ProfileDialog onKapat={() => setProfilAcik(false)} />}
+
       {auth.enabled && (
         <div className="account-bar">
           {auth.user ? (
             <>
-              <span className="avatar">{(auth.displayName[0] ?? '?').toUpperCase()}</span>
-              <span>{auth.displayName}</span>
+              <button
+                className="hesap-dugme"
+                onClick={() => setProfilAcik(true)}
+                title="Profilini düzenle"
+              >
+                <span className="avatar">
+                  {benimAvatar ? (
+                    <img src={benimAvatar} alt="" />
+                  ) : (
+                    ((gorunenAd || auth.displayName)[0] ?? '?').toUpperCase()
+                  )}
+                </span>
+                <span>{gorunenAd || auth.displayName}</span>
+              </button>
               <span className="spacer" />
+              <button className="btn btn-ghost btn-sm" onClick={() => setProfilAcik(true)}>
+                Profil
+              </button>
               <button className="btn btn-ghost btn-sm" onClick={() => void auth.signOut()}>
                 Çıkış
               </button>
@@ -360,7 +446,23 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
 
       {auth.user && (uzak.length > 0 || uzakYukleniyor) && (
         <section className="block">
-          <h2 className="section-label">Tablolarım</h2>
+          <h2 className="section-label">
+            Tablolarım
+            {uzak.length > 1 && (
+              <select
+                className="siralama-secim"
+                value={siralama}
+                aria-label="Sıralama"
+                onChange={(e) => setSiralama(e.target.value as Siralama)}
+              >
+                {(Object.keys(SIRALAMA_ADI) as Siralama[]).map((s) => (
+                  <option key={s} value={s}>
+                    {SIRALAMA_ADI[s]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </h2>
           {uzakYukleniyor && uzak.length === 0 ? (
             <div className="skeleton-list">
               <div className="skeleton" />
@@ -368,7 +470,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
             </div>
           ) : (
             <div className="resume-list">
-              {uzak.map((p) => {
+              {siraliUzak.map((p) => {
                 const kilitli = kilitliMi(p)
                 return (
                 <article
@@ -451,9 +553,23 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
           <h2 className="section-label">
             Bu cihazda
             {auth.enabled && !auth.user && <em className="field-hint">giriş yaparsan kaybolmaz</em>}
+            {yalnizcaYerel.length > 1 && (
+              <select
+                className="siralama-secim"
+                value={siralama}
+                aria-label="Sıralama"
+                onChange={(e) => setSiralama(e.target.value as Siralama)}
+              >
+                {(Object.keys(SIRALAMA_ADI) as Siralama[]).map((s) => (
+                  <option key={s} value={s}>
+                    {SIRALAMA_ADI[s]}
+                  </option>
+                ))}
+              </select>
+            )}
           </h2>
           <div className="resume-list">
-            {yalnizcaYerel.map((p) => {
+            {siraliYerel.map((p) => {
               const kilitli = yerelKilitliMi(p)
               return (
               <article

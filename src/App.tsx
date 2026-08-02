@@ -69,6 +69,12 @@ export default function App() {
   const [misafirDevam, setMisafirDevam] = useState(false)
   /** Girişten sonra doğrudan odaya dönebilmek için beklemeye alınan davet */
   const [bekleyenDavet, setBekleyenDavet] = useState<string | null>(null)
+  /**
+   * Davette "hesabımla gireyim" seçildi: oturum açık olsa bile giriş formu
+   * gösterilir. Sessizce mevcut hesapla devam etmek, linki başkasının
+   * cihazında açanı yanlış hesapla odaya sokuyordu.
+   */
+  const [davetGirisi, setDavetGirisi] = useState(false)
   const [saklaniyor, setSaklaniyor] = useState(false)
 
   const goHome = () => {
@@ -89,6 +95,7 @@ export default function App() {
         await createRemotePuzzle({
           roomCode: kod,
           title: opts.title,
+          artist: screen.artist,
           imageDataUrl: gorsel,
           seed,
           pieceCount: opts.pieceCount,
@@ -160,18 +167,44 @@ export default function App() {
         <JoinChoiceScreen
           roomCode={screen.roomCode}
           onGiris={() => {
-            if (auth.user || !auth.enabled) {
+            if (!auth.enabled) {
               setScreen({ s: 'game', config: misafirConfig(screen.roomCode) })
-            } else {
-              // giriş ekranına yolla, girince odaya devam edecek
-              setBekleyenDavet(screen.roomCode)
-              setMisafirDevam(false)
-              setScreen({ s: 'home' })
+              return
             }
+            // Oturum açık olsa bile giriş formu gösterilir; girince odaya devam
+            setBekleyenDavet(screen.roomCode)
+            setDavetGirisi(true)
+            setMisafirDevam(false)
+            setScreen({ s: 'home' })
           }}
           onMisafir={() => {
             setMisafirDevam(true)
             setScreen({ s: 'game', config: misafirConfig(screen.roomCode) })
+          }}
+        />
+      )
+    }
+
+    // Davetten gelen giriş: şifre sorulur, otomatik geçilmez
+    if (auth.enabled && davetGirisi && bekleyenDavet) {
+      const kod = bekleyenDavet
+      return (
+        <AuthScreen
+          baslik={
+            <>
+              Davete <span>katıl</span>
+            </>
+          }
+          altYazi="Hesabınla gir; çözdüğünüz tablo ikinizin de geçmişine düşsün."
+          atlaYazisi="Vazgeçtim, misafir olarak gireyim"
+          mevcutHesap={auth.user ? auth.displayName : null}
+          onMevcutlaDevam={() => setDavetGirisi(false)}
+          onBasarili={() => setDavetGirisi(false)}
+          onSkip={() => {
+            setDavetGirisi(false)
+            setBekleyenDavet(null)
+            setMisafirDevam(true)
+            setScreen({ s: 'game', config: misafirConfig(kod) })
           }}
         />
       )
@@ -228,6 +261,7 @@ export default function App() {
                 remoteId: p.id,
                 roomCode: p.room_code,
                 title: p.title,
+                artist: p.artist ?? '',
                 imagePath: p.image_path,
                 seed: p.seed,
                 pieceCount: p.piece_count,

@@ -8,6 +8,8 @@ import { supabase } from './client'
 export interface Kisi {
   id: string
   ad: string
+  /** avatars kovasındaki fotoğrafın yolu */
+  avatarPath?: string | null
 }
 
 export interface Arkadaslik {
@@ -25,13 +27,24 @@ interface FriendRow {
   status: 'pending' | 'accepted'
 }
 
-async function adlariGetir(idler: string[]): Promise<Map<string, string>> {
-  const harita = new Map<string, string>()
+interface KisaProfil {
+  ad: string
+  avatarPath: string | null
+}
+
+async function adlariGetir(idler: string[]): Promise<Map<string, KisaProfil>> {
+  const harita = new Map<string, KisaProfil>()
   if (!supabase || idler.length === 0) return harita
-  const { data } = await supabase.from('profiles').select('id,display_name').in('id', idler)
+  const { data } = await supabase
+    .from('profiles')
+    .select('id,display_name,avatar_path')
+    .in('id', idler)
   for (const p of data ?? []) {
-    const satir = p as { id: string; display_name: string }
-    harita.set(satir.id, satir.display_name || 'İsimsiz')
+    const satir = p as { id: string; display_name: string; avatar_path: string | null }
+    harita.set(satir.id, {
+      ad: satir.display_name || 'İsimsiz',
+      avatarPath: satir.avatar_path ?? null,
+    })
   }
   return harita
 }
@@ -50,15 +63,27 @@ export async function arkadasliklariGetir(): Promise<Arkadaslik[]> {
   const karsiIdler = satirlar.map((s) => (s.requester === ben ? s.addressee : s.requester))
   const adlar = await adlariGetir([...new Set(karsiIdler)])
 
-  return satirlar.map((s) => {
+  // Aynı kişiyle iki kayıt olabiliyordu (A→B kabul edildikten sonra B→A yeni
+  // bir istek açınca). Kişi başına tek satır bırak: kabul edilmiş olan kazanır.
+  const kisiBasina = new Map<string, Arkadaslik>()
+  for (const s of satirlar) {
     const karsiId = s.requester === ben ? s.addressee : s.requester
-    return {
+    const kayit: Arkadaslik = {
       id: s.id,
-      kisi: { id: karsiId, ad: adlar.get(karsiId) ?? 'İsimsiz' },
+      kisi: {
+        id: karsiId,
+        ad: adlar.get(karsiId)?.ad ?? 'İsimsiz',
+        avatarPath: adlar.get(karsiId)?.avatarPath ?? null,
+      },
       yon: s.requester === ben ? 'giden' : 'gelen',
       durum: s.status,
     }
-  })
+    const mevcut = kisiBasina.get(karsiId)
+    if (!mevcut || (mevcut.durum === 'pending' && kayit.durum === 'accepted')) {
+      kisiBasina.set(karsiId, kayit)
+    }
+  }
+  return [...kisiBasina.values()]
 }
 
 /**
@@ -90,7 +115,11 @@ export async function birlikteOynananlar(haricTut: string[]): Promise<Kisi[]> {
   if (digerleri.length === 0) return []
 
   const adlar = await adlariGetir(digerleri)
-  return digerleri.map((id) => ({ id, ad: adlar.get(id) ?? 'İsimsiz' }))
+  return digerleri.map((id) => ({
+    id,
+    ad: adlar.get(id)?.ad ?? 'İsimsiz',
+    avatarPath: adlar.get(id)?.avatarPath ?? null,
+  }))
 }
 
 export async function arkadaslikIste(kisiId: string): Promise<void> {
@@ -98,13 +127,32 @@ export async function arkadaslikIste(kisiId: string): Promise<void> {
   const { data: oturum } = await supabase.auth.getUser()
   const ben = oturum.user?.id
   if (!ben) throw new Error('Önce giriş yapmalısın')
+
+  // Ters yönde bir kayıt varsa yeni istek açma: eskiden bu kontrol yoktu ve
+  // zaten arkadaş olduğun kişiyi tekrar ekleyebiliyordun.
+  const { data: mevcut } = await supabase
+    .from('friendships')
+    .select('id,status,requester')
+    .or(
+      `and(requester.eq.${ben},addressee.eq.${kisiId}),and(requester.eq.${kisiId},addressee.eq.${ben})`,
+    )
+    .limit(1)
+  const satir = (mevcut ?? [])[0] as { id: string; status: string; requester: string } | undefined
+  if (satir) {
+    if (satir.status === 'accepted') throw new Error('Zaten arkadaşsınız.')
+    if (satir.requester === ben) throw new Error('Bu kişiye zaten istek gönderdin.')
+    // karşı taraf sana istek göndermiş: eklemek yerine kabul et
+    await arkadasligiKabulEt(satir.id)
+    return
+  }
+
   const { error } = await supabase
     .from('friendships')
     .insert({ requester: ben, addressee: kisiId })
   if (error) {
-    // aynı çift için ikinci kayıt engellenir
+    // veritabanı da aynı çifti ikinci kez kabul etmez
     throw new Error(
-      error.code === '23505' ? 'Bu kişiye zaten istek gönderilmiş.' : error.message,
+      error.code === '23505' ? 'Bu kişiyle zaten bir isteğiniz var.' : error.message,
     )
   }
 }

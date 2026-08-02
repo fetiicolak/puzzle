@@ -52,7 +52,22 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
   const izgara = olculer ? computeGrid(olculer.w, olculer.h, pieces) : null
   const gercekSayi = izgara ? izgara.rows * izgara.cols : pieces
 
-  const start = (withPartner: boolean) =>
+  // Özel gün seçiliyken tarih doğrulaması: boş ya da geçmiş bir tarihle
+  // başlanırsa puzzle ya hiç kilitlenmiyor ya da anında açılmış oluyordu.
+  const tarihMs = tarih ? new Date(tarih).getTime() : NaN
+  const tarihGecerli = Number.isFinite(tarihMs) && tarihMs > Date.now() + 30_000
+  const tarihHatasi = !ozelGun
+    ? null
+    : !tarih
+      ? 'Açılacağı tarihi ve saati seç.'
+      : !Number.isFinite(tarihMs)
+        ? 'Bu tarih okunamadı, yeniden seç.'
+        : !tarihGecerli
+          ? 'Tarih ileride bir zaman olmalı.'
+          : null
+
+  const start = (withPartner: boolean) => {
+    if (ozelGun && !tarihGecerli) return
     onStart({
       title: title.trim() || nextUntitledName(),
       pieceCount: pieces,
@@ -60,8 +75,14 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
       withPartner,
       maxPlayers,
       rotation,
-      unlockAt: ozelGun && tarih ? new Date(tarih).toISOString() : null,
+      unlockAt: ozelGun ? new Date(tarihMs).toISOString() : null,
     })
+  }
+
+  /** datetime-local en az bir dakika sonrasını kabul etsin */
+  const enErken = new Date(Date.now() + 60_000 - new Date().getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16)
 
   return (
     <div className="screen">
@@ -165,13 +186,31 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
           </span>
         </label>
         {ozelGun && (
-          <input
-            className="input"
-            type="datetime-local"
-            value={tarih}
-            min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
-            onChange={(e) => setTarih(e.target.value)}
-          />
+          <label className="field ozel-gun-alan">
+            <span className="field-label">
+              Açılacağı tarih ve saat
+              {tarihGecerli && (
+                <em className="field-hint">
+                  {new Date(tarihMs).toLocaleString('tr-TR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </em>
+              )}
+            </span>
+            <input
+              className="input input-tarih"
+              type="datetime-local"
+              value={tarih}
+              min={enErken}
+              required
+              onChange={(e) => setTarih(e.target.value)}
+            />
+            {tarihHatasi && <small className="form-error">{tarihHatasi}</small>}
+          </label>
         )}
       </div>
 
@@ -179,11 +218,19 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
         <button className="btn btn-ghost" onClick={onBack}>
           Geri
         </button>
-        <button className="btn btn-secondary" onClick={() => start(false)}>
+        <button
+          className="btn btn-secondary"
+          disabled={!!tarihHatasi}
+          onClick={() => start(false)}
+        >
           Tek başıma
         </button>
-        <button className="btn btn-primary" onClick={() => start(true)}>
-          Birlikte oyna
+        <button
+          className="btn btn-primary"
+          disabled={!!tarihHatasi}
+          onClick={() => start(true)}
+        >
+          {ozelGun ? 'Sakla' : 'Birlikte oyna'}
         </button>
       </div>
     </div>

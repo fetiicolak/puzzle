@@ -43,8 +43,8 @@ export default function JoinChoiceScreen({ roomCode, onGiris, onMisafir }: Props
 
       {auth.user && (
         <small className="muted">
-          Zaten <b>{auth.displayName}</b> olarak girişlisin — "Hesabımla gireyim" seni
-          doğrudan odaya alır.
+          Bu cihazda <b>{auth.displayName}</b> olarak girişlisin. "Hesabımla gireyim"
+          seçersen istersen o hesapla devam eder, istersen başka bir hesapla girersin.
         </small>
       )}
     </div>

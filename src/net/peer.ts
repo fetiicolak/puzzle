@@ -100,7 +100,16 @@ export class Room {
 
   /** Görüntülü arama: kendi kamera/mikrofon akışımız */
   private yerelAkis: MediaStream | null = null
-  private mediaBaglantilari = new Map<string, MediaConnection>()
+  /**
+   * Katılımcı başına TEK medya bağlantısı tutulur. İki taraf da birbirini
+   * arayınca iki bağlantı açılıyor, aynı ses iki kez çalınıp yankı/cızırtı
+   * yapıyordu. bizimAkisGitti, o bağlantıda kendi sesimizin/görüntümüzün
+   * karşıya gidip gitmediğini söyler; gitmediyse yayına başlarken yenilenir.
+   */
+  private mediaBaglantilari = new Map<
+    string,
+    { cagri: MediaConnection; bizimAkisGitti: boolean }
+  >()
 
   private constructor(code: string, isHost: boolean, events: RoomEvents, maxPlayers: number) {
     this.code = code
@@ -154,7 +163,7 @@ export class Room {
     peer.on('call', (cagri) => {
       if (this.closed) return
       cagri.answer(this.yerelAkis ?? undefined)
-      this.mediaBagla(cagri)
+      this.mediaBagla(cagri, !!this.yerelAkis)
     })
 
     peer.on('disconnected', () => {
@@ -396,15 +405,22 @@ export class Room {
 
   // ---- görüntülü arama ----
 
-  private mediaBagla(cagri: MediaConnection): void {
+  private mediaBagla(cagri: MediaConnection, bizimAkisGitti: boolean): void {
     const id = cagri.peer
-    this.mediaBaglantilari.get(id)?.close()
-    this.mediaBaglantilari.set(id, cagri)
+    // aynı kişiyle ikinci bir bağlantı kalmasın
+    const onceki = this.mediaBaglantilari.get(id)
+    if (onceki && onceki.cagri !== cagri) onceki.cagri.close()
+    this.mediaBaglantilari.set(id, { cagri, bizimAkisGitti })
+
     cagri.on('stream', (akis) => {
       if (!this.closed) this.events.onRemoteStream?.(id, akis)
     })
     const bitti = () => {
-      if (this.mediaBaglantilari.get(id) === cagri) this.mediaBaglantilari.delete(id)
+      // Bu çağrı yerine yenisi geçtiyse "görüntü kesildi" deme; eskiden bu
+      // kontrol yoktu ve kapanan eski bağlantı, yeni gelen görüntüyü
+      // arayüzden siliyordu.
+      if (this.mediaBaglantilari.get(id)?.cagri !== cagri) return
+      this.mediaBaglantilari.delete(id)
       if (!this.closed) this.events.onRemoteStreamEnded?.(id)
     }
     cagri.on('close', bitti)
@@ -412,15 +428,17 @@ export class Room {
   }
 
   /**
-   * Kamerayı aç ve odadaki herkesi ara. Zaten bağlı olan katılımcılara
-   * çağrı gider; sonradan katılanlar kendi tarafından arayınca eşleşir.
+   * Kamerayı/mikrofonu aç ve odadaki herkesi ara. Karşı taraf bizi zaten
+   * aradıysa ve akışımız o bağlantıdan gitmişse tekrar aramıyoruz.
    */
   async yayiniBaslat(akis: MediaStream): Promise<void> {
     this.yerelAkis = akis
     if (!this.peer) return
     for (const id of this.conns.keys()) {
+      const mevcut = this.mediaBaglantilari.get(id)
+      if (mevcut?.bizimAkisGitti) continue
       try {
-        this.mediaBagla(this.peer.call(id, akis))
+        this.mediaBagla(this.peer.call(id, akis), true)
       } catch {
         // bu katılımcı arama kabul etmiyorsa diğerlerine devam
       }
@@ -429,8 +447,9 @@ export class Room {
 
   /** Kamerayı kapat, açık çağrıları sonlandır */
   yayiniDurdur(): void {
-    for (const c of this.mediaBaglantilari.values()) c.close()
+    const hepsi = [...this.mediaBaglantilari.values()]
     this.mediaBaglantilari.clear()
+    for (const m of hepsi) m.cagri.close()
     this.yerelAkis = null
   }
 

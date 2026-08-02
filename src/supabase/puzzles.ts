@@ -16,6 +16,8 @@ export interface RemotePuzzle {
   owner: string
   room_code: string
   title: string
+  /** Hazır eser seçildiyse ressamı */
+  artist: string
   image_path: string
   seed: number
   piece_count: number
@@ -104,6 +106,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
 export async function createRemotePuzzle(opts: {
   roomCode: string
   title: string
+  artist?: string
   imageDataUrl: string
   seed: number
   pieceCount: number
@@ -134,24 +137,35 @@ export async function createRemotePuzzle(opts: {
   }
   if (yuklemeHatasi) throw new Error(`Fotoğraf yüklenemedi: ${yuklemeHatasi.message}`)
 
-  const { data, error } = await supabase
-    .from('puzzles')
-    .insert({
-      owner: kullanici.id,
-      room_code: opts.roomCode,
-      title: opts.title,
-      image_path: yol,
-      seed: opts.seed,
-      piece_count: opts.pieceCount,
-      message: opts.message,
-      max_players: opts.maxPlayers,
-      rotation: opts.rotation ?? false,
-      unlock_at: opts.unlockAt ?? null,
-    })
-    .select()
-    .single()
+  const satir: Record<string, unknown> = {
+    owner: kullanici.id,
+    room_code: opts.roomCode,
+    title: opts.title,
+    artist: opts.artist ?? '',
+    image_path: yol,
+    seed: opts.seed,
+    piece_count: opts.pieceCount,
+    message: opts.message,
+    max_players: opts.maxPlayers,
+    rotation: opts.rotation ?? false,
+    unlock_at: opts.unlockAt ?? null,
+  }
+
+  let { data, error } = await supabase.from('puzzles').insert(satir).select().single()
+
+  // Şemanın son sürümü henüz çalıştırılmadıysa yeni sütunlar olmayabilir.
+  // Kayıt tamamen başarısız olacağına, o alanı atlayıp devam etmek daha iyi.
+  if (error && eksikSutun(error.message)) {
+    delete satir.artist
+    ;({ data, error } = await supabase.from('puzzles').insert(satir).select().single())
+  }
   if (error) throw new Error(error.message)
   return data as RemotePuzzle
+}
+
+/** Hata "böyle bir sütun yok" mu diyor */
+function eksikSutun(mesaj: string): boolean {
+  return /column .* does not exist|Could not find the '.*' column/i.test(mesaj)
 }
 
 /**

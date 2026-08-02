@@ -1,0 +1,240 @@
+import { useEffect, useRef, useState } from 'react'
+import {
+  avatarHazirla,
+  avatarSil,
+  avatarUrl,
+  avatarYukle,
+  profilKaydet,
+  profilimiGetir,
+  yas,
+  CINSIYET_ADI,
+  type Cinsiyet,
+  type Profil,
+} from '../supabase/profile'
+
+interface Props {
+  onKapat: () => void
+  /** Kaydedilen ad üst çubukta da güncellensin diye */
+  onKaydedildi?: (ad: string) => void
+}
+
+const SIMDIKI_YIL = new Date().getFullYear()
+
+/** Kendi profilini düzenleme penceresi */
+export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
+  const [profil, setProfil] = useState<Profil | null>(null)
+  const [ad, setAd] = useState('')
+  const [dogumYili, setDogumYili] = useState('')
+  const [cinsiyet, setCinsiyet] = useState<Cinsiyet | ''>('')
+  const [onizleme, setOnizleme] = useState<string | null>(null)
+  /** Henüz yüklenmemiş, kaydete basınca gidecek fotoğraf */
+  const [yeniFoto, setYeniFoto] = useState<Blob | null>(null)
+  const [fotoSilinsin, setFotoSilinsin] = useState(false)
+  const [yukleniyor, setYukleniyor] = useState(true)
+  const [kaydediliyor, setKaydediliyor] = useState(false)
+  const [hata, setHata] = useState<string | null>(null)
+  const dosyaRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    let iptal = false
+    profilimiGetir()
+      .then(async (p) => {
+        if (iptal || !p) return
+        setProfil(p)
+        setAd(p.ad === 'İsimsiz' ? '' : p.ad)
+        setDogumYili(p.dogumYili ? String(p.dogumYili) : '')
+        setCinsiyet(p.cinsiyet ?? '')
+        const u = await avatarUrl(p.avatarPath)
+        if (!iptal) setOnizleme(u)
+      })
+      .finally(() => {
+        if (!iptal) setYukleniyor(false)
+      })
+    return () => {
+      iptal = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !kaydediliyor) onKapat()
+    }
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [onKapat, kaydediliyor])
+
+  const fotoSec = async (dosya: File) => {
+    setHata(null)
+    try {
+      const blob = await avatarHazirla(dosya)
+      setYeniFoto(blob)
+      setFotoSilinsin(false)
+      setOnizleme(URL.createObjectURL(blob))
+    } catch {
+      setHata('Bu görsel açılamadı, başka bir tane dene.')
+    }
+  }
+
+  const yilGecerli = (() => {
+    if (!dogumYili) return true
+    const n = Number(dogumYili)
+    return Number.isInteger(n) && n >= 1900 && n <= SIMDIKI_YIL
+  })()
+
+  const kaydet = async () => {
+    if (!yilGecerli) {
+      setHata(`Doğum yılı 1900 ile ${SIMDIKI_YIL} arasında olmalı.`)
+      return
+    }
+    setKaydediliyor(true)
+    setHata(null)
+    try {
+      let avatarPath: string | null | undefined
+      if (yeniFoto) {
+        avatarPath = await avatarYukle(yeniFoto, profil?.avatarPath)
+      } else if (fotoSilinsin) {
+        await avatarSil(profil?.avatarPath ?? null)
+        avatarPath = null
+      }
+      const temizAd = ad.trim()
+      await profilKaydet({
+        ad: temizAd,
+        dogumYili: dogumYili ? Number(dogumYili) : null,
+        cinsiyet: cinsiyet || null,
+        ...(avatarPath !== undefined ? { avatarPath } : {}),
+      })
+      onKaydedildi?.(temizAd)
+      onKapat()
+    } catch (e) {
+      setHata(e instanceof Error ? e.message : 'Kaydedilemedi')
+      setKaydediliyor(false)
+    }
+  }
+
+  const bas = (ad.trim()[0] ?? '?').toUpperCase()
+  const yasi = yas(dogumYili ? Number(dogumYili) : null)
+
+  return (
+    <div className="modal-arka" onClick={() => !kaydediliyor && onKapat()}>
+      <div className="dialog dialog-genis" onClick={(e) => e.stopPropagation()}>
+        <h3>Profilim</h3>
+
+        {yukleniyor ? (
+          <p className="dialog-mesaj">Yükleniyor…</p>
+        ) : (
+          <>
+            <div className="profil-foto-satir">
+              <button
+                className="avatar buyuk"
+                onClick={() => dosyaRef.current?.click()}
+                title="Fotoğraf seç"
+              >
+                {onizleme ? <img src={onizleme} alt="" /> : bas}
+              </button>
+              <div className="profil-foto-butonlar">
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => dosyaRef.current?.click()}
+                >
+                  {onizleme ? 'Değiştir' : 'Fotoğraf seç'}
+                </button>
+                {onizleme && (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      setOnizleme(null)
+                      setYeniFoto(null)
+                      setFotoSilinsin(true)
+                    }}
+                  >
+                    Kaldır
+                  </button>
+                )}
+                <small className="muted">Kare kırpılır, 256 piksele küçültülür.</small>
+              </div>
+              <input
+                ref={dosyaRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) void fotoSec(f)
+                  e.target.value = ''
+                }}
+              />
+            </div>
+
+            <label className="field">
+              <span className="field-label">Adın</span>
+              <input
+                className="input"
+                value={ad}
+                maxLength={40}
+                placeholder="Görünecek adın"
+                onChange={(e) => setAd(e.target.value)}
+              />
+            </label>
+
+            <label className="field">
+              <span className="field-label">
+                Doğum yılı
+                <em className="field-hint">
+                  {yasi !== null ? `${yasi} yaşındasın` : 'isteğe bağlı'}
+                </em>
+              </span>
+              <input
+                className="input"
+                type="number"
+                inputMode="numeric"
+                min={1900}
+                max={SIMDIKI_YIL}
+                placeholder="örn. 1998"
+                value={dogumYili}
+                onChange={(e) => setDogumYili(e.target.value)}
+              />
+            </label>
+
+            <label className="field">
+              <span className="field-label">
+                Cinsiyet <em className="field-hint">isteğe bağlı</em>
+              </span>
+              <select
+                className="input"
+                value={cinsiyet}
+                onChange={(e) => setCinsiyet(e.target.value as Cinsiyet | '')}
+              >
+                <option value="">Seçilmedi</option>
+                {(Object.keys(CINSIYET_ADI) as Cinsiyet[]).map((c) => (
+                  <option key={c} value={c}>
+                    {CINSIYET_ADI[c]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <small className="muted">
+              Bu bilgileri yalnızca birlikte puzzle çözdüğün ve arkadaş olduğun kişiler
+              görebilir.
+            </small>
+          </>
+        )}
+
+        {hata && <div className="form-error">{hata}</div>}
+
+        <div className="dialog-butonlar">
+          <button className="btn btn-ghost" disabled={kaydediliyor} onClick={onKapat}>
+            İptal
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={kaydediliyor || yukleniyor}
+            onClick={() => void kaydet()}
+          >
+            {kaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -17,6 +17,7 @@ import {
   type GameState,
   type StateSnapshot,
 } from '../engine/state'
+import RoomPanel, { type BagliKisi } from './RoomPanel'
 import VideoPanel from './VideoPanel'
 import { Room, type RoomStatus } from '../net/peer'
 import { chunkDataUrl, type Msg } from '../net/protocol'
@@ -148,6 +149,12 @@ export default function GameScreen({ config, onExit }: Props) {
   const [uzakAkislar, setUzakAkislar] = useState<Map<string, MediaStream>>(new Map())
   const [kameraAcik, setKameraAcik] = useState(true)
   const [sesAcik, setSesAcik] = useState(true)
+  /** Görüşme yalnızca sesli mi başlatıldı */
+  const [sadeceSes, setSadeceSes] = useState(false)
+  const [gorusmeBekliyor, setGorusmeBekliyor] = useState(false)
+  const [odaPanel, setOdaPanel] = useState(false)
+  /** Şu an bağlı olanlar: peer kimliği -> ad + hesap kimliği */
+  const [bagliOlanlar, setBagliOlanlar] = useState<Map<string, BagliKisi>>(new Map())
   const [chatAcik, setChatAcik] = useState(false)
   const [chat, setChat] = useState<ChatSatiri[]>([])
   const [okunmamis, setOkunmamis] = useState(0)
@@ -446,6 +453,21 @@ export default function GameScreen({ config, onExit }: Props) {
         })
         break
       }
+      case 'hello': {
+        setBagliOlanlar((m) =>
+          new Map(m).set(from, { peerId: from, ad: msg.ad, uid: msg.uid }),
+        )
+        break
+      }
+      case 'kick': {
+        // Çıkarılan kişi odadan düşsün; sunucu zaten erişimini kesti
+        if (auth.user && msg.uid === auth.user.id) {
+          r.room?.close()
+          r.room = null
+          setError('Bu odadan çıkarıldın.')
+        }
+        break
+      }
     }
   }
 
@@ -474,12 +496,18 @@ export default function GameScreen({ config, onExit }: Props) {
       if (r.destroyed) return
       // yeni gelene her şeyi yolla (yalnızca ona, diğerleri zaten senkron)
       sendFullSync(id)
+      tanit()
       setInviteOpen(false)
       setPlayerCount(r.room?.playerCount ?? 1)
     },
     onPeerLeft: (id: string) => {
       const r = refs.current
       if (r.destroyed) return
+      setBagliOlanlar((m) => {
+        const y = new Map(m)
+        y.delete(id)
+        return y
+      })
       // ayrılan kişinin tuttuğu parçalar serbest kalsın, imleci kaybolsun
       r.board?.remoteCursors.delete(id)
       if (r.board) {
@@ -505,9 +533,13 @@ export default function GameScreen({ config, onExit }: Props) {
           )
         }
       }
-      if (status === 'connected' && config.mode === 'guest') {
-        r.lastChunkAt = Date.now()
-        if (!r.game) setLoadText('Puzzle bekleniyor')
+      if (status === 'connected') {
+        // odadaki listede görünmek için kimliğini tanıt
+        tanit()
+        if (config.mode === 'guest') {
+          r.lastChunkAt = Date.now()
+          if (!r.game) setLoadText('Puzzle bekleniyor')
+        }
       }
       // oda kodu kesinleştiğinde sunucuya kaydet
       if (config.mode === 'local' && (status === 'waiting' || status === 'connected')) {
@@ -516,6 +548,18 @@ export default function GameScreen({ config, onExit }: Props) {
       setPlayerCount(r.room?.playerCount ?? 1)
     },
     onMessage: handleMsg,
+  }
+
+  /**
+   * Kim olduğumuzu odaya duyur. Misafirler sunucudaki katılımcı listesinde
+   * olmadığı için "odadakiler" listesi yalnızca bununla eksiksiz oluyor.
+   */
+  const tanit = () => {
+    refs.current.room?.send({
+      t: 'hello',
+      ad: auth.displayName || 'Misafir',
+      uid: auth.user?.id ?? null,
+    })
   }
 
   /** Tüm puzzle verisini gönder. hedef verilirse yalnızca ona. */
@@ -564,6 +608,7 @@ export default function GameScreen({ config, onExit }: Props) {
       const uzak = await createRemotePuzzle({
         roomCode: kod,
         title: titleRef.current,
+        artist: config.artist ?? '',
         imageDataUrl: r.imageDataUrl,
         seed: r.seed,
         // Seçilen sayı yaklaşıktır (100 seçilince 104 parça çıkabilir).
@@ -618,6 +663,7 @@ export default function GameScreen({ config, onExit }: Props) {
             r.pendingSnap = uzak.state
             setElapsed(uzak.elapsed)
             setTitle(uzak.title)
+            setArtist(uzak.artist ?? '')
             setSurprise(uzak.message)
             await build(dataUrl, uzak.piece_count, uzak.seed)
           }
@@ -751,39 +797,98 @@ export default function GameScreen({ config, onExit }: Props) {
     r.board?.fitView()
   }
 
-  /** Kamerayı aç ve odadakilerle görüntülü görüşmeyi başlat */
-  const gorusmeBaslat = async () => {
+  /**
+   * Mikrofon ayarları. Yankı ve cızırtının başlıca sebebi hoparlörden çıkan
+   * sesin mikrofona geri girmesi; bu üç bayrak tarayıcının yankı gidericisini
+   * açıyor. Tek kanal ve 48 kHz, mobil tarayıcıların kendi kendine seçtiği
+   * uyumsuz ayarlardan kaynaklanan cızırtıyı da kesiyor.
+   */
+  const SES_AYARI: MediaTrackConstraints = {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+    channelCount: 1,
+    sampleRate: 48000,
+  }
+
+  /**
+   * Kamera/mikrofon aç ve odadakilerle görüşmeyi başlat.
+   *
+   * Tablette "izin verdim ama açılmıyor" sorununun sebebi, istenen çözünürlük
+   * ve ön kamera kısıtının bazı cihazlarda karşılanamaması: tarayıcı izni
+   * veriyor ama akışı vermiyordu. Artık kısıtlar kademeli olarak gevşetiliyor
+   * ve gerçek hata kullanıcıya söyleniyor.
+   */
+  const gorusmeBaslat = async (yalnizSes = false) => {
     const r = refs.current
-    if (!r.room) return
-    try {
-      const akis = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-        audio: { echoCancellation: true, noiseSuppression: true },
-      })
-      if (r.destroyed) {
-        akis.getTracks().forEach((t) => t.stop())
-        return
+    if (!r.room || gorusmeBekliyor) return
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert(
+        location.protocol === 'https:' || location.hostname === 'localhost'
+          ? 'Bu tarayıcı kamera/mikrofon erişimini desteklemiyor.'
+          : 'Kamera yalnızca güvenli bağlantıda (https) açılabilir.',
+      )
+      return
+    }
+
+    // Sırayla dene: istenen ayar → sade ayar → en sade. İlk tutan kullanılır.
+    const denemeler: MediaStreamConstraints[] = yalnizSes
+      ? [{ video: false, audio: SES_AYARI }, { video: false, audio: true }]
+      : [
+          {
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+            audio: SES_AYARI,
+          },
+          { video: true, audio: SES_AYARI },
+          { video: true, audio: true },
+        ]
+
+    setGorusmeBekliyor(true)
+    let akis: MediaStream | null = null
+    let sonHata: unknown = null
+    for (const kisit of denemeler) {
+      try {
+        akis = await navigator.mediaDevices.getUserMedia(kisit)
+        break
+      } catch (e) {
+        sonHata = e
       }
-      setYerelAkis(akis)
-      setKameraAcik(true)
-      setSesAcik(true)
-      await r.room.yayiniBaslat(akis)
-    } catch (e) {
-      const ad = e instanceof Error ? e.name : ''
+    }
+    setGorusmeBekliyor(false)
+
+    if (!akis) {
+      const ad = sonHata instanceof Error ? sonHata.name : ''
       alert(
         ad === 'NotAllowedError'
-          ? 'Kamera izni verilmedi. Tarayıcı ayarlarından izin verebilirsin.'
-          : ad === 'NotFoundError'
-            ? 'Kamera bulunamadı.'
-            : 'Kamera açılamadı.',
+          ? 'İzin verilmedi. Tarayıcı adres çubuğundaki kilit simgesinden kamera ve mikrofon iznini açabilirsin.'
+          : ad === 'NotFoundError' || ad === 'OverconstrainedError'
+            ? yalnizSes
+              ? 'Mikrofon bulunamadı.'
+              : 'Kamera bulunamadı. Yalnızca sesli konuşmayı deneyebilirsin.'
+            : ad === 'NotReadableError'
+              ? 'Kamera başka bir uygulamada açık görünüyor. Onu kapatıp tekrar dene.'
+              : `Açılamadı${ad ? ` (${ad})` : ''}. Sayfayı yenileyip tekrar dene.`,
       )
+      return
     }
+
+    if (r.destroyed) {
+      akis.getTracks().forEach((t) => t.stop())
+      return
+    }
+    setYerelAkis(akis)
+    setSadeceSes(yalnizSes)
+    setKameraAcik(akis.getVideoTracks().length > 0)
+    setSesAcik(akis.getAudioTracks().length > 0)
+    await r.room.yayiniBaslat(akis)
   }
 
   const gorusmeBitir = () => {
     yerelAkis?.getTracks().forEach((t) => t.stop())
     setYerelAkis(null)
     setUzakAkislar(new Map())
+    setSadeceSes(false)
     refs.current.room?.yayiniDurdur()
   }
 
@@ -863,11 +968,33 @@ export default function GameScreen({ config, onExit }: Props) {
         )}
         {roomStatus !== 'idle' && (
           <button
-            className={`icon-btn ${yerelAkis ? 'on' : ''}`}
-            onClick={() => (yerelAkis ? gorusmeBitir() : void gorusmeBaslat())}
-            title={yerelAkis ? 'Görüşmeyi bitir' : 'Görüntülü konuş'}
+            className={`icon-btn ${odaPanel ? 'on' : ''}`}
+            onClick={() => setOdaPanel((v) => !v)}
+            title="Odadakiler"
+          >
+            👥
+          </button>
+        )}
+        {roomStatus !== 'idle' && (
+          <button
+            className={`icon-btn ${yerelAkis && !sadeceSes ? 'on' : ''}`}
+            disabled={gorusmeBekliyor}
+            onClick={() =>
+              yerelAkis && !sadeceSes ? gorusmeBitir() : void gorusmeBaslat(false)
+            }
+            title={yerelAkis && !sadeceSes ? 'Görüşmeyi bitir' : 'Görüntülü konuş'}
           >
             📹
+          </button>
+        )}
+        {roomStatus !== 'idle' && (
+          <button
+            className={`icon-btn ${sadeceSes ? 'on' : ''}`}
+            disabled={gorusmeBekliyor}
+            onClick={() => (sadeceSes ? gorusmeBitir() : void gorusmeBaslat(true))}
+            title={sadeceSes ? 'Görüşmeyi bitir' : 'Yalnızca sesli konuş'}
+          >
+            🎙
           </button>
         )}
         {roomStatus !== 'idle' && (
@@ -961,9 +1088,20 @@ export default function GameScreen({ config, onExit }: Props) {
           uzaklar={uzakAkislar}
           sesAcik={sesAcik}
           kameraAcik={kameraAcik}
+          sadeceSes={sadeceSes}
           onSes={sesiDegistir}
           onKamera={kamerayiDegistir}
           onKapat={gorusmeBitir}
+        />
+      )}
+
+      {odaPanel && (
+        <RoomPanel
+          puzzleId={refs.current.remoteId}
+          benimId={auth.user?.id ?? null}
+          bagliOlanlar={[...bagliOlanlar.values()]}
+          onKapat={() => setOdaPanel(false)}
+          onCikarildi={(uid) => refs.current.room?.send({ t: 'kick', uid })}
         />
       )}
 
@@ -1024,6 +1162,8 @@ export default function GameScreen({ config, onExit }: Props) {
           surprise={surprise}
           elapsed={elapsed}
           title={title}
+          artist={artist}
+          parca={refs.current.game?.pieces.length ?? refs.current.pieceCount}
           image={refs.current.imageDataUrl}
           onExit={onExit}
         />
@@ -1113,12 +1253,17 @@ function Celebration({
   surprise,
   elapsed,
   title,
+  artist,
+  parca,
   image,
   onExit,
 }: {
   surprise: string
   elapsed: number
   title: string
+  /** Hazır eser çözüldüyse ressamın adı */
+  artist: string
+  parca: number
   image: string
   onExit: () => void
 }) {
@@ -1157,8 +1302,10 @@ function Celebration({
         <div className="celebration-card">
           {image && <img className="celebration-img" src={image} alt="" />}
           <h2>Bitti</h2>
+          {title && <p className="celebration-eser">{title}</p>}
+          {artist && <p className="celebration-ressam">{artist}</p>}
           <p className="muted">
-            {title ? `${title} · ` : ''}
+            {parca > 0 ? `${parca} parça · ` : ''}
             {formatTime(elapsed)}
           </p>
           {surprise && <blockquote className="surprise">{surprise}</blockquote>}

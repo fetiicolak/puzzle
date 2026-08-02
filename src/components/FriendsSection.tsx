@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import MessageBox from './MessageBox'
+import { avatarUrlleri } from '../supabase/profile'
 import {
   arkadaslikIste,
   arkadasligiKabulEt,
@@ -21,13 +22,23 @@ export default function FriendsSection() {
   const [acikSohbet, setAcikSohbet] = useState<Kisi | null>(null)
   /** Arkadaşlıktan çıkarılmak üzere onay bekleyen kişi */
   const [cikarilacak, setCikarilacak] = useState<Arkadaslik | null>(null)
+  /** Başlığa tıklanınca liste açılır; sayfa uzamasın diye kapalı başlar */
+  const [acik, setAcik] = useState(false)
+  const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
 
   const tazele = useCallback(async () => {
     const liste = await arkadasliklariGetir()
     setArkadasliklar(liste)
     // zaten arkadaş olduğun ya da istek gidip gelen kişileri önerme
-    setOneriler(await birlikteOynananlar(liste.map((a) => a.kisi.id)))
+    const oneri = await birlikteOynananlar(liste.map((a) => a.kisi.id))
+    setOneriler(oneri)
     setOkunmamis(await okunmamisSayilari())
+    setAvatarlar(
+      await avatarUrlleri([
+        ...liste.map((a) => a.kisi.avatarPath),
+        ...oneri.map((k) => k.avatarPath),
+      ]),
+    )
   }, [])
 
   useEffect(() => {
@@ -63,12 +74,30 @@ export default function FriendsSection() {
 
   const bas = (ad: string) => (ad[0] ?? '?').toUpperCase()
 
+  /** Fotoğrafı varsa göster, yoksa baş harf */
+  const Avatar = ({ kisi, sonuk }: { kisi: Kisi; sonuk?: boolean }) => {
+    const url = kisi.avatarPath ? avatarlar.get(kisi.avatarPath) : null
+    return (
+      <span className={`avatar ${sonuk ? 'dim' : ''}`}>
+        {url ? <img src={url} alt="" /> : bas(kisi.ad)}
+      </span>
+    )
+  }
+
+  const toplam = arkadaslar.length + gelenler.length + gidenler.length + oneriler.length
+
   return (
     <section className="block">
-      <h2 className="section-label">
+      <button
+        className={`section-katlanir ${acik ? 'acik' : ''}`}
+        onClick={() => setAcik((v) => !v)}
+        aria-expanded={acik}
+      >
+        <span className="katlanir-ok">▸</span>
         Arkadaşlar
+        <em className="field-hint">{toplam}</em>
         {gelenler.length > 0 && <span className="badge">{gelenler.length}</span>}
-      </h2>
+      </button>
 
       {acikSohbet && (
         <MessageBox
@@ -95,11 +124,13 @@ export default function FriendsSection() {
         />
       )}
 
+      {acik && (
+        <>
       {gelenler.length > 0 && (
         <div className="friend-list">
           {gelenler.map((a) => (
             <div key={a.id} className="friend-row pending">
-              <span className="avatar">{bas(a.kisi.ad)}</span>
+              <Avatar kisi={a.kisi} />
               <div className="info">
                 <b>{a.kisi.ad}</b>
                 <small>seni arkadaş olarak ekledi</small>
@@ -127,7 +158,7 @@ export default function FriendsSection() {
         <div className="friend-list">
           {arkadaslar.map((a) => (
             <div key={a.id} className="friend-row">
-              <span className="avatar">{bas(a.kisi.ad)}</span>
+              <Avatar kisi={a.kisi} />
               <div className="info">
                 <b>{a.kisi.ad}</b>
               </div>
@@ -157,7 +188,7 @@ export default function FriendsSection() {
         <div className="friend-list">
           {gidenler.map((a) => (
             <div key={a.id} className="friend-row muted-row">
-              <span className="avatar dim">{bas(a.kisi.ad)}</span>
+              <Avatar kisi={a.kisi} sonuk />
               <div className="info">
                 <b>{a.kisi.ad}</b>
                 <small>istek gönderildi</small>
@@ -180,7 +211,7 @@ export default function FriendsSection() {
           <div className="friend-list">
             {oneriler.map((k) => (
               <div key={k.id} className="friend-row">
-                <span className="avatar dim">{bas(k.ad)}</span>
+                <Avatar kisi={k} sonuk />
                 <div className="info">
                   <b>{k.ad}</b>
                 </div>
@@ -194,6 +225,8 @@ export default function FriendsSection() {
               </div>
             ))}
           </div>
+        </>
+      )}
         </>
       )}
     </section>
