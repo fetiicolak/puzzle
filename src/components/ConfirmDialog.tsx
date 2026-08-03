@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface Props {
   baslik: string
@@ -46,7 +47,14 @@ export default function ConfirmDialog({
     }
   }
 
-  return (
+  /*
+    Pencere doğrudan sayfanın köküne çiziliyor.
+
+    İçinde açıldığı kutu backdrop-filter kullanıyorsa (oda paneli gibi), sabit
+    konumlu öğe ekrana değil o kutuya göre yerleşiyor ve kenarından taşıyordu.
+    Kökte çizilince nerede kullanılırsa kullanılsın ekranın ortasında durur.
+  */
+  return createPortal(
     <div className="modal-arka" onClick={() => !calisiyor && onIptal()}>
       <div className="dialog" onClick={(e) => e.stopPropagation()}>
         <h3>{baslik}</h3>
@@ -67,6 +75,7 @@ export default function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

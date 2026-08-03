@@ -792,7 +792,7 @@ button {
   animation: fade 0.2s ease;
 }
 .mesaj-kutusu {
-  width: min(94vw, 420px);
+  width: min(100%, 420px);
   max-height: min(78vh, 620px);
   display: flex;
   flex-direction: column;
@@ -980,7 +980,7 @@ button {
 /* ---------------------------------------------------- profil penceresi */
 
 .dialog-genis {
-  width: min(94vw, 430px);
+  width: min(100%, 430px);
 }
 .profil-foto-satir {
   display: flex;
@@ -1089,7 +1089,11 @@ button {
 /* ---------------------------------------------------- küçük pencere */
 
 .dialog {
-  width: min(94vw, 380px);
+  /*
+    Genişlik ekrana değil kapsayıcıya göre: modal-arka'nın 18px iç boşluğu var,
+    94vw verildiğinde pencere o boşluğu taşırıp bir kenara yapışıyordu.
+  */
+  width: min(100%, 380px);
   /* yatay tutulan telefonda uzun metin taşmasın */
   max-height: 88dvh;
   overflow-y: auto;
