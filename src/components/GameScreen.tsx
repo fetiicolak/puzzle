@@ -18,6 +18,7 @@ import {
   type StateSnapshot,
 } from '../engine/state'
 import RoomPanel, { type BagliKisi } from './RoomPanel'
+import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
 import {
   baglantiTesti,
@@ -27,7 +28,15 @@ import {
   type RoomStatus,
 } from '../net/peer'
 import { chunkDataUrl, type Msg } from '../net/protocol'
-import { loadImage, misafirAdi, misafirKimligi, savePuzzle, urlToDataUrl } from '../storage'
+import {
+  loadImage,
+  misafirAdi,
+  misafirKimligi,
+  savePuzzle,
+  tanitimGorulduMu,
+  tanitimiIsaretle,
+  urlToDataUrl,
+} from '../storage'
 import { useAuth } from '../supabase/auth'
 import {
   createRemotePuzzle,
@@ -167,6 +176,8 @@ export default function GameScreen({ config, onExit }: Props) {
   const [sadeceSes, setSadeceSes] = useState(false)
   const [gorusmeBekliyor, setGorusmeBekliyor] = useState(false)
   const [odaPanel, setOdaPanel] = useState(false)
+  /** Nasıl oynanır turu; ilk oyunda kendiliğinden açılır */
+  const [tanitim, setTanitim] = useState(false)
   /** Bağlantı testi sonucu; null iken test hiç çalıştırılmamış */
   const [test, setTest] = useState<BaglantiTesti | null>(null)
   const [testSuruyor, setTestSuruyor] = useState(false)
@@ -783,6 +794,14 @@ export default function GameScreen({ config, onExit }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Nasıl oynanır turu yalnızca ilk oyunda kendiliğinden açılır. Sonraki
+  // seferlerde üstteki ? düğmesinden açılabilir.
+  useEffect(() => {
+    if (phase !== 'playing' || tanitimGorulduMu()) return
+    setTanitim(true)
+    tanitimiIsaretle()
+  }, [phase])
+
   // süre sayacı + düzenli otomatik kayıt
   useEffect(() => {
     if (phase !== 'playing') return
@@ -1117,6 +1136,13 @@ export default function GameScreen({ config, onExit }: Props) {
         >
           ⤢
         </button>
+        <button
+          className={`icon-btn ${tanitim ? 'on' : ''}`}
+          onClick={() => setTanitim(true)}
+          title="Nasıl oynanır"
+        >
+          ?
+        </button>
       </div>
 
       <canvas ref={canvasRef} className="game-canvas" />
@@ -1141,6 +1167,14 @@ export default function GameScreen({ config, onExit }: Props) {
           onSes={sesiDegistir}
           onKamera={kamerayiDegistir}
           onKapat={gorusmeBitir}
+        />
+      )}
+
+      {tanitim && (
+        <Tutorial
+          rotation={refs.current.rotation}
+          odada={roomStatus !== 'idle'}
+          onKapat={() => setTanitim(false)}
         />
       )}
 

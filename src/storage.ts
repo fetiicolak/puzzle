@@ -52,6 +52,26 @@ export function misafirAdiKaydet(ad: string): void {
   else localStorage.removeItem(MISAFIR_AD)
 }
 
+const TANITIM_ANAHTARI = 'puzzle:tanitim-gorundu'
+
+/** Nasıl oynanır turu daha önce gösterildi mi */
+export function tanitimGorulduMu(): boolean {
+  try {
+    return localStorage.getItem(TANITIM_ANAHTARI) === '1'
+  } catch {
+    // depolama kapalıysa her seferinde göstermek yerine hiç gösterme
+    return true
+  }
+}
+
+export function tanitimiIsaretle(): void {
+  try {
+    localStorage.setItem(TANITIM_ANAHTARI, '1')
+  } catch {
+    // yoksay
+  }
+}
+
 const INDEX_KEY = 'puzzle:index'
 const keyOf = (id: string) => `puzzle:${id}`
 

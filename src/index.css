@@ -346,6 +346,94 @@ button {
 .ozel-gun-alan .form-error {
   font-size: 0.8rem;
 }
+/* ---------------------------------------------------- nasıl oynanır turu */
+
+.tanitim {
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+.tanitim-simge {
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  font-size: 2rem;
+  background: rgba(255, 93, 125, 0.12);
+  border: 1px solid rgba(255, 93, 125, 0.28);
+}
+.tanitim h3 {
+  font-size: 1.16rem;
+}
+.tanitim .dialog-mesaj {
+  margin-top: -2px;
+}
+
+.tanitim-araclar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 14px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.tanitim-araclar li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 0.87rem;
+  color: var(--muted);
+}
+.tanitim-arac-simge {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.tanitim-noktalar {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.tanitim-noktalar .nokta {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  transition: background 0.2s ease, width 0.2s ease;
+}
+.tanitim-noktalar .nokta.gecti {
+  background: var(--accent-soft);
+  opacity: 0.5;
+}
+.tanitim-noktalar .nokta.aktif {
+  width: 18px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.tanitim-butonlar {
+  width: 100%;
+  align-items: center;
+}
+.tanitim-butonlar .spacer {
+  flex: 1;
+}
+
 /* bağlantı testi sonucu (hata ekranında) */
 .test-sonuc {
   display: flex;
