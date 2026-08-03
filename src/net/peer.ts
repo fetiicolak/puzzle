@@ -210,6 +210,15 @@ export class Room {
   private draining = false
   /** Host: bağlantı kimliği -> kişi kimliği (hesap ya da misafir cihazı) */
   private kimlikler = new Map<string, string>()
+  /**
+   * Host: odadan çıkarılan kişilerin kimlikleri.
+   *
+   * Hesabı olmayan misafirler sunucudaki katılımcı listesinde yer almadığı
+   * için sunucu tarafında engellenemiyorlar; host onları burada tutup gelen
+   * bağlantıyı kapatıyor. Oda kapanınca liste de gider — kalıcı bir yasak
+   * değil, o oturum için geçerli.
+   */
+  private engellenenler = new Set<string>()
   private nabizTimer: ReturnType<typeof setInterval> | null = null
 
   /** Görüntülü arama: kendi kamera/mikrofon akışımız */
@@ -471,7 +480,21 @@ export class Room {
       // Kimlik tanıtımı: aynı kişinin eski bağlantısını kapat
       if (this.isHost && msg.t === 'hello' && !msg.from) {
         const h = msg as { kimlik?: string; uid?: string | null }
-        this.kimlikKaydet(id, h.kimlik || h.uid || '')
+        const kimlik = h.kimlik || h.uid || ''
+        // Çıkarılan biri aynı linkle geri geldiyse içeri alma
+        if (kimlik && this.engellenenler.has(kimlik)) {
+          this.conns.delete(id)
+          this.kimlikler.delete(id)
+          try {
+            conn.send({ t: 'kick', uid: kimlik } as Msg)
+            setTimeout(() => conn.close(), 250)
+          } catch {
+            conn.close()
+          }
+          this.emitHostStatus()
+          return
+        }
+        this.kimlikKaydet(id, kimlik)
       }
       // Host merkezdir: gelen mesajı diğer katılımcılara aynen ilet
       if (this.isHost) {
@@ -513,6 +536,37 @@ export class Room {
       if (this.peer && !this.peer.destroyed) this.startOutgoing()
       else this.createPeer()
     }, 1000 * this.reconnectAttempt)
+  }
+
+  /**
+   * Kişiyi odadan çıkar (host).
+   *
+   * Hesabı olan biri için asıl engel sunucudadır; bu yalnızca bağlantıyı
+   * hemen keser. Hesapsız misafir için tek yol budur.
+   */
+  cikar(kimlik: string): void {
+    if (!this.isHost || !kimlik) return
+    this.engellenenler.add(kimlik)
+    for (const [id, k] of [...this.kimlikler]) {
+      if (k !== kimlik) continue
+      const conn = this.conns.get(id)
+      try {
+        conn?.send({ t: 'kick', uid: kimlik } as Msg)
+      } catch {
+        // kanal kapanmış olabilir
+      }
+      setTimeout(() => {
+        this.kimlikler.delete(id)
+        this.conns.delete(id)
+        try {
+          conn?.close()
+        } catch {
+          // zaten kapanmış olabilir
+        }
+        this.events.onPeerLeft?.(id)
+        this.emitHostStatus()
+      }, 250)
+    }
   }
 
   /** Elle yeniden bağlanma (kullanıcı butonu): sayaçları sıfırlar */

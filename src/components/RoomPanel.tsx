@@ -8,8 +8,10 @@ export interface BagliKisi {
   /** P2P bağlantı kimliği */
   peerId: string
   ad: string
-  /** Giriş yapmışsa hesap kimliği */
+  /** Giriş yapmışsa hesap kimliği, misafirde null */
   uid: string | null
+  /** Kişiyi ayırt eden kalıcı değer (hesap kimliği ya da misafir cihazı) */
+  kimlik: string
 }
 
 interface Props {
@@ -19,9 +21,13 @@ interface Props {
   benimId: string | null
   /** Şu an odaya bağlı olanlar (misafirler dahil) */
   bagliOlanlar: BagliKisi[]
+  /** Odayı kuran ben miyim — bağlantıyı yalnızca o kesebilir */
+  benHost: boolean
   onKapat: () => void
   /** Çıkarılan kişiye haber ver ki oyunu kapatabilsin */
   onCikarildi: (uid: string) => void
+  /** Hesapsız misafiri odadan çıkar (bağlantısı kesilir) */
+  onMisafirCikar: (kimlik: string) => void
 }
 
 /** Oyun sırasında odadaki kişiler, yetkiler ve odadan çıkarma */
@@ -29,8 +35,10 @@ export default function RoomPanel({
   puzzleId,
   benimId,
   bagliOlanlar,
+  benHost,
   onKapat,
   onCikarildi,
+  onMisafirCikar,
 }: Props) {
   const [kisiler, setKisiler] = useState<OdaKisisi[]>([])
   const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
@@ -78,10 +86,16 @@ export default function RoomPanel({
     }
   }
 
-  // Bağlı olup sunucu kaydında olmayanlar (misafir girenler)
+  // Sunucu kaydında görünmeyen ama odaya bağlı olanlar.
+  //
+  // Misafir olarak girenler sunucu listesini hiç okuyamaz (kaydı yok); o
+  // durumda odadakileri yalnızca buradan görürler. "Misafir" etiketi
+  // listede olup olmamaya değil, hesabı olup olmamasına bakar — hesaplı biri
+  // yanlışlıkla misafir gösterilmesin.
   const kayitliIdler = new Set(kisiler.map((k) => k.id))
-  const misafirler = bagliOlanlar.filter((b) => !b.uid || !kayitliIdler.has(b.uid))
+  const listeDisi = bagliOlanlar.filter((b) => !b.uid || !kayitliIdler.has(b.uid))
   const bagliUidler = new Set(bagliOlanlar.map((b) => b.uid).filter(Boolean) as string[])
+  const [cikarilacakMisafir, setCikarilacakMisafir] = useState<BagliKisi | null>(null)
 
   return (
     <aside className="oda-panel">
@@ -164,20 +178,45 @@ export default function RoomPanel({
           )
         })}
 
-        {misafirler.map((m) => (
+        {listeDisi.map((m) => (
           <div key={m.peerId} className="oda-satir">
             <span className="avatar dim">{basHarfler(m.ad)}</span>
             <div className="info">
               <b>
                 {m.ad}
-                <span className="rol-etiket">misafir</span>
+                {!m.uid && <span className="rol-etiket">misafir</span>}
               </b>
-              <small className="muted">hesapsız girdi, çıkarılamaz</small>
+              <small className="muted">
+                {m.uid ? 'odada' : 'hesapsız girdi'}
+              </small>
             </div>
+            {benHost && (
+              <button
+                className="del"
+                title="Odadan çıkar"
+                onClick={() => setCikarilacakMisafir(m)}
+              >
+                ✕
+              </button>
+            )}
           </div>
         ))}
 
-        {!yukleniyor && kisiler.length === 0 && misafirler.length === 0 && (
+        {cikarilacakMisafir && (
+          <ConfirmDialog
+            baslik="Odadan çıkar"
+            mesaj={`${cikarilacakMisafir.ad} bu odadan çıkarılacak ve bağlantısı kesilecek. Aynı davet linkiyle geri giremez; ama oda kapanıp yeniden kurulursa tekrar girebilir.`}
+            onayYazisi="Çıkar"
+            tehlikeli
+            onIptal={() => setCikarilacakMisafir(null)}
+            onOnayla={() => {
+              onMisafirCikar(cikarilacakMisafir.kimlik)
+              setCikarilacakMisafir(null)
+            }}
+          />
+        )}
+
+        {!yukleniyor && kisiler.length === 0 && listeDisi.length === 0 && (
           <p className="muted chat-bos">Şimdilik yalnızsın.</p>
         )}
       </div>

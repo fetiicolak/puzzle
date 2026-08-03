@@ -70,6 +70,14 @@ export interface GameConfig {
   unlockAt?: string | null
   /** Hazır eser seçildiyse ressamı */
   artist?: string
+  /**
+   * Davet ekranında "misafir olarak devam et" seçildi.
+   *
+   * Cihazda açık bir oturum olsa bile hesap kullanılmaz: kullanıcı bilerek
+   * misafir olmayı seçti. Bu bayrak olmadan, tabletinde hesabı açık olan
+   * biri misafir dese de hesabıyla girmiş sayılıyordu.
+   */
+  misafirZorla?: boolean
 }
 
 export interface ChatSatiri {
@@ -200,8 +208,14 @@ export default function GameScreen({ config, onExit }: Props) {
 
   // Oda kodu kimlik çakışmasında değişebilir; link her zaman güncel kodu
   // göstermeli, yoksa paylaşılan davet ölü bir odaya işaret eder.
+  /**
+   * Bu oturumdaki hesabım. Misafir olarak devam edilmişse cihazda açık bir
+   * oturum olsa bile null; böylece hesap hiçbir yerde kullanılmaz.
+   */
+  const hesap = config.misafirZorla ? null : auth.user
+
   /** Odada görünecek adım: hesap adı, misafirsem kendi seçtiğim ad */
-  const benimAdim = auth.user ? auth.displayName : misafirAdi() || 'Misafir'
+  const benimAdim = hesap ? auth.displayName : misafirAdi() || 'Misafir'
 
   const inviteLink = useMemo(
     () => (roomCode ? `${location.origin}${location.pathname}#room=${roomCode}` : ''),
@@ -471,13 +485,20 @@ export default function GameScreen({ config, onExit }: Props) {
       }
       case 'hello': {
         setBagliOlanlar((m) =>
-          new Map(m).set(from, { peerId: from, ad: msg.ad, uid: msg.uid }),
+          new Map(m).set(from, {
+            peerId: from,
+            ad: msg.ad,
+            uid: msg.uid,
+            kimlik: msg.kimlik ?? msg.uid ?? from,
+          }),
         )
         break
       }
       case 'kick': {
         // Çıkarılan kişi odadan düşsün; sunucu zaten erişimini kesti
-        if (auth.user && msg.uid === auth.user.id) {
+        // Hesabım varsa hesap kimliğim, misafirsem cihaz kimliğim eşleşir
+        const benimKimligim = hesap?.id ?? misafirKimligi()
+        if (msg.uid === benimKimligim) {
           r.room?.close()
           r.room = null
           setError('Bu odadan çıkarıldın.')
@@ -575,9 +596,9 @@ export default function GameScreen({ config, onExit }: Props) {
   const tanit = () => {
     refs.current.room?.send({
       t: 'hello',
-      ad: auth.user ? auth.displayName : misafirAdi() || 'Misafir',
-      uid: auth.user?.id ?? null,
-      kimlik: auth.user?.id ?? misafirKimligi(),
+      ad: benimAdim,
+      uid: hesap?.id ?? null,
+      kimlik: hesap?.id ?? misafirKimligi(),
     })
   }
 
@@ -622,7 +643,7 @@ export default function GameScreen({ config, onExit }: Props) {
   const registerRemoteRoom = async () => {
     const r = refs.current
     const kod = r.room?.code ?? config.roomCode
-    if (!auth.user || r.remoteId || !kod || !r.imageDataUrl) return
+    if (!hesap || r.remoteId || !kod || !r.imageDataUrl) return
     try {
       const uzak = await createRemotePuzzle({
         roomCode: kod,
@@ -665,11 +686,13 @@ export default function GameScreen({ config, onExit }: Props) {
   const initGuest = async () => {
     const r = refs.current
     const kod = config.roomCode!
-    if (auth.user) {
+    // Misafir olarak devam edilmişse sunucuya hiç dokunma: puzzle odadan
+    // gelir, kayıt da geçmişe düşmez.
+    if (hesap) {
       try {
         setLoadText('Puzzle getiriliyor')
         const uzak = await joinRemotePuzzle(kod)
-        if (uzak && kilitliMi(uzak) && uzak.owner !== auth.user.id) {
+        if (uzak && kilitliMi(uzak) && uzak.owner !== hesap.id) {
           setError('Bu puzzle henüz açılmadı. Özel gün için saklanmış.')
           return
         }
@@ -1124,10 +1147,20 @@ export default function GameScreen({ config, onExit }: Props) {
       {odaPanel && (
         <RoomPanel
           puzzleId={refs.current.remoteId}
-          benimId={auth.user?.id ?? null}
+          benimId={hesap?.id ?? null}
           bagliOlanlar={[...bagliOlanlar.values()]}
+          // Bağlantıyı yalnızca odayı kuran kesebilir (yıldız topolojisi)
+          benHost={config.mode === 'local'}
           onKapat={() => setOdaPanel(false)}
           onCikarildi={(uid) => refs.current.room?.send({ t: 'kick', uid })}
+          onMisafirCikar={(kimlik) => {
+            refs.current.room?.cikar(kimlik)
+            setBagliOlanlar((m) => {
+              const y = new Map(m)
+              for (const [id, k] of y) if (k.kimlik === kimlik) y.delete(id)
+              return y
+            })
+          }}
         />
       )}
 

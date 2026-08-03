@@ -30,8 +30,8 @@ function initialScreen(): Screen {
  * Yerel kayıt kimliği olarak oda kodunu kullanıyoruz: aynı puzzle'a hangi
  * yoldan girilirse girilsin (yerel / sunucu / davet linki) tek kayıt olur.
  */
-function misafirConfig(kod: string): GameConfig {
-  return { puzzleId: kod, mode: 'guest', roomCode: kod }
+function misafirConfig(kod: string, misafirZorla = false): GameConfig {
+  return { puzzleId: kod, mode: 'guest', roomCode: kod, misafirZorla }
 }
 
 export default function App() {
@@ -179,7 +179,8 @@ export default function App() {
           }}
           onMisafir={() => {
             setMisafirDevam(true)
-            setScreen({ s: 'game', config: misafirConfig(screen.roomCode) })
+            // Cihazda oturum açık olsa bile misafir olarak girilir
+            setScreen({ s: 'game', config: misafirConfig(screen.roomCode, true) })
           }}
         />
       )
@@ -204,7 +205,7 @@ export default function App() {
             setDavetGirisi(false)
             setBekleyenDavet(null)
             setMisafirDevam(true)
-            setScreen({ s: 'game', config: misafirConfig(kod) })
+            setScreen({ s: 'game', config: misafirConfig(kod, true) })
           }}
         />
       )
