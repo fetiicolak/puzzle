@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { misafirAdi, misafirAdiKaydet } from '../storage'
 import { useAuth } from '../supabase/auth'
 
 interface Props {
@@ -13,6 +15,12 @@ interface Props {
  */
 export default function JoinChoiceScreen({ roomCode, onGiris, onMisafir }: Props) {
   const auth = useAuth()
+  const [ad, setAd] = useState(misafirAdi)
+
+  const misafirDevam = () => {
+    misafirAdiKaydet(ad)
+    onMisafir()
+  }
 
   return (
     <div className="screen screen-center">
@@ -35,10 +43,29 @@ export default function JoinChoiceScreen({ roomCode, onGiris, onMisafir }: Props
           </small>
         </button>
 
-        <button className="join-kart sade" onClick={onMisafir}>
+        <div className="join-kart sade misafir-kart">
           <b>Misafir olarak devam et</b>
           <small>Hemen oyuna girersin. Tablo kaydedilmez, geçmişinde görünmez.</small>
-        </button>
+          {/* Odadakiler listesinde "Misafir" yerine kendi adı görünsün */}
+          <label className="field misafir-ad">
+            <span className="field-label">
+              Sana ne diyelim? <em className="field-hint">isteğe bağlı</em>
+            </span>
+            <input
+              className="input"
+              placeholder="Adın"
+              value={ad}
+              maxLength={24}
+              onChange={(e) => setAd(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') misafirDevam()
+              }}
+            />
+          </label>
+          <button className="btn btn-secondary" onClick={misafirDevam}>
+            Misafir olarak gir
+          </button>
+        </div>
       </div>
 
       {auth.user && (

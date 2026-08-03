@@ -10,7 +10,15 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { authErrorText, supabase, supabaseEnabled } from './client'
+import {
+  authErrorText,
+  epostayiHatirla,
+  etkinligiDamgala,
+  etkinlikDamgasiniSil,
+  oturumZamanAsimiMi,
+  supabase,
+  supabaseEnabled,
+} from './client'
 
 interface AuthState {
   /** Supabase yapılandırılmış mı */
@@ -33,17 +41,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!supabase) return
     let iptal = false
-    supabase.auth.getSession().then(({ data }) => {
+
+    // Uygulamadan uzun süre uzak kalındıysa hesabı açık bırakma
+    const baslat = async () => {
+      if (oturumZamanAsimiMi()) {
+        await supabase!.auth.signOut()
+        etkinlikDamgasiniSil()
+        if (!iptal) {
+          setSession(null)
+          setLoading(false)
+        }
+        return
+      }
+      const { data } = await supabase!.auth.getSession()
       if (iptal) return
       setSession(data.session)
       setLoading(false)
-    })
+    }
+    void baslat()
+
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!iptal) setSession(s)
     })
+
+    // Sekme kapanırken / arka plana geçerken son etkinlik anını yaz;
+    // geri dönüldüğünde süre aşılmışsa oturum kapanır.
+    const gizlendi = () => {
+      if (document.visibilityState === 'hidden') etkinligiDamgala()
+      else if (oturumZamanAsimiMi()) {
+        void supabase!.auth.signOut().then(() => {
+          etkinlikDamgasiniSil()
+          if (!iptal) setSession(null)
+        })
+      } else {
+        etkinligiDamgala()
+      }
+    }
+    const ayrilirken = () => etkinligiDamgala()
+    document.addEventListener('visibilitychange', gizlendi)
+    window.addEventListener('pagehide', ayrilirken)
+    window.addEventListener('beforeunload', ayrilirken)
+    // Açıkken damga tazelensin ki kullanırken oturum düşmesin
+    const tik = setInterval(() => {
+      if (document.visibilityState === 'visible') etkinligiDamgala()
+    }, 60_000)
+    etkinligiDamgala()
+
     return () => {
       iptal = true
       sub.subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', gizlendi)
+      window.removeEventListener('pagehide', ayrilirken)
+      window.removeEventListener('beforeunload', ayrilirken)
+      clearInterval(tik)
     }
   }, [])
 
@@ -74,11 +124,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: email.trim(),
           password,
         })
+        if (!error) {
+          // e-posta bir dahakine hazır gelsin, oturum sayacı sıfırlansın
+          epostayiHatirla(email)
+          etkinligiDamgala()
+        }
         return error ? authErrorText(error.message) : null
       },
 
       async signOut() {
         await supabase?.auth.signOut()
+        etkinlikDamgasiniSil()
       },
     }
   }, [session, loading])

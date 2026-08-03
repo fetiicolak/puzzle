@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { beniHatirla, beniHatirlaAyarla } from '../supabase/client'
+import { beniHatirla, beniHatirlaAyarla, hatirlananEposta } from '../supabase/client'
 import { useAuth } from '../supabase/auth'
 
 interface Props {
@@ -30,7 +30,8 @@ export default function AuthScreen({
 }: Props) {
   const { signIn, signUp } = useAuth()
   const [mod, setMod] = useState<'giris' | 'kayit'>('giris')
-  const [email, setEmail] = useState('')
+  // "Beni hatırla" e-postayı hatırlar; şifre her girişte istenir
+  const [email, setEmail] = useState(hatirlananEposta)
   const [sifre, setSifre] = useState('')
   const [ad, setAd] = useState('')
   const [hata, setHata] = useState<string | null>(null)
@@ -143,7 +144,10 @@ export default function AuthScreen({
               beniHatirlaAyarla(e.target.checked)
             }}
           />
-          <span>Beni hatırla</span>
+          <span>
+            Beni hatırla
+            <em className="field-hint"> e-postan hazır gelsin</em>
+          </span>
         </label>
 
         {hata && <div className="form-error">{hata}</div>}

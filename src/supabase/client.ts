@@ -9,6 +9,18 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 export const supabaseEnabled = Boolean(url && key)
 
 const HATIRLA_ANAHTARI = 'puzzle:beni-hatirla'
+const EPOSTA_ANAHTARI = 'puzzle:son-eposta'
+const ETKINLIK_ANAHTARI = 'puzzle:son-etkinlik'
+
+/**
+ * Oturumun açık kalacağı en uzun boşta kalma süresi.
+ *
+ * "Beni hatırla" e-postayı hatırlar ve sayfayı yenilerken oturumu düşürmez,
+ * ama sekme kapatılıp bir süre geçtiyse hesap açık kalmaz; dönüşte yeniden
+ * giriş yapılır. Ortak kullanılan bir cihazda hesabın süresiz açık kalmaması
+ * için.
+ */
+export const OTURUM_ZAMAN_ASIMI_MS = 10 * 60 * 1000
 
 /** "Beni hatırla" işaretli mi (varsayılan: evet) */
 export function beniHatirla(): boolean {
@@ -16,6 +28,55 @@ export function beniHatirla(): boolean {
     return localStorage.getItem(HATIRLA_ANAHTARI) !== '0'
   } catch {
     return true
+  }
+}
+
+/** Giriş formunda hazır gelsin diye son kullanılan e-posta */
+export function hatirlananEposta(): string {
+  try {
+    return beniHatirla() ? (localStorage.getItem(EPOSTA_ANAHTARI) ?? '') : ''
+  } catch {
+    return ''
+  }
+}
+
+export function epostayiHatirla(eposta: string): void {
+  try {
+    if (beniHatirla() && eposta.trim()) {
+      localStorage.setItem(EPOSTA_ANAHTARI, eposta.trim())
+    } else {
+      localStorage.removeItem(EPOSTA_ANAHTARI)
+    }
+  } catch {
+    // yoksay
+  }
+}
+
+/** Son etkinlik anını damgala (sekme kapanırken / arka plana geçerken) */
+export function etkinligiDamgala(): void {
+  try {
+    localStorage.setItem(ETKINLIK_ANAHTARI, String(Date.now()))
+  } catch {
+    // yoksay
+  }
+}
+
+/** Uygulamadan uzak kalınan süre sınırı aştı mı */
+export function oturumZamanAsimiMi(): boolean {
+  try {
+    const son = Number(localStorage.getItem(ETKINLIK_ANAHTARI) ?? 0)
+    if (!son) return false
+    return Date.now() - son > OTURUM_ZAMAN_ASIMI_MS
+  } catch {
+    return false
+  }
+}
+
+export function etkinlikDamgasiniSil(): void {
+  try {
+    localStorage.removeItem(ETKINLIK_ANAHTARI)
+  } catch {
+    // yoksay
   }
 }
 

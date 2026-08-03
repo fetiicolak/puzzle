@@ -24,6 +24,34 @@ export function yerelKilitliMi(p: { unlockAt?: string | null }): boolean {
   return !!p.unlockAt && new Date(p.unlockAt).getTime() > Date.now()
 }
 
+const MISAFIR_KIMLIK = 'puzzle:misafir-kimlik'
+const MISAFIR_AD = 'puzzle:misafir-ad'
+
+/**
+ * Misafirin cihazına yazılan kalıcı kimlik. Hesabı olmayan biri odaya
+ * yeniden katıldığında host'un "bu aynı kişi" diyip eski bağlantısını
+ * kapatabilmesi için gerekiyor.
+ */
+export function misafirKimligi(): string {
+  let k = localStorage.getItem(MISAFIR_KIMLIK)
+  if (!k) {
+    k = 'g-' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+    localStorage.setItem(MISAFIR_KIMLIK, k)
+  }
+  return k
+}
+
+/** Misafirin kendine verdiği ad (odada bu görünür) */
+export function misafirAdi(): string {
+  return localStorage.getItem(MISAFIR_AD) ?? ''
+}
+
+export function misafirAdiKaydet(ad: string): void {
+  const temiz = ad.trim().slice(0, 24)
+  if (temiz) localStorage.setItem(MISAFIR_AD, temiz)
+  else localStorage.removeItem(MISAFIR_AD)
+}
+
 const INDEX_KEY = 'puzzle:index'
 const keyOf = (id: string) => `puzzle:${id}`
 

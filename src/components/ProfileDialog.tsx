@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import Select from './Select'
+import { basHarfler } from '../ad'
 import {
   avatarHazirla,
   avatarSil,
@@ -111,7 +113,7 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
     }
   }
 
-  const bas = (ad.trim()[0] ?? '?').toUpperCase()
+  const bas = basHarfler(ad)
   const yasi = yas(dogumYili ? Number(dogumYili) : null)
 
   return (
@@ -199,18 +201,18 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
               <span className="field-label">
                 Cinsiyet <em className="field-hint">isteğe bağlı</em>
               </span>
-              <select
-                className="input"
-                value={cinsiyet}
-                onChange={(e) => setCinsiyet(e.target.value as Cinsiyet | '')}
-              >
-                <option value="">Seçilmedi</option>
-                {(Object.keys(CINSIYET_ADI) as Cinsiyet[]).map((c) => (
-                  <option key={c} value={c}>
-                    {CINSIYET_ADI[c]}
-                  </option>
-                ))}
-              </select>
+              <Select
+                etiket="Cinsiyet"
+                deger={cinsiyet}
+                onDegis={(v) => setCinsiyet(v)}
+                secenekler={[
+                  { deger: '' as Cinsiyet | '', etiket: 'Seçilmedi' },
+                  ...(Object.keys(CINSIYET_ADI) as Cinsiyet[]).map((c) => ({
+                    deger: c as Cinsiyet | '',
+                    etiket: CINSIYET_ADI[c],
+                  })),
+                ]}
+              />
             </label>
 
             <small className="muted">

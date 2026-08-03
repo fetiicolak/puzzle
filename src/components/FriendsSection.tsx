@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import MessageBox from './MessageBox'
+import { basHarfler } from '../ad'
 import { avatarUrlleri } from '../supabase/profile'
 import {
   arkadaslikIste,
@@ -72,7 +73,7 @@ export default function FriendsSection() {
     return null
   }
 
-  const bas = (ad: string) => (ad[0] ?? '?').toUpperCase()
+  const bas = basHarfler
 
   /** Fotoğrafı varsa göster, yoksa baş harf */
   const Avatar = ({ kisi, sonuk }: { kisi: Kisi; sonuk?: boolean }) => {

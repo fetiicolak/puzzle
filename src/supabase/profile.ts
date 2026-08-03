@@ -8,13 +8,11 @@ import { supabase } from './client'
 
 const BUCKET = 'avatars'
 
-export type Cinsiyet = 'kadin' | 'erkek' | 'diger' | 'gizli'
+export type Cinsiyet = 'kadin' | 'erkek'
 
 export const CINSIYET_ADI: Record<Cinsiyet, string> = {
   kadin: 'Kadın',
   erkek: 'Erkek',
-  diger: 'Diğer',
-  gizli: 'Belirtmek istemiyorum',
 }
 
 export interface Profil {

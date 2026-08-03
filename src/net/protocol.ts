@@ -103,6 +103,12 @@ export interface HelloMsg {
   ad: string
   /** Giriş yapılmışsa hesap kimliği, misafirde null */
   uid: string | null
+  /**
+   * Kişiyi ayırt eden kalıcı değer: hesap kimliği ya da misafir için cihaza
+   * yazılan kimlik. Aynı kişi odaya yeniden katıldığında eski bağlantısının
+   * kapatılabilmesi için gerekli.
+   */
+  kimlik?: string
 }
 
 /** Odadan çıkarıldın — sunucu kaydı silmeden önce karşı tarafa haber ver */

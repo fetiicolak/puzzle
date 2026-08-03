@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
+import { basHarfler } from '../ad'
 import { avatarUrlleri } from '../supabase/profile'
 import { odaKatilimcilari, oyuncuCikar, yetkiAyarla, type OdaKisisi } from '../supabase/room'
 
@@ -120,7 +121,7 @@ export default function RoomPanel({
           return (
             <div key={k.id} className="oda-satir">
               <span className={`avatar ${cevrimici ? '' : 'dim'}`}>
-                {url ? <img src={url} alt="" /> : (k.ad[0] ?? '?').toUpperCase()}
+                {url ? <img src={url} alt="" /> : basHarfler(k.ad)}
               </span>
               <div className="info">
                 <b>
@@ -165,7 +166,7 @@ export default function RoomPanel({
 
         {misafirler.map((m) => (
           <div key={m.peerId} className="oda-satir">
-            <span className="avatar dim">{(m.ad[0] ?? '?').toUpperCase()}</span>
+            <span className="avatar dim">{basHarfler(m.ad)}</span>
             <div className="info">
               <b>
                 {m.ad}

@@ -46,14 +46,66 @@ const ID_RETRIES = 3
  */
 const CONNECT_TIMEOUT = 8000
 
+/**
+ * Bağlantı sunucuları.
+ *
+ * Yalnızca STUN varken iki taraf da birbirine doğrudan ulaşmak zorundaydı ve
+ * bu birçok ağda çalışmıyor: tarayıcı yerel adresi mDNS ile gizliyor (aynı
+ * evdeki iki cihaz birbirini çözemiyor), geriye kalan tek yol genel IP
+ * üzerinden dönmek oluyor ve çoğu router bunu (hairpin) desteklemiyor. Mobil
+ * operatörlerin ortak NAT'ı da aynı sonucu veriyor. Sonuç: "Bağlanamadık,
+ * bazı ağlar bu tür bağlantıyı engelliyor".
+ *
+ * TURN, doğrudan yol bulunamadığında trafiği aktaran yedek yoldur. Aşağıdaki
+ * açık sunucular ücretsizdir; trafik uçtan uca şifreli kalır ama aktarımı
+ * üçüncü bir taraf yapar. Doğrudan bağlantı kurulabiliyorsa TURN kullanılmaz.
+ */
+/**
+ * TURN bilgileri .env'den okunur; böylece kendi sunucun varsa kodu
+ * değiştirmeden bağlanır (VITE_TURN_URLS virgülle ayrılır).
+ * Tanımlı değilse açık kullanıma sunulmuş sunucular denenir.
+ */
+function turnSunuculari(): RTCIceServer[] {
+  const urls = (import.meta.env.VITE_TURN_URLS as string | undefined)?.trim()
+  const kullanici = (import.meta.env.VITE_TURN_USERNAME as string | undefined)?.trim()
+  const parola = (import.meta.env.VITE_TURN_CREDENTIAL as string | undefined)?.trim()
+  if (urls && kullanici && parola) {
+    return [{ urls: urls.split(',').map((u) => u.trim()).filter(Boolean), username: kullanici, credential: parola }]
+  }
+  return [
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+  ]
+}
+
 const PEER_OPTIONS = {
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun.cloudflare.com:3478' },
+      ...turnSunuculari(),
     ],
+    iceCandidatePoolSize: 4,
   },
+}
+
+/**
+ * Bağlantı kurulamadığında sebebi ayırt etmek için: aktarma (relay) adayı
+ * bulunabildi mi. Bulunamadıysa TURN sunucusuna erişilemiyor demektir ve
+ * doğrudan yol kapalıysa bağlantı hiç kurulamaz.
+ */
+let relayAdayiGorundu = false
+
+export function relayKullanilabilir(): boolean {
+  return relayAdayiGorundu
 }
 
 export function randomRoomCode(): string {
@@ -97,6 +149,9 @@ export class Room {
 
   private queue: Outgoing[] = []
   private draining = false
+  /** Host: bağlantı kimliği -> kişi kimliği (hesap ya da misafir cihazı) */
+  private kimlikler = new Map<string, string>()
+  private nabizTimer: ReturnType<typeof setInterval> | null = null
 
   /** Görüntülü arama: kendi kamera/mikrofon akışımız */
   private yerelAkis: MediaStream | null = null
@@ -182,7 +237,21 @@ export class Room {
       peer.on('open', () => {
         if (!this.closed) this.emitHostStatus()
       })
+      // Kopan bağlantılar her zaman 'close' yaymıyor; düzenli tarama olmadan
+      // hayalet kayıtlar odayı dolu gösteriyor.
+      if (!this.nabizTimer) {
+        this.nabizTimer = setInterval(() => {
+          if (this.closed) return
+          const once = this.conns.size
+          this.oluleriTemizle()
+          if (this.conns.size !== once) this.emitHostStatus()
+        }, 5000)
+      }
       peer.on('connection', (conn) => {
+        // Önce ölü bağlantıları at. Karşı taraf sekmeyi kapattığında ya da
+        // ağı düştüğünde 'close' olayı her zaman gelmiyor; kalan hayalet
+        // kayıt odayı dolu gösterip aynı kişinin geri girmesini engelliyordu.
+        this.oluleriTemizle()
         if (this.conns.size + 1 >= this.maxPlayers) {
           // oda dolu: bağlantıyı nazikçe reddet
           conn.on('open', () => {
@@ -200,6 +269,47 @@ export class Room {
 
   private emitHostStatus(): void {
     this.events.onStatus(this.conns.size > 0 ? 'connected' : 'waiting')
+  }
+
+  /** Veri kanalı kapanmış ama listede kalmış bağlantıları düşür */
+  private oluleriTemizle(): void {
+    for (const [id, c] of [...this.conns]) {
+      const dc = (c as unknown as { dataChannel?: RTCDataChannel }).dataChannel
+      const oldu = !c.open || (dc && (dc.readyState === 'closed' || dc.readyState === 'closing'))
+      if (!oldu) continue
+      this.conns.delete(id)
+      this.kimlikler.delete(id)
+      try {
+        c.close()
+      } catch {
+        // zaten kapanmış olabilir
+      }
+      this.events.onPeerLeft?.(id)
+    }
+  }
+
+  /**
+   * Aynı kişi yeniden katıldığında eski bağlantısını kapat.
+   *
+   * Kişi kimliği hesabı varsa hesap kimliği, misafirse cihaz başına üretilen
+   * kalıcı bir değerdir (bkz. GameScreen -> tanit). Bu olmadan aynı kullanıcı
+   * odadan çıkıp geri geldiğinde eski kaydı yer kaplamaya devam ediyordu.
+   */
+  private kimlikKaydet(peerId: string, kimlik: string): void {
+    if (!kimlik) return
+    for (const [digerId, digerKimlik] of [...this.kimlikler]) {
+      if (digerId === peerId || digerKimlik !== kimlik) continue
+      const eski = this.conns.get(digerId)
+      this.kimlikler.delete(digerId)
+      this.conns.delete(digerId)
+      try {
+        eski?.close()
+      } catch {
+        // zaten kapanmış olabilir
+      }
+      this.events.onPeerLeft?.(digerId)
+    }
+    this.kimlikler.set(peerId, kimlik)
   }
 
   /** Misafir: host'a giden bağlantıyı kur (oturum başına yalnızca bir kez) */
@@ -272,6 +382,12 @@ export class Room {
   private attach(conn: DataConnection): void {
     const id = conn.peer
 
+    // Aktarma adayı bulunabiliyor mu — hata mesajını doğru yazabilmek için
+    const pc = (conn as unknown as { peerConnection?: RTCPeerConnection }).peerConnection
+    pc?.addEventListener('icecandidate', (e) => {
+      if (e.candidate?.candidate.includes('typ relay')) relayAdayiGorundu = true
+    })
+
     conn.on('open', () => {
       if (this.closed) return
       if (this.connectTimer) {
@@ -293,6 +409,11 @@ export class Room {
     conn.on('data', (data) => {
       if (this.closed) return
       const msg = data as Msg & { t: string; from?: string }
+      // Kimlik tanıtımı: aynı kişinin eski bağlantısını kapat
+      if (this.isHost && msg.t === 'hello' && !msg.from) {
+        const h = msg as { kimlik?: string; uid?: string | null }
+        this.kimlikKaydet(id, h.kimlik || h.uid || '')
+      }
       // Host merkezdir: gelen mesajı diğer katılımcılara aynen ilet
       if (this.isHost) {
         const relay = { ...msg, from: id } as Msg
@@ -309,6 +430,7 @@ export class Room {
     const bittiHandler = () => {
       if (this.closed || this.conns.get(id) !== conn) return
       this.conns.delete(id)
+      this.kimlikler.delete(id)
       if (this.isHost) {
         this.events.onPeerLeft?.(id)
         this.emitHostStatus()
@@ -524,6 +646,8 @@ export class Room {
     this.yayiniDurdur()
     if (this.retryTimer) clearTimeout(this.retryTimer)
     if (this.connectTimer) clearTimeout(this.connectTimer)
+    if (this.nabizTimer) clearInterval(this.nabizTimer)
+    this.kimlikler.clear()
     this.queue.length = 0
     for (const c of this.conns.values()) c.close()
     this.conns.clear()

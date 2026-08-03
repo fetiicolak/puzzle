@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { basHarfler } from '../ad'
 import {
   mesajGonder,
   mesajlariGetir,
@@ -93,7 +94,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
     <div className="modal-arka" onClick={onKapat}>
       <div className="mesaj-kutusu" onClick={(e) => e.stopPropagation()}>
         <header className="chat-head">
-          <span className="avatar">{(kisi.ad[0] ?? '?').toUpperCase()}</span>
+          <span className="avatar">{basHarfler(kisi.ad)}</span>
           <b>{kisi.ad}</b>
           <span className="spacer" />
           <button className="icon-btn" onClick={onKapat} title="Kapat">

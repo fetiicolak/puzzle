@@ -19,9 +19,9 @@ import {
 } from '../engine/state'
 import RoomPanel, { type BagliKisi } from './RoomPanel'
 import VideoPanel from './VideoPanel'
-import { Room, type RoomStatus } from '../net/peer'
+import { relayKullanilabilir, Room, type RoomStatus } from '../net/peer'
 import { chunkDataUrl, type Msg } from '../net/protocol'
-import { loadImage, savePuzzle, urlToDataUrl } from '../storage'
+import { loadImage, misafirAdi, misafirKimligi, savePuzzle, urlToDataUrl } from '../storage'
 import { useAuth } from '../supabase/auth'
 import {
   createRemotePuzzle,
@@ -191,6 +191,9 @@ export default function GameScreen({ config, onExit }: Props) {
 
   // Oda kodu kimlik çakışmasında değişebilir; link her zaman güncel kodu
   // göstermeli, yoksa paylaşılan davet ölü bir odaya işaret eder.
+  /** Odada görünecek adım: hesap adı, misafirsem kendi seçtiğim ad */
+  const benimAdim = auth.user ? auth.displayName : misafirAdi() || 'Misafir'
+
   const inviteLink = useMemo(
     () => (roomCode ? `${location.origin}${location.pathname}#room=${roomCode}` : ''),
     [roomCode],
@@ -281,7 +284,7 @@ export default function GameScreen({ config, onExit }: Props) {
         const aralik = r.room?.yayindaMi ? 110 : 60
         if (now - r.lastCursorSent > aralik) {
           r.lastCursorSent = now
-          r.room?.send({ t: 'cursor', x, y, ad: auth.displayName || 'Partner' })
+          r.room?.send({ t: 'cursor', x, y, ad: benimAdim })
         }
       },
       onRotate: (g) => {
@@ -533,7 +536,9 @@ export default function GameScreen({ config, onExit }: Props) {
           setError(
             detail === 'peer-unavailable'
               ? 'Oda kapalı. Karşı tarafın sayfası hâlâ açık mı?'
-              : 'Bağlanamadık. Bazı ağlar bu tür bağlantıyı engelliyor.',
+              : relayKullanilabilir()
+                ? 'Bağlanamadık. Karşı taraf sayfayı öne alıp tekrar denesin.'
+                : 'Bağlanamadık. Ağınız doğrudan bağlantıya izin vermiyor ve yedek aktarma sunucusuna da ulaşılamadı. Farklı bir ağ (ör. mobil veri) deneyebilirsiniz.',
           )
         }
       }
@@ -561,8 +566,9 @@ export default function GameScreen({ config, onExit }: Props) {
   const tanit = () => {
     refs.current.room?.send({
       t: 'hello',
-      ad: auth.displayName || 'Misafir',
+      ad: auth.user ? auth.displayName : misafirAdi() || 'Misafir',
       uid: auth.user?.id ?? null,
+      kimlik: auth.user?.id ?? misafirKimligi(),
     })
   }
 
@@ -774,7 +780,7 @@ export default function GameScreen({ config, onExit }: Props) {
   const chatGonder = (metin: string) => {
     const temiz = metin.trim().slice(0, 300)
     if (!temiz) return
-    const ad = auth.displayName || 'Ben'
+    const ad = benimAdim
     const ts = Date.now()
     refs.current.room?.send({ t: 'chat', ad, metin: temiz, ts })
     setChat((l) => [...l.slice(-99), { ad, metin: temiz, ts, benMi: true }])

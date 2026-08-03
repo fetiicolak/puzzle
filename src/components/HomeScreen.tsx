@@ -3,6 +3,8 @@ import ConfirmDialog from './ConfirmDialog'
 import FriendsSection from './FriendsSection'
 import ProfileDialog from './ProfileDialog'
 import RenameDialog from './RenameDialog'
+import Select from './Select'
+import { basHarfler } from '../ad'
 import { SAMPLES, sampleThumbUrl, sampleUrl, type Sample } from '../samples'
 import {
   listPuzzles,
@@ -119,6 +121,8 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   /** puzzle kimliği -> birlikte oynanan kişilerin adları */
   const [katilimcilar, setKatilimcilar] = useState<Map<string, string[]>>(new Map())
   const [siralama, setSiralama] = useState<Siralama>('yeni')
+  /** "Tablolarım" katlanır; arkadaşlar gibi tıklayınca açılır */
+  const [tablolarAcik, setTablolarAcik] = useState(false)
   const [profilAcik, setProfilAcik] = useState(false)
   const [benimAvatar, setBenimAvatar] = useState<string | null>(null)
   /** Profilde ad değişince üst çubuk hemen güncellensin */
@@ -364,7 +368,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   {benimAvatar ? (
                     <img src={benimAvatar} alt="" />
                   ) : (
-                    ((gorunenAd || auth.displayName)[0] ?? '?').toUpperCase()
+                    basHarfler(gorunenAd || auth.displayName)
                   )}
                 </span>
                 <span>{gorunenAd || auth.displayName}</span>
@@ -446,24 +450,30 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
 
       {auth.user && (uzak.length > 0 || uzakYukleniyor) && (
         <section className="block">
-          <h2 className="section-label">
-            Tablolarım
-            {uzak.length > 1 && (
-              <select
-                className="siralama-secim"
-                value={siralama}
-                aria-label="Sıralama"
-                onChange={(e) => setSiralama(e.target.value as Siralama)}
-              >
-                {(Object.keys(SIRALAMA_ADI) as Siralama[]).map((s) => (
-                  <option key={s} value={s}>
-                    {SIRALAMA_ADI[s]}
-                  </option>
-                ))}
-              </select>
+          <div className="katlanir-satir">
+            <button
+              className={`section-katlanir ${tablolarAcik ? 'acik' : ''}`}
+              onClick={() => setTablolarAcik((v) => !v)}
+              aria-expanded={tablolarAcik}
+            >
+              <span className="katlanir-ok">▸</span>
+              Tablolarım
+              <em className="field-hint">{uzak.length}</em>
+            </button>
+            {tablolarAcik && uzak.length > 1 && (
+              <Select
+                kucuk
+                etiket="Sıralama"
+                deger={siralama}
+                onDegis={setSiralama}
+                secenekler={(Object.keys(SIRALAMA_ADI) as Siralama[]).map((s) => ({
+                  deger: s,
+                  etiket: SIRALAMA_ADI[s],
+                }))}
+              />
             )}
-          </h2>
-          {uzakYukleniyor && uzak.length === 0 ? (
+          </div>
+          {!tablolarAcik ? null : uzakYukleniyor && uzak.length === 0 ? (
             <div className="skeleton-list">
               <div className="skeleton" />
               <div className="skeleton" />
@@ -507,7 +517,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                       <span className="birlikte">
                         {katilimcilar.get(p.id)!.slice(0, 3).map((ad) => (
                           <span key={ad} className="rozet-kisi">
-                            <span className="avatar mini">{(ad[0] ?? '?').toUpperCase()}</span>
+                            <span className="avatar mini">{basHarfler(ad)}</span>
                             {ad}
                           </span>
                         ))}
@@ -550,24 +560,26 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
 
       {yalnizcaYerel.length > 0 && (
         <section className="block">
-          <h2 className="section-label">
-            Bu cihazda
-            {auth.enabled && !auth.user && <em className="field-hint">giriş yaparsan kaybolmaz</em>}
+          <div className="katlanir-satir">
+            <h2 className="section-label">
+              Bu cihazda
+              {auth.enabled && !auth.user && (
+                <em className="field-hint">giriş yaparsan kaybolmaz</em>
+              )}
+            </h2>
             {yalnizcaYerel.length > 1 && (
-              <select
-                className="siralama-secim"
-                value={siralama}
-                aria-label="Sıralama"
-                onChange={(e) => setSiralama(e.target.value as Siralama)}
-              >
-                {(Object.keys(SIRALAMA_ADI) as Siralama[]).map((s) => (
-                  <option key={s} value={s}>
-                    {SIRALAMA_ADI[s]}
-                  </option>
-                ))}
-              </select>
+              <Select
+                kucuk
+                etiket="Sıralama"
+                deger={siralama}
+                onDegis={setSiralama}
+                secenekler={(Object.keys(SIRALAMA_ADI) as Siralama[]).map((s) => ({
+                  deger: s,
+                  etiket: SIRALAMA_ADI[s],
+                }))}
+              />
             )}
-          </h2>
+          </div>
           <div className="resume-list">
             {siraliYerel.map((p) => {
               const kilitli = yerelKilitliMi(p)
