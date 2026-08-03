@@ -19,7 +19,13 @@ import {
 } from '../engine/state'
 import RoomPanel, { type BagliKisi } from './RoomPanel'
 import VideoPanel from './VideoPanel'
-import { relayKullanilabilir, Room, type RoomStatus } from '../net/peer'
+import {
+  baglantiTesti,
+  relayKullanilabilir,
+  Room,
+  type BaglantiTesti,
+  type RoomStatus,
+} from '../net/peer'
 import { chunkDataUrl, type Msg } from '../net/protocol'
 import { loadImage, misafirAdi, misafirKimligi, savePuzzle, urlToDataUrl } from '../storage'
 import { useAuth } from '../supabase/auth'
@@ -153,6 +159,9 @@ export default function GameScreen({ config, onExit }: Props) {
   const [sadeceSes, setSadeceSes] = useState(false)
   const [gorusmeBekliyor, setGorusmeBekliyor] = useState(false)
   const [odaPanel, setOdaPanel] = useState(false)
+  /** Bağlantı testi sonucu; null iken test hiç çalıştırılmamış */
+  const [test, setTest] = useState<BaglantiTesti | null>(null)
+  const [testSuruyor, setTestSuruyor] = useState(false)
   /** Şu an bağlı olanlar: peer kimliği -> ad + hesap kimliği */
   const [bagliOlanlar, setBagliOlanlar] = useState<Map<string, BagliKisi>>(new Map())
   const [chatAcik, setChatAcik] = useState(false)
@@ -1143,13 +1152,41 @@ export default function GameScreen({ config, onExit }: Props) {
       {error && (
         <div className="overlay">
           <p className="overlay-title">{error}</p>
+
+          {test && (
+            <div className="test-sonuc">
+              <div className={`test-satir ${test.yerel ? 'iyi' : 'kotu'}`}>
+                <span>{test.yerel ? '✓' : '✕'}</span> Cihaz adresi
+              </div>
+              <div className={`test-satir ${test.disAdres ? 'iyi' : 'kotu'}`}>
+                <span>{test.disAdres ? '✓' : '✕'}</span> Dışarıdan görünen adres
+              </div>
+              <div className={`test-satir ${test.aktarma ? 'iyi' : 'kotu'}`}>
+                <span>{test.aktarma ? '✓' : '✕'}</span> Aktarma sunucusu (TURN)
+              </div>
+              <p className="muted test-ozet">{test.ozet}</p>
+            </div>
+          )}
+
           <div className="action-row">
             {config.mode === 'guest' && (
               <button className="btn btn-primary" onClick={rejoin}>
                 Tekrar dene
               </button>
             )}
-            <button className="btn btn-secondary" onClick={onExit}>
+            <button
+              className="btn btn-secondary"
+              disabled={testSuruyor}
+              onClick={() => {
+                setTestSuruyor(true)
+                void baglantiTesti()
+                  .then((s) => setTest(s))
+                  .finally(() => setTestSuruyor(false))
+              }}
+            >
+              {testSuruyor ? 'Deneniyor…' : 'Bağlantıyı test et'}
+            </button>
+            <button className="btn btn-ghost" onClick={onExit}>
               Geri dön
             </button>
           </div>

@@ -346,6 +346,41 @@ button {
 .ozel-gun-alan .form-error {
   font-size: 0.8rem;
 }
+/* bağlantı testi sonucu (hata ekranında) */
+.test-sonuc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(92vw, 340px);
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.test-satir {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.88rem;
+}
+.test-satir span {
+  width: 18px;
+  font-weight: 800;
+}
+.test-satir.iyi span {
+  color: var(--ok);
+}
+.test-satir.kotu span {
+  color: var(--err);
+}
+.test-ozet {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
 /* misafir olarak girerken ad alanı */
 .misafir-kart {
   display: flex;

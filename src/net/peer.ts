@@ -108,6 +108,65 @@ export function relayKullanilabilir(): boolean {
   return relayAdayiGorundu
 }
 
+export interface BaglantiTesti {
+  /** Kendi cihazındaki adres bulundu mu */
+  yerel: boolean
+  /** Dışarıdan görünen adres bulundu mu (STUN çalışıyor) */
+  disAdres: boolean
+  /** Aktarma sunucusuna ulaşıldı mı (TURN çalışıyor) */
+  aktarma: boolean
+  /** Kullanıcıya gösterilecek özet */
+  ozet: string
+  /** Varsa aday toplama hataları */
+  hatalar: string[]
+}
+
+/**
+ * Bağlantı testi.
+ *
+ * Gerçek bir oda kurmadan, bu cihazın hangi yollarla bağlanabildiğini ölçer.
+ * "Aktarma" satırı TURN ayarının çalışıp çalışmadığını gösterir — doğrudan
+ * bağlantıya izin vermeyen ağlarda tek çalışan yol odur.
+ */
+export async function baglantiTesti(sureMs = 8000): Promise<BaglantiTesti> {
+  const pc = new RTCPeerConnection(PEER_OPTIONS.config)
+  const turler = new Set<string>()
+  const hatalar: string[] = []
+  pc.onicecandidate = (e) => {
+    const t = e.candidate?.candidate.match(/typ (\w+)/)?.[1]
+    if (t) turler.add(t)
+  }
+  pc.addEventListener('icecandidateerror', (e) => {
+    const h = e as RTCPeerConnectionIceErrorEvent
+    const metin = `${h.errorCode}: ${h.errorText}`
+    if (!hatalar.includes(metin)) hatalar.push(metin)
+  })
+  try {
+    pc.createDataChannel('test')
+    await pc.setLocalDescription(await pc.createOffer())
+    const bitis = Date.now() + sureMs
+    while (pc.iceGatheringState !== 'complete' && Date.now() < bitis) {
+      await new Promise((r) => setTimeout(r, 250))
+    }
+  } catch {
+    // aşağıdaki özet zaten durumu anlatır
+  } finally {
+    pc.close()
+  }
+
+  const yerel = turler.has('host')
+  const disAdres = turler.has('srflx')
+  const aktarma = turler.has('relay')
+  const ozet = aktarma
+    ? 'Aktarma sunucusu çalışıyor. Doğrudan bağlanılamayan ağlarda da bağlanabilirsiniz.'
+    : disAdres
+      ? 'Aktarma sunucusuna ulaşılamadı. Doğrudan bağlantı kurulamayan ağlarda bağlanamayabilirsiniz.'
+      : yerel
+        ? 'Dış dünyaya çıkış bulunamadı. Ağınız WebRTC trafiğini engelliyor olabilir.'
+        : 'Hiçbir bağlantı yolu bulunamadı.'
+  return { yerel, disAdres, aktarma, ozet, hatalar: hatalar.slice(0, 3) }
+}
+
 export function randomRoomCode(): string {
   const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789'
   let code = ''
