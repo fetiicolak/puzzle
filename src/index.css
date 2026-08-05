@@ -434,6 +434,41 @@ button {
   flex: 1;
 }
 
+/* giriş ekranının altındaki koşullar/gizlilik satırı */
+.yasal-satir {
+  max-width: 340px;
+  text-align: center;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.yasal-satir a {
+  color: var(--accent-soft);
+}
+
+/* profil penceresinin altındaki geri alınamaz işlem bölgesi */
+.tehlike-bolge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 13px 15px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 107, 107, 0.28);
+  background: rgba(255, 107, 107, 0.06);
+}
+.tehlike-bolge b {
+  font-size: 0.92rem;
+  color: var(--err);
+}
+.tehlike-bolge small {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
 /* beklenmeyen hatada gösterilen kurtarma kartı */
 .hata-kart {
   display: flex;

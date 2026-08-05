@@ -161,6 +161,13 @@ export default function AuthScreen({
       <button className="btn btn-ghost" onClick={onSkip}>
         {atlaYazisi}
       </button>
+
+      <small className="yasal-satir muted">
+        Devam ederek <a href="./kosullar.html" target="_blank" rel="noreferrer">Kullanım
+        Koşulları</a>'nı ve{' '}
+        <a href="./gizlilik.html" target="_blank" rel="noreferrer">Gizlilik
+        Politikası</a>'nı kabul etmiş olursun.
+      </small>
     </div>
   )
 }

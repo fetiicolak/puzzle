@@ -105,6 +105,25 @@ export function savePuzzle(save: SavedPuzzle): void {
   }
 }
 
+/**
+ * Çıkış yaparken bu cihazdaki oyun verisini sil.
+ *
+ * Kayıtlar fotoğrafın tamamını (dataURL) ve gizli notu içeriyor. Çıkış
+ * yapılsa bile duruyorlardı; ortak bir bilgisayarda sıradaki kişi "Devam et"
+ * listesinde önceki kişinin fotoğraflarını ve sürpriz notlarını görüyordu.
+ *
+ * Tercihler (beni hatırla, misafir adı, tanıtım turu görüldü) korunur —
+ * onlar kişisel içerik değil.
+ */
+export function oturumVerisiniTemizle(): void {
+  try {
+    for (const id of readIndex()) localStorage.removeItem(keyOf(id))
+    localStorage.removeItem(INDEX_KEY)
+  } catch {
+    // depolama kapalıysa yapacak bir şey yok
+  }
+}
+
 export function loadPuzzle(id: string): SavedPuzzle | null {
   try {
     const raw = localStorage.getItem(keyOf(id))

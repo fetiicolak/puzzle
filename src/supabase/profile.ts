@@ -147,6 +147,19 @@ export async function avatarUrlleri(yollar: (string | null | undefined)[]): Prom
 }
 
 /**
+ * Hesabı ve ona bağlı her şeyi sil.
+ *
+ * Karar ve silme işi sunucuda (schema.sql -> hesabi_sil): tablolar, depodaki
+ * fotoğraflar ve hesabın kendisi tek işlemde gidiyor.
+ */
+export async function hesabiSil(): Promise<void> {
+  if (!supabase) throw new Error('Sunucu bağlantısı yok')
+  const { error } = await supabase.rpc('hesabi_sil')
+  if (error) throw new Error(error.message)
+  await supabase.auth.signOut()
+}
+
+/**
  * Fotoğrafı kareye kırpıp küçült. Avatar için 2 MB sınırı var; telefondan
  * gelen ham fotoğraf bunu rahat aşıyor.
  */

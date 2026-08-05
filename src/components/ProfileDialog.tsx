@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import ConfirmDialog from './ConfirmDialog'
 import Select from './Select'
 import { basHarfler } from '../ad'
 import {
+  hesabiSil,
   avatarHazirla,
   avatarSil,
   avatarUrl,
@@ -35,6 +37,7 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [hata, setHata] = useState<string | null>(null)
+  const [silmeOnayi, setSilmeOnayi] = useState(false)
   const dosyaRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -115,6 +118,22 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
 
   const bas = basHarfler(ad)
   const yasi = yas(dogumYili ? Number(dogumYili) : null)
+
+  if (silmeOnayi) {
+    return (
+      <ConfirmDialog
+        baslik="Hesabını sil"
+        mesaj="Hesabın, çözdüğün tablolar, yüklediğin fotoğraflar, arkadaşlıkların ve mesajların kalıcı olarak silinecek. Bu işlem geri alınamaz."
+        onayYazisi="Hesabımı sil"
+        tehlikeli
+        onIptal={() => setSilmeOnayi(false)}
+        onOnayla={async () => {
+          await hesabiSil()
+          onKapat()
+        }}
+      />
+    )
+  }
 
   return (
     <div className="modal-arka" onClick={() => !kaydediliyor && onKapat()}>
@@ -219,6 +238,21 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
               Bu bilgileri yalnızca birlikte puzzle çözdüğün ve arkadaş olduğun kişiler
               görebilir.
             </small>
+
+            <div className="tehlike-bolge">
+              <b>Hesabı sil</b>
+              <small className="muted">
+                Tablolarını, fotoğraflarını, mesajlarını ve hesabını kalıcı olarak siler.
+                Geri alınamaz.
+              </small>
+              <button
+                className="btn btn-danger btn-sm"
+                disabled={kaydediliyor}
+                onClick={() => setSilmeOnayi(true)}
+              >
+                Hesabımı sil
+              </button>
+            </div>
           </>
         )}
 

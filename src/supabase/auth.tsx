@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import { oturumVerisiniTemizle } from '../storage'
 import {
   hataMetni,
   epostayiHatirla,
@@ -135,6 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async signOut() {
         await supabase?.auth.signOut()
         etkinlikDamgasiniSil()
+        // Cihazdaki fotoğraflar ve gizli notlar da gitsin — ortak
+        // bilgisayarda sıradaki kişi onları görmemeli
+        oturumVerisiniTemizle()
       },
     }
   }, [session, loading])

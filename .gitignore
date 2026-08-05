@@ -3,3 +3,6 @@ dist
 *.local
 *.tsbuildinfo
 .DS_Store
+
+# Yerel ayarlar; ornegi .env.example'da
+.env

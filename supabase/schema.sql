@@ -733,3 +733,43 @@ drop policy if exists avatars_delete on storage.objects;
 create policy avatars_delete on storage.objects
   for delete to authenticated
   using (bucket_id = 'avatars' and owner = auth.uid());
+
+-- ---------------------------------------------------------------- hesap silme
+/*
+  Kullanıcının kendi hesabını tamamen silmesi (KVKK/GDPR gereği).
+
+  auth.users silinince tablolar cascade ile temizleniyor ama DEPO kapsam
+  dışında: cascade storage.objects'e ulaşmıyor. Fotoğraflar elle siliniyor.
+
+  Fonksiyon tek işlem içinde çalışır; herhangi bir adım hata verirse hiçbiri
+  uygulanmaz, yarım silinmiş hesap kalmaz.
+*/
+create or replace function public.hesabi_sil()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  ben uuid := auth.uid();
+begin
+  if ben is null then
+    raise exception 'oturum yok';
+  end if;
+
+  delete from storage.objects
+  where bucket_id in ('puzzle-images', 'avatars')
+    and (storage.foldername(name))[1] = ben::text;
+
+  delete from public.messages where sender = ben or receiver = ben;
+  delete from public.friendships where requester = ben or addressee = ben;
+  delete from public.puzzle_players where user_id = ben;
+  delete from public.puzzles where owner = ben;
+  delete from public.profiles where id = ben;
+
+  delete from auth.users where id = ben;
+end;
+$$;
+
+revoke all on function public.hesabi_sil() from public;
+grant execute on function public.hesabi_sil() to authenticated;
