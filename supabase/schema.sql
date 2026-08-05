@@ -150,6 +150,7 @@ as $$
     );
 $$;
 
+
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles
   for select to authenticated using (public.profil_gorulebilir(id));
@@ -734,6 +735,220 @@ create policy avatars_delete on storage.objects
   for delete to authenticated
   using (bucket_id = 'avatars' and owner = auth.uid());
 
+-- ------------------------------------------------------- kötüye kullanım
+/*
+  Hız sınırları.
+
+  Sayaç tablosu ya da zamanlanmış iş yok: tetikleyici tablonun kendisini
+  sayıyor. created_at sütunları ve gerekli indeksler zaten var, bu yüzden
+  ek bakım gerektirmiyor.
+
+  Sınırlar normal kullanımın çok üstünde; amaç otomatik kötüye kullanımı
+  durdurmak, kullanıcıyı kısıtlamak değil.
+*/
+create or replace function public.puzzle_hiz_siniri()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (select count(*) from public.puzzles
+      where owner = new.owner and created_at > now() - interval '1 day') >= 20 then
+    raise exception 'gunluk puzzle sinirina ulastin';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_puzzle_hiz on public.puzzles;
+create trigger on_puzzle_hiz
+  before insert on public.puzzles
+  for each row execute function public.puzzle_hiz_siniri();
+
+create or replace function public.mesaj_hiz_siniri()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (select count(*) from public.messages
+      where sender = new.sender and created_at > now() - interval '1 hour') >= 60 then
+    raise exception 'cok hizli mesaj gonderiyorsun, biraz bekle';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_mesaj_hiz on public.messages;
+create trigger on_mesaj_hiz
+  before insert on public.messages
+  for each row execute function public.mesaj_hiz_siniri();
+
+create or replace function public.arkadaslik_hiz_siniri()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (select count(*) from public.friendships
+      where requester = new.requester and created_at > now() - interval '1 day') >= 30 then
+    raise exception 'gunluk arkadaslik istegi sinirina ulastin';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_arkadaslik_hiz on public.friendships;
+create trigger on_arkadaslik_hiz
+  before insert on public.friendships
+  for each row execute function public.arkadaslik_hiz_siniri();
+
+/*
+  Metin uzunlukları sunucuda da sınırlı.
+
+  Kırpma yalnızca istemcideydi; doğrudan API çağrısıyla atlanıp megabaytlık
+  değerler yazılabiliyordu. messages.body zaten kısıtlıydı, diğerleri değil.
+*/
+alter table public.profiles drop constraint if exists profiles_ad_uzunluk;
+alter table public.profiles add constraint profiles_ad_uzunluk
+  check (char_length(display_name) <= 40);
+
+alter table public.puzzles drop constraint if exists puzzles_baslik_uzunluk;
+alter table public.puzzles add constraint puzzles_baslik_uzunluk
+  check (char_length(title) <= 80 and char_length(artist) <= 80
+         and char_length(message) <= 2000 and char_length(room_code) <= 40);
+
+-- ------------------------------------------------------------- engelleme
+/*
+  Yabancılara açıldığında istenmeyen mesaj gerçek bir sorun. Engellenen kişi
+  mesaj gönderemez ve profilinizi göremez; arkadaşlık varsa kalkar.
+*/
+create table if not exists public.blocks (
+  blocker uuid not null references auth.users on delete cascade,
+  blocked uuid not null references auth.users on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker, blocked),
+  check (blocker <> blocked)
+);
+
+alter table public.blocks enable row level security;
+create index if not exists blocks_blocked_idx on public.blocks (blocked);
+
+drop policy if exists blocks_select on public.blocks;
+create policy blocks_select on public.blocks
+  for select to authenticated using (blocker = auth.uid());
+
+drop policy if exists blocks_insert on public.blocks;
+create policy blocks_insert on public.blocks
+  for insert to authenticated with check (blocker = auth.uid());
+
+drop policy if exists blocks_delete on public.blocks;
+create policy blocks_delete on public.blocks
+  for delete to authenticated using (blocker = auth.uid());
+
+/** İki kişi arasında herhangi bir yönde engel var mı */
+create or replace function public.engel_var_mi(p_kisi uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.blocks
+    where (blocker = auth.uid() and blocked = p_kisi)
+       or (blocker = p_kisi and blocked = auth.uid())
+  );
+$$;
+
+-- Engellenen kişi arkadaş sayılmaz: mesajlaşma ve profil görünürlüğü kapanır
+create or replace function public.arkadas_mi(p_kisi uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.friendships
+    where status = 'accepted'
+      and ((requester = auth.uid() and addressee = p_kisi)
+        or (addressee = auth.uid() and requester = p_kisi))
+  ) and not public.engel_var_mi(p_kisi);
+$$;
+
+/*
+  Engellenen kişi profili de göremez.
+
+  Ayrı bir sarmalayıcı: profil_gorulebilir bu dosyada engel tablosundan çok
+  önce tanımlanıyor, oraya doğrudan yazılsa temiz kurulumda "engel_var_mi
+  yok" hatası verirdi. Politika burada, engel tanımlandıktan sonra
+  güncelleniyor.
+*/
+create or replace function public.profil_gorunur(p_kisi uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select public.profil_gorulebilir(p_kisi) and not public.engel_var_mi(p_kisi);
+$$;
+
+drop policy if exists profiles_select on public.profiles;
+create policy profiles_select on public.profiles
+  for select to authenticated using (public.profil_gorunur(id));
+
+-- Alıcı da kendi gelen kutusundan mesajı silebilmeli (taciz durumunda)
+drop policy if exists messages_delete on public.messages;
+create policy messages_delete on public.messages
+  for delete to authenticated
+  using (sender = auth.uid() or receiver = auth.uid());
+
+-- ------------------------------------------------------------- şikayet
+create table if not exists public.reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter uuid not null references auth.users on delete cascade,
+  reported uuid references auth.users on delete set null,
+  puzzle_id uuid references public.puzzles on delete set null,
+  reason text not null check (char_length(reason) between 1 and 1000),
+  created_at timestamptz not null default now()
+);
+
+alter table public.reports enable row level security;
+
+-- Yalnızca kendi şikayetini oluşturabilir ve görebilir; inceleme panelden
+drop policy if exists reports_insert on public.reports;
+create policy reports_insert on public.reports
+  for insert to authenticated with check (reporter = auth.uid());
+
+drop policy if exists reports_select on public.reports;
+create policy reports_select on public.reports
+  for select to authenticated using (reporter = auth.uid());
+
+create or replace function public.sikayet_hiz_siniri()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (select count(*) from public.reports
+      where reporter = new.reporter and created_at > now() - interval '1 day') >= 20 then
+    raise exception 'gunluk sikayet sinirina ulastin';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_sikayet_hiz on public.reports;
+create trigger on_sikayet_hiz
+  before insert on public.reports
+  for each row execute function public.sikayet_hiz_siniri();
+
 -- ---------------------------------------------------------------- hesap silme
 /*
   Kullanıcının kendi hesabını tamamen silmesi (KVKK/GDPR gereği).
@@ -764,6 +979,8 @@ begin
     raise exception 'oturum yok';
   end if;
 
+  delete from public.reports where reporter = ben;
+  delete from public.blocks where blocker = ben or blocked = ben;
   delete from public.messages where sender = ben or receiver = ben;
   delete from public.friendships where requester = ben or addressee = ben;
   delete from public.puzzle_players where user_id = ben;

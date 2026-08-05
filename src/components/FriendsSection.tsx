@@ -10,6 +10,8 @@ import {
   arkadasligiSil,
   arkadasliklariGetir,
   birlikteOynananlar,
+  engellenenler,
+  engeliKaldir,
   okunmamisSayilari,
   type Arkadaslik,
   type Kisi,
@@ -28,6 +30,7 @@ export default function FriendsSection() {
   const [acik, setAcik] = useState(false)
   const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
   const [hata, setHata] = useState<string | null>(null)
+  const [engelliler, setEngelliler] = useState<Kisi[]>([])
 
   const tazele = useCallback(async () => {
     const liste = await arkadasliklariGetir()
@@ -36,6 +39,7 @@ export default function FriendsSection() {
     const oneri = await birlikteOynananlar(liste.map((a) => a.kisi.id))
     setOneriler(oneri)
     setOkunmamis(await okunmamisSayilari())
+    setEngelliler(await engellenenler())
     setAvatarlar(
       await avatarUrlleri([
         ...liste.map((a) => a.kisi.avatarPath),
@@ -73,9 +77,6 @@ export default function FriendsSection() {
   const gidenler = arkadasliklar.filter((a) => a.durum === 'pending' && a.yon === 'giden')
 
   if (yukleniyor) return null
-  if (arkadaslar.length === 0 && gelenler.length === 0 && gidenler.length === 0 && oneriler.length === 0) {
-    return null
-  }
 
   const bas = basHarfler
 
@@ -93,6 +94,16 @@ export default function FriendsSection() {
   // istekler ve "birlikte çözdüklerin" önerileri de eklendiği için, tek
   // arkadaşın varken 2 görünüyordu.
   const toplam = arkadaslar.length
+
+  // Engellediğin biri bölüm tamamen boşken de görünebilmeli
+  const bosMu =
+    arkadaslar.length === 0 &&
+    gelenler.length === 0 &&
+    gidenler.length === 0 &&
+    oneriler.length === 0 &&
+    engelliler.length === 0
+
+  if (bosMu) return null
 
   return (
     <section className="block">
@@ -213,6 +224,30 @@ export default function FriendsSection() {
             </div>
           ))}
         </div>
+      )}
+
+      {engelliler.length > 0 && (
+        <>
+          <p className="hint-line">Engellediklerin</p>
+          <div className="friend-list">
+            {engelliler.map((k) => (
+              <div key={k.id} className="friend-row muted-row">
+                <Avatar kisi={k} sonuk />
+                <div className="info">
+                  <b>{k.ad}</b>
+                  <small>sana mesaj gönderemez</small>
+                </div>
+                <button
+                  className="btn btn-sm btn-ghost"
+                  disabled={islemdeki === k.id}
+                  onClick={() => void sarmala(k.id, () => engeliKaldir(k.id))}
+                >
+                  Engeli kaldır
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {oneriler.length > 0 && (

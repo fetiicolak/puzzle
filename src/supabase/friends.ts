@@ -176,6 +176,83 @@ export async function arkadasligiSil(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+// ------------------------------------------------------------- engelleme
+
+/**
+ * Kişiyi engelle: sana mesaj gönderemez, profilini göremez.
+ * Aradaki arkadaşlık da kalkar — engellediğin biri arkadaş listende durmamalı.
+ */
+export async function engelle(kisiId: string): Promise<void> {
+  if (!supabase) return
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+  if (!ben) throw new Error('Önce giriş yapmalısın')
+
+  const { error } = await supabase.from('blocks').insert({ blocker: ben, blocked: kisiId })
+  if (error && error.code !== '23505') throw new Error(error.message)
+
+  await supabase
+    .from('friendships')
+    .delete()
+    .or(`and(requester.eq.${ben},addressee.eq.${kisiId}),and(requester.eq.${kisiId},addressee.eq.${ben})`)
+}
+
+export async function engeliKaldir(kisiId: string): Promise<void> {
+  if (!supabase) return
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+  if (!ben) return
+  const { error } = await supabase
+    .from('blocks')
+    .delete()
+    .eq('blocker', ben)
+    .eq('blocked', kisiId)
+  if (error) throw new Error(error.message)
+}
+
+/** Engellediğin kişiler */
+export async function engellenenler(): Promise<Kisi[]> {
+  if (!supabase) return []
+  const { data } = await supabase.from('blocks').select('blocked')
+  const idler = (data ?? []).map((r) => (r as { blocked: string }).blocked)
+  if (idler.length === 0) return []
+  // Engellediğin kişinin profili artık sana kapalı; adı gösteremeyebiliriz
+  const adlar = await adlariGetir(idler)
+  return idler.map((id) => ({
+    id,
+    ad: adlar.get(id)?.ad ?? 'Engellenen kişi',
+    avatarPath: adlar.get(id)?.avatarPath ?? null,
+  }))
+}
+
+/** Kötüye kullanım bildirimi */
+export async function sikayetEt(
+  kisiId: string | null,
+  sebep: string,
+  puzzleId?: string | null,
+): Promise<void> {
+  if (!supabase) return
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+  if (!ben) throw new Error('Önce giriş yapmalısın')
+  const temiz = sebep.trim().slice(0, 1000)
+  if (!temiz) throw new Error('Lütfen kısaca ne olduğunu yaz.')
+  const { error } = await supabase.from('reports').insert({
+    reporter: ben,
+    reported: kisiId,
+    puzzle_id: puzzleId ?? null,
+    reason: temiz,
+  })
+  if (error) throw new Error(error.message)
+}
+
+/** Gelen kutusundan tek bir mesajı sil */
+export async function mesajSil(mesajId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('messages').delete().eq('id', mesajId)
+  if (error) throw new Error(error.message)
+}
+
 // ------------------------------------------------------------- mesajlaşma
 
 export interface Mesaj {

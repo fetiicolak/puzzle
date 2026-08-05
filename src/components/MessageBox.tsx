@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
+import ConfirmDialog from './ConfirmDialog'
 import { basHarfler } from '../ad'
 import { hataMetni } from '../supabase/client'
 import {
+  engelle,
   mesajGonder,
+  mesajSil,
   mesajlariGetir,
   okunduIsaretle,
+  sikayetEt,
   type Kisi,
   type Mesaj,
 } from '../supabase/friends'
@@ -29,6 +33,11 @@ export default function MessageBox({ kisi, onKapat }: Props) {
   const [gonderiliyor, setGonderiliyor] = useState(false)
   const [emojiAcik, setEmojiAcik] = useState(false)
   const [hata, setHata] = useState<string | null>(null)
+  const [menuAcik, setMenuAcik] = useState(false)
+  const [sikayetAcik, setSikayetAcik] = useState(false)
+  const [sebep, setSebep] = useState('')
+  const [engelOnayi, setEngelOnayi] = useState(false)
+  const [bilgi, setBilgi] = useState<string | null>(null)
   const sonRef = useRef<HTMLDivElement>(null)
   const girdiRef = useRef<HTMLInputElement>(null)
 
@@ -101,10 +110,102 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           <span className="avatar">{basHarfler(kisi.ad)}</span>
           <b>{kisi.ad}</b>
           <span className="spacer" />
+          <button
+            className={`icon-btn ${menuAcik ? 'on' : ''}`}
+            onClick={() => setMenuAcik((v) => !v)}
+            title="Diğer"
+          >
+            ⋯
+          </button>
           <button className="icon-btn" onClick={onKapat} title="Kapat">
             ✕
           </button>
         </header>
+
+        {menuAcik && (
+          <div className="sohbet-menu">
+            {!sikayetAcik ? (
+              <>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSikayetAcik(true)}>
+                  ⚑ Şikayet et
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm tehlike-yazi"
+                  onClick={() => setEngelOnayi(true)}
+                >
+                  🚫 Engelle
+                </button>
+              </>
+            ) : (
+              <form
+                className="sikayet-form"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  setHata(null)
+                  try {
+                    await sikayetEt(kisi.id, sebep)
+                    setSikayetAcik(false)
+                    setMenuAcik(false)
+                    setSebep('')
+                    setBilgi('Şikayetin iletildi. Teşekkürler.')
+                  } catch (err) {
+                    setHata(err instanceof Error ? hataMetni(err.message) : 'Gönderilemedi')
+                  }
+                }}
+              >
+                <label className="field">
+                  <span className="field-label">Ne oldu?</span>
+                  <textarea
+                    className="input textarea"
+                    placeholder="Kısaca anlat…"
+                    value={sebep}
+                    maxLength={1000}
+                    required
+                    onChange={(e) => setSebep(e.target.value)}
+                  />
+                </label>
+                <div className="dialog-butonlar">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setSikayetAcik(false)}
+                  >
+                    Vazgeç
+                  </button>
+                  <button className="btn btn-primary btn-sm" type="submit">
+                    Gönder
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
+        {engelOnayi && (
+          <ConfirmDialog
+            baslik="Engelle"
+            mesaj={`${kisi.ad} sana mesaj gönderemeyecek ve profilini göremeyecek. Aranızdaki arkadaşlık da kalkar. İstediğin zaman engeli kaldırabilirsin.`}
+            onayYazisi="Engelle"
+            tehlikeli
+            onIptal={() => setEngelOnayi(false)}
+            onOnayla={async () => {
+              await engelle(kisi.id)
+              setEngelOnayi(false)
+              onKapat()
+            }}
+          />
+        )}
+
+        {bilgi && (
+          <ConfirmDialog
+            baslik="Teşekkürler"
+            mesaj={bilgi}
+            tekButon
+            onayYazisi="Tamam"
+            onIptal={() => setBilgi(null)}
+            onOnayla={() => setBilgi(null)}
+          />
+        )}
 
         <div className="chat-body">
           {yukleniyor && <p className="muted chat-bos">Yükleniyor…</p>}
@@ -114,7 +215,25 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           {mesajlar.map((m) => (
             <div key={m.id} className={`chat-satir ${m.benMi ? 'ben' : ''}`}>
               <span className="chat-balon">{m.metin}</span>
-              <small className="chat-ad">{saat(m.ts)}</small>
+              <small className="chat-ad">
+                {saat(m.ts)}
+                {/* Rahatsız eden bir mesajı gelen kutundan kaldırabilirsin */}
+                <button
+                  className="mesaj-sil"
+                  title="Bu mesajı sil"
+                  onClick={async () => {
+                    setHata(null)
+                    try {
+                      await mesajSil(m.id)
+                      setMesajlar((l) => l.filter((x) => x.id !== m.id))
+                    } catch (err) {
+                      setHata(err instanceof Error ? hataMetni(err.message) : 'Silinemedi')
+                    }
+                  }}
+                >
+                  ✕
+                </button>
+              </small>
             </div>
           ))}
           <div ref={sonRef} />
