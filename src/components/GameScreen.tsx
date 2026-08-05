@@ -17,6 +17,7 @@ import {
   type GameState,
   type StateSnapshot,
 } from '../engine/state'
+import ConfirmDialog from './ConfirmDialog'
 import RoomPanel, { type BagliKisi } from './RoomPanel'
 import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
@@ -178,6 +179,8 @@ export default function GameScreen({ config, onExit }: Props) {
   const [odaPanel, setOdaPanel] = useState(false)
   /** Nasıl oynanır turu; ilk oyunda kendiliğinden açılır */
   const [tanitim, setTanitim] = useState(false)
+  /** Bilgi/hata kutusu — tarayıcının alert'i yerine */
+  const [bilgi, setBilgi] = useState<{ baslik: string; mesaj: string } | null>(null)
   /** Bağlantı testi sonucu; null iken test hiç çalıştırılmamış */
   const [test, setTest] = useState<BaglantiTesti | null>(null)
   const [testSuruyor, setTestSuruyor] = useState(false)
@@ -885,11 +888,13 @@ export default function GameScreen({ config, onExit }: Props) {
     if (!r.room || gorusmeBekliyor) return
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      alert(
-        location.protocol === 'https:' || location.hostname === 'localhost'
-          ? 'Bu tarayıcı kamera/mikrofon erişimini desteklemiyor.'
-          : 'Kamera yalnızca güvenli bağlantıda (https) açılabilir.',
-      )
+      setBilgi({
+        baslik: 'Kamera açılamıyor',
+        mesaj:
+          location.protocol === 'https:' || location.hostname === 'localhost'
+            ? 'Bu tarayıcı kamera ve mikrofon erişimini desteklemiyor.'
+            : 'Kamera yalnızca güvenli bağlantıda (https) açılabilir.',
+      })
       return
     }
 
@@ -927,17 +932,19 @@ export default function GameScreen({ config, onExit }: Props) {
 
     if (!akis) {
       const ad = sonHata instanceof Error ? sonHata.name : ''
-      alert(
-        ad === 'NotAllowedError'
-          ? 'İzin verilmedi. Tarayıcı adres çubuğundaki kilit simgesinden kamera ve mikrofon iznini açabilirsin.'
-          : ad === 'NotFoundError' || ad === 'OverconstrainedError'
-            ? yalnizSes
-              ? 'Mikrofon bulunamadı.'
-              : 'Kamera bulunamadı. Yalnızca sesli konuşmayı deneyebilirsin.'
-            : ad === 'NotReadableError'
-              ? 'Kamera başka bir uygulamada açık görünüyor. Onu kapatıp tekrar dene.'
-              : `Açılamadı${ad ? ` (${ad})` : ''}. Sayfayı yenileyip tekrar dene.`,
-      )
+      setBilgi({
+        baslik: yalnizSes ? 'Mikrofon açılamadı' : 'Kamera açılamadı',
+        mesaj:
+          ad === 'NotAllowedError'
+            ? 'İzin verilmedi. Tarayıcı adres çubuğundaki kilit simgesinden kamera ve mikrofon iznini açabilirsin.'
+            : ad === 'NotFoundError' || ad === 'OverconstrainedError'
+              ? yalnizSes
+                ? 'Mikrofon bulunamadı.'
+                : 'Kamera bulunamadı. Yalnızca sesli konuşmayı deneyebilirsin.'
+              : ad === 'NotReadableError'
+                ? 'Kamera başka bir uygulamada açık görünüyor. Onu kapatıp tekrar dene.'
+                : `Açılamadı${ad ? ` (${ad})` : ''}. Sayfayı yenileyip tekrar dene.`,
+      })
       return
     }
 
@@ -1167,6 +1174,17 @@ export default function GameScreen({ config, onExit }: Props) {
           onSes={sesiDegistir}
           onKamera={kamerayiDegistir}
           onKapat={gorusmeBitir}
+        />
+      )}
+
+      {bilgi && (
+        <ConfirmDialog
+          baslik={bilgi.baslik}
+          mesaj={bilgi.mesaj}
+          tekButon
+          onayYazisi="Tamam"
+          onIptal={() => setBilgi(null)}
+          onOnayla={() => setBilgi(null)}
         />
       )}
 

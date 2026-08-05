@@ -127,6 +127,15 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   const [benimAvatar, setBenimAvatar] = useState<string | null>(null)
   /** Profilde ad değişince üst çubuk hemen güncellensin */
   const [gorunenAd, setGorunenAd] = useState('')
+  /** Bilgi/hata kutusu — tarayıcının alert'i yerine */
+  const [bilgi, setBilgi] = useState<{ baslik: string; mesaj: string } | null>(null)
+
+  /** Kilitli puzzle'a dokunulunca ne zaman açılacağını söyle */
+  const kilitliUyarisi = (acilis: string) =>
+    setBilgi({
+      baslik: 'Henüz açılmadı',
+      mesaj: `Bu puzzle özel gün için saklanmış. ${new Date(acilis).toLocaleString('tr-TR')} tarihinde açılacak.`,
+    })
 
   // Liste render sırasında okunuyor; oyundan çıkarken yazılan son kayıt bundan
   // sonra düşüyor. Bağlandıktan sonra bir kez daha oku.
@@ -217,7 +226,10 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         isSample ? (src.artist ?? '') : '',
       )
     } catch {
-      alert('Bu görsel açılamadı, başka bir tane dene.')
+      setBilgi({
+        baslik: 'Görsel açılamadı',
+        mesaj: 'Bu dosya okunamadı. Başka bir fotoğraf deneyebilirsin.',
+      })
     } finally {
       setBusy(false)
     }
@@ -301,7 +313,11 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     setSurukleniyor(false)
     const dosya = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith('image/'))
     if (dosya) void pick(dosya)
-    else alert('Sadece resim dosyası bırakabilirsin.')
+    else
+      setBilgi({
+        baslik: 'Bu dosya olmaz',
+        mesaj: 'Yalnızca resim dosyası bırakabilirsin (jpg, png, webp).',
+      })
   }
 
   return (
@@ -354,6 +370,17 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         </div>
       )}
       {profilAcik && <ProfileDialog onKapat={() => setProfilAcik(false)} />}
+
+      {bilgi && (
+        <ConfirmDialog
+          baslik={bilgi.baslik}
+          mesaj={bilgi.mesaj}
+          tekButon
+          onayYazisi="Tamam"
+          onIptal={() => setBilgi(null)}
+          onOnayla={() => setBilgi(null)}
+        />
+      )}
 
       {auth.enabled && (
         <div className="account-bar">
@@ -488,9 +515,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   className={`resume-card ${kilitli ? 'kilitli' : ''}`}
                   onClick={() => {
                     if (kilitli) {
-                      alert(
-                        `Bu puzzle ${new Date(p.unlock_at!).toLocaleString('tr-TR')} tarihinde açılacak.`,
-                      )
+                      kilitliUyarisi(p.unlock_at!)
                       return
                     }
                     onResumeRemote(p)
@@ -589,9 +614,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                 className={`resume-card ${kilitli ? 'kilitli' : ''}`}
                 onClick={() => {
                   if (kilitli) {
-                    alert(
-                      `Bu puzzle ${new Date(p.unlockAt!).toLocaleString('tr-TR')} tarihinde açılacak.`,
-                    )
+                    kilitliUyarisi(p.unlockAt!)
                     return
                   }
                   onResume(p)

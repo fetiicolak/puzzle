@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import AuthScreen from './components/AuthScreen'
+import ConfirmDialog from './components/ConfirmDialog'
 import GameScreen, { type GameConfig } from './components/GameScreen'
 import HomeScreen from './components/HomeScreen'
 import JoinChoiceScreen from './components/JoinChoiceScreen'
@@ -76,6 +77,13 @@ export default function App() {
    */
   const [davetGirisi, setDavetGirisi] = useState(false)
   const [saklaniyor, setSaklaniyor] = useState(false)
+  /** Bilgi/hata kutusu — tarayıcının alert'i yerine */
+  const [bilgi, setBilgi] = useState<{
+    baslik: string
+    mesaj: string
+    /** Kutu kapanınca çalışacak iş */
+    sonra?: () => void
+  } | null>(null)
 
   const goHome = () => {
     if (location.hash) history.replaceState(null, '', location.pathname + location.search)
@@ -119,10 +127,16 @@ export default function App() {
         unlockAt: opts.unlockAt,
       })
       const ne = new Date(opts.unlockAt!).toLocaleString('tr-TR')
-      alert(`"${opts.title}" saklandı. ${ne} tarihinde açılacak.`)
-      goHome()
+      setBilgi({
+        baslik: 'Özel gün için saklandı',
+        mesaj: `"${opts.title}" ${ne} tarihinde açılacak. O güne kadar kimse göremez.`,
+        sonra: goHome,
+      })
     } catch {
-      alert('Kaydedilemedi. Bağlantını kontrol edip tekrar dene.')
+      setBilgi({
+        baslik: 'Kaydedilemedi',
+        mesaj: 'Bağlantını kontrol edip tekrar dene.',
+      })
     } finally {
       setSaklaniyor(false)
     }
@@ -329,6 +343,20 @@ export default function App() {
     <>
       {arkaPlan}
       {icerik()}
+      {bilgi && (
+        <ConfirmDialog
+          baslik={bilgi.baslik}
+          mesaj={bilgi.mesaj}
+          tekButon
+          onayYazisi="Tamam"
+          onIptal={() => setBilgi(null)}
+          onOnayla={() => {
+            const sonra = bilgi.sonra
+            setBilgi(null)
+            sonra?.()
+          }}
+        />
+      )}
     </>
   )
 }

@@ -434,6 +434,46 @@ button {
   flex: 1;
 }
 
+/* beklenmeyen hatada gösterilen kurtarma kartı */
+.hata-kart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  width: min(100%, 420px);
+  padding: 30px 26px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(46, 35, 60, 0.96), rgba(26, 20, 38, 0.96));
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lg);
+}
+.hata-simge {
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  font-size: 2rem;
+  background: rgba(255, 93, 125, 0.12);
+  border: 1px solid rgba(255, 93, 125, 0.28);
+}
+.hata-kart h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.hata-kart small {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+/* mesaj kutusunda gönderme hatası */
+.mesaj-hata {
+  margin: 0 10px;
+}
+
 /* bağlantı testi sonucu (hata ekranında) */
 .test-sonuc {
   display: flex;

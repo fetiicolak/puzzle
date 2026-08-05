@@ -141,9 +141,17 @@ export const supabase: SupabaseClient | null = supabaseEnabled
     })
   : null
 
-/** Supabase hatalarını kullanıcıya gösterilebilir Türkçe metne çevir */
-export function authErrorText(message: string): string {
+/**
+ * Supabase hatalarını kullanıcıya gösterilebilir Türkçe metne çevir.
+ * Yalnızca giriş akışında değil, tanımadığımız her sunucu hatasında
+ * kullanılıyor — ham İngilizce metin kullanıcıya gösterilmesin.
+ */
+export function hataMetni(message: string): string {
   const m = message.toLowerCase()
+  if (m.includes('row-level security') || m.includes('violates'))
+    return 'Bu işlem için yetkin yok.'
+  if (m.includes('failed to fetch') || m.includes('networkerror'))
+    return 'Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.'
   if (m.includes('invalid login credentials')) return 'E-posta veya şifre hatalı.'
   if (m.includes('user already registered') || m.includes('already been registered'))
     return 'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.'

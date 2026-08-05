@@ -9,6 +9,11 @@ interface Props {
   onayYazisi?: string
   /** Geri alınamayan işlemlerde onay düğmesi kırmızı olur */
   tehlikeli?: boolean
+  /**
+   * Bilgi/hata kutusu: yalnızca tek bir "Tamam" düğmesi çıkar.
+   * Tarayıcının alert() kutusunun yerini alır.
+   */
+  tekButon?: boolean
   onOnayla: () => Promise<void> | void
   onIptal: () => void
 }
@@ -22,6 +27,7 @@ export default function ConfirmDialog({
   mesaj,
   onayYazisi = 'Tamam',
   tehlikeli = false,
+  tekButon = false,
   onOnayla,
   onIptal,
 }: Props) {
@@ -63,9 +69,11 @@ export default function ConfirmDialog({
         {hata && <div className="form-error">{hata}</div>}
 
         <div className="dialog-butonlar">
-          <button className="btn btn-ghost" disabled={calisiyor} onClick={onIptal}>
-            İptal
-          </button>
+          {!tekButon && (
+            <button className="btn btn-ghost" disabled={calisiyor} onClick={onIptal}>
+              İptal
+            </button>
+          )}
           <button
             className={`btn ${tehlikeli ? 'btn-danger' : 'btn-primary'}`}
             disabled={calisiyor}

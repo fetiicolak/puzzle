@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import MessageBox from './MessageBox'
 import { basHarfler } from '../ad'
+import { hataMetni } from '../supabase/client'
 import { avatarUrlleri } from '../supabase/profile'
 import {
   arkadaslikIste,
@@ -26,6 +27,7 @@ export default function FriendsSection() {
   /** Başlığa tıklanınca liste açılır; sayfa uzamasın diye kapalı başlar */
   const [acik, setAcik] = useState(false)
   const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
+  const [hata, setHata] = useState<string | null>(null)
 
   const tazele = useCallback(async () => {
     const liste = await arkadasliklariGetir()
@@ -54,11 +56,13 @@ export default function FriendsSection() {
 
   const sarmala = async (anahtar: string, is: () => Promise<void>) => {
     setIslemdeki(anahtar)
+    setHata(null)
     try {
       await is()
       await tazele()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'İşlem yapılamadı')
+      // Ham İngilizce sunucu metni kullanıcıya gösterilmesin
+      setHata(e instanceof Error ? hataMetni(e.message) : 'İşlem yapılamadı')
     } finally {
       setIslemdeki(null)
     }
@@ -92,6 +96,8 @@ export default function FriendsSection() {
 
   return (
     <section className="block">
+      {hata && <div className="form-error">{hata}</div>}
+
       <button
         className={`section-katlanir ${acik ? 'acik' : ''}`}
         onClick={() => setAcik((v) => !v)}

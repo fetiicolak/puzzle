@@ -1,4 +1,4 @@
-// Oturum yönetimi. Supabase ayarlı değilse uygulama misafir modunda çalışır:
+﻿// Oturum yönetimi. Supabase ayarlı değilse uygulama misafir modunda çalışır:
 // giriş ve ortak geçmiş kapalı, kayıtlar yalnızca cihazda tutulur.
 
 import {
@@ -11,7 +11,7 @@ import {
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import {
-  authErrorText,
+  hataMetni,
   epostayiHatirla,
   etkinligiDamgala,
   etkinlikDamgasiniSil,
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password,
           options: { data: { display_name: displayName.trim() } },
         })
-        return error ? authErrorText(error.message) : null
+        return error ? hataMetni(error.message) : null
       },
 
       async signIn(email, password) {
@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           epostayiHatirla(email)
           etkinligiDamgala()
         }
-        return error ? authErrorText(error.message) : null
+        return error ? hataMetni(error.message) : null
       },
 
       async signOut() {

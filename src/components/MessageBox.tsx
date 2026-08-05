@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { basHarfler } from '../ad'
+import { hataMetni } from '../supabase/client'
 import {
   mesajGonder,
   mesajlariGetir,
@@ -27,6 +28,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [gonderiliyor, setGonderiliyor] = useState(false)
   const [emojiAcik, setEmojiAcik] = useState(false)
+  const [hata, setHata] = useState<string | null>(null)
   const sonRef = useRef<HTMLDivElement>(null)
   const girdiRef = useRef<HTMLInputElement>(null)
 
@@ -58,12 +60,14 @@ export default function MessageBox({ kisi, onKapat }: Props) {
     const t = metin.trim()
     if (!t || gonderiliyor) return
     setGonderiliyor(true)
+    setHata(null)
     try {
       await mesajGonder(kisi.id, t)
       setMetin('')
       await tazele()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Mesaj gönderilemedi')
+      // Ham İngilizce sunucu metni kullanıcıya gösterilmesin
+      setHata(err instanceof Error ? hataMetni(err.message) : 'Mesaj gönderilemedi')
     } finally {
       setGonderiliyor(false)
     }
@@ -115,6 +119,8 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           ))}
           <div ref={sonRef} />
         </div>
+
+        {hata && <div className="form-error mesaj-hata">{hata}</div>}
 
         <div className={`emoji-cubuk ${emojiAcik ? 'genis' : ''}`}>
           {(emojiAcik ? EMOJILER : EMOJILER.slice(0, 8)).map((e) => (
