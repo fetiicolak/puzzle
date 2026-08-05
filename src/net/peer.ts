@@ -5,7 +5,7 @@
 // yeter; tam ağ (herkes herkese) kurmaya gerek kalmaz.
 
 import Peer, { type DataConnection, type MediaConnection } from 'peerjs'
-import type { Msg } from './protocol'
+import { dogrula, type Msg } from './protocol'
 
 export type RoomStatus =
   | 'idle'
@@ -476,7 +476,20 @@ export class Room {
 
     conn.on('data', (data) => {
       if (this.closed) return
-      const msg = data as Msg & { t: string; from?: string }
+
+      /*
+        Gelen her mesaj doğrulamadan geçer. Karşı taraf bizim kodumuzu
+        çalıştırmak zorunda değil; konsoldan elle mesaj gönderebilir.
+
+        Host tarafında bu ayrıca yetki kapısı: misafirden gelen host-yetkili
+        bir mesaj (kick, meta, img, state, full) burada düşer ve diğerlerine
+        YANSITILMAZ. Eskiden host gelen her şeyi sorgusuz yansıttığı için
+        odadaki herhangi biri "kick" gönderip istediğini attırabiliyordu.
+      */
+      const dogrulanmis = dogrula(data, this.isHost, !(data as { from?: string })?.from)
+      if (!dogrulanmis) return
+      const msg = dogrulanmis as Msg & { t: string; from?: string }
+
       // Kimlik tanıtımı: aynı kişinin eski bağlantısını kapat
       if (this.isHost && msg.t === 'hello' && !msg.from) {
         const h = msg as { kimlik?: string; uid?: string | null }

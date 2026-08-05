@@ -155,13 +155,149 @@ export type Msg = (
   from?: string
 }
 
+/** Tek chunk'ın bayt sınırı */
+export const CHUNK_BOYUTU = 16_000
+
 /**
  * dataURL'i güvenli boyutlu chunk'lara böl.
  * 16 KB, WebRTC data channel'ın tek mesaj sınırının epey altında kalır;
  * daha büyük parçalar bazı tarayıcılarda kanalı kapattırıyordu.
  */
-export function chunkDataUrl(dataUrl: string, size = 16_000): string[] {
+export function chunkDataUrl(dataUrl: string, size = CHUNK_BOYUTU): string[] {
   const chunks: string[] = []
   for (let i = 0; i < dataUrl.length; i += size) chunks.push(dataUrl.slice(i, i + size))
   return chunks
+}
+
+// ------------------------------------------------------------- doğrulama
+
+/**
+ * Kabul edilebilecek en fazla fotoğraf parçası.
+ * Kova sınırı 10 MB; base64 ~1,37 kat büyüttüğü için 16 KB'lık ~880 parça
+ * eder. 1024 rahat bir tavan — bunun üstü kötü niyetli kabul edilir.
+ */
+export const MAX_IMG_CHUNKS = 1024
+
+/**
+ * Yalnızca odayı kuranın gönderebileceği mesajlar.
+ *
+ * Bunlar oyunun kimliğini (hangi fotoğraf, hangi başlık), tam durumunu ve
+ * kimin odada kalacağını belirler. Herkesten kabul edilirse odadaki herhangi
+ * biri tahtayı değiştirebilir ya da başkasını atabilir.
+ *
+ * tray/shuffle bilerek listede değil: onlar iş birliğine dayalı düğmeler,
+ * misafirin de kullanabilmesi gerekiyor.
+ */
+export const HOST_YETKILI: ReadonlySet<string> = new Set([
+  'meta',
+  'img',
+  'state',
+  'full',
+  'kick',
+])
+
+const sayiMi = (v: unknown, enAz: number, enCok: number): boolean =>
+  typeof v === 'number' && Number.isFinite(v) && v >= enAz && v <= enCok
+
+const tamSayiMi = (v: unknown, enAz: number, enCok: number): boolean =>
+  sayiMi(v, enAz, enCok) && Number.isInteger(v as number)
+
+const metinMi = (v: unknown, enCokUzunluk: number): boolean =>
+  typeof v === 'string' && v.length <= enCokUzunluk
+
+/** Dünya koordinatları için makul sınır — parçalar bu kadar uzağa gitmez */
+const KONUM = 1e6
+
+/**
+ * Gelen P2P mesajını doğrula.
+ *
+ * Karşı taraf bizim kodumuzu çalıştırmak zorunda değil; konsoldan elle mesaj
+ * gönderebilir. Bu yüzden alan tipleri, sayı aralıkları ve metin uzunlukları
+ * burada tek noktadan kontrol ediliyor.
+ *
+ * Yetki kontrolü `from` damgasına dayanıyor: host yansıtırken damgayı kendi
+ * basıyor (peer.ts), yani misafir onu taklit edemiyor. Misafir tarafında
+ * `dogrudan = true` ⇔ "mesaj doğrudan host'tan geldi".
+ *
+ * @param hostMu  bu taraf odayı kuran mı
+ * @param dogrudan  mesaj yansıtılmadan geldi mi (from damgası yok)
+ * @returns geçerliyse mesajın kendisi, değilse null
+ */
+export function dogrula(veri: unknown, hostMu: boolean, dogrudan: boolean): Msg | null {
+  if (!veri || typeof veri !== 'object') return null
+  const m = veri as Record<string, unknown>
+  const t = m.t
+  if (typeof t !== 'string') return null
+
+  // Host yetkili mesajlar: host'ta hiç kabul edilmez (host otoritenin
+  // kendisi), misafirde yalnızca doğrudan host'tan gelmişse kabul edilir.
+  if (HOST_YETKILI.has(t)) {
+    if (hostMu || !dogrudan) return null
+  }
+
+  const gecerli = (() => {
+    switch (t) {
+      case 'meta':
+        return (
+          tamSayiMi(m.seed, 0, 0xffffffff) &&
+          tamSayiMi(m.pieceCount, 2, 5000) &&
+          metinMi(m.title, 200) &&
+          (m.artist === undefined || metinMi(m.artist, 200)) &&
+          metinMi(m.message, 2000) &&
+          tamSayiMi(m.imgChunks, 1, MAX_IMG_CHUNKS) &&
+          sayiMi(m.elapsed, 0, 1e9) &&
+          (m.rotation === undefined || typeof m.rotation === 'boolean')
+        )
+      case 'img':
+        return tamSayiMi(m.i, 0, MAX_IMG_CHUNKS - 1) && metinMi(m.data, CHUNK_BOYUTU)
+      case 'state':
+        return !!m.snap && typeof m.snap === 'object'
+      case 'grab':
+      case 'release':
+        return tamSayiMi(m.g, 0, 1e6)
+      case 'move':
+      case 'drop':
+        return (
+          tamSayiMi(m.g, 0, 1e6) &&
+          tamSayiMi(m.anchor, 0, 1e6) &&
+          sayiMi(m.x, -KONUM, KONUM) &&
+          sayiMi(m.y, -KONUM, KONUM)
+        )
+      case 'cursor':
+        return (
+          sayiMi(m.x, -KONUM, KONUM) &&
+          sayiMi(m.y, -KONUM, KONUM) &&
+          (m.ad === undefined || metinMi(m.ad, 40))
+        )
+      case 'split':
+        return (
+          tamSayiMi(m.piece, 0, 1e6) &&
+          tamSayiMi(m.group, 0, 1e6) &&
+          sayiMi(m.x, -KONUM, KONUM) &&
+          sayiMi(m.y, -KONUM, KONUM)
+        )
+      case 'rot':
+        return tamSayiMi(m.g, 0, 1e6) && tamSayiMi(m.d, -3, 3)
+      case 'tray':
+      case 'shuffle':
+        return tamSayiMi(m.seed, 0, 0xffffffff)
+      case 'chat':
+        return metinMi(m.ad, 40) && metinMi(m.metin, 1000) && sayiMi(m.ts, 0, 1e15)
+      case 'hello':
+        return (
+          metinMi(m.ad, 40) &&
+          (m.uid === null || metinMi(m.uid, 64)) &&
+          (m.kimlik === undefined || metinMi(m.kimlik, 64))
+        )
+      case 'kick':
+        return metinMi(m.uid, 64)
+      case 'full':
+        return true
+      default:
+        return false
+    }
+  })()
+
+  // Alanlar yukarıda tek tek doğrulandı; tip sistemi bunu takip edemiyor.
+  return gecerli ? (m as unknown as Msg) : null
 }

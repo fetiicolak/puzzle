@@ -137,6 +137,11 @@ as $$
       from public.puzzle_players benim
       join public.puzzle_players digeri on digeri.puzzle_id = benim.puzzle_id
       where benim.user_id = auth.uid() and digeri.user_id = p_kisi
+        -- Odadan çıkarılanlar sayılmaz: attığın kişi profilini (doğum yılı,
+        -- cinsiyet, fotoğraf) görmeye devam etmemeli. is_puzzle_player zaten
+        -- böyle davranıyordu; burada eksikti.
+        and benim.banned = false
+        and digeri.banned = false
     )
     or exists (
       select 1 from public.friendships
@@ -160,8 +165,21 @@ create policy puzzles_select on public.puzzles
   using (owner = auth.uid() or public.is_puzzle_player(id));
 
 drop policy if exists puzzles_insert on public.puzzles;
+/*
+  Fotoğraf yolu, kaydı ekleyenin kendi klasörünü göstermek zorunda.
+
+  Eskiden yalnızca `owner = auth.uid()` bakılıyordu, image_path serbestti.
+  foto_gorulebilir ise "bu yolu taşıyan bir puzzle var mı ve sahibi ben miyim"
+  diye sorduğu için, başkasının yolunu (biçimi tahmin edilebilir:
+  <uid>/<oda_kodu>.jpg) taşıyan sahte bir satır ekleyen kişi o fotoğrafa
+  imzalı URL üretebiliyordu. Özel gün kilidi de bu yolla dolanılıyordu.
+*/
 create policy puzzles_insert on public.puzzles
-  for insert to authenticated with check (owner = auth.uid());
+  for insert to authenticated
+  with check (
+    owner = auth.uid()
+    and (storage.foldername(image_path))[1] = auth.uid()::text
+  );
 
 drop policy if exists puzzles_update on public.puzzles;
 create policy puzzles_update on public.puzzles
@@ -179,9 +197,16 @@ create policy puzzle_players_select on public.puzzle_players
   for select to authenticated
   using (user_id = auth.uid() or public.is_puzzle_player(puzzle_id));
 
+/*
+  Katılımcı ekleme politikası bilerek YOK.
+
+  Eskiden `with check (user_id = auth.uid())` vardı; puzzle kimliğini bilen
+  herkes kendini katılımcı yazabiliyor, join_puzzle'daki özel gün kilidi ve
+  ban kontrolleri tamamen atlanıyordu. Ekleme artık yalnızca security definer
+  fonksiyonlar üzerinden yapılıyor (join_puzzle ve handle_new_puzzle); onlar
+  RLS'i zaten atladığı için politikaya ihtiyaç yok.
+*/
 drop policy if exists puzzle_players_insert on public.puzzle_players;
-create policy puzzle_players_insert on public.puzzle_players
-  for insert to authenticated with check (user_id = auth.uid());
 
 -- ------------------------------------------------- odaya katılma (kod ile)
 -- Misafir yalnızca oda kodunu bilir. Doğrudan select yerine bu fonksiyon
@@ -450,6 +475,45 @@ create policy friendships_delete on public.friendships
   for delete to authenticated
   using (requester = auth.uid() or addressee = auth.uid());
 
+/*
+  Politika satırı seçiyor, sütunu değil.
+
+  friendships_update yalnızca "isteği alan kişi bu satırı güncelleyebilir"
+  diyordu; hangi sütunun değişebileceğini söylemiyordu. Yani sana gelen bir
+  isteği alıp requester'ı bir başkasıyla değiştirerek, o kişiyle rızası
+  olmadan "arkadaş" olunabiliyordu. Sonrasında ona mesaj atılabiliyor ve
+  profili (doğum yılı, cinsiyet, fotoğraf) görülebiliyordu.
+
+  puzzles tablosunda aynı sorun puzzle_guncelleme_kontrol ile çözülmüştü;
+  burada da aynı desen kullanılıyor.
+*/
+create or replace function public.friendship_guncelleme_kontrol()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.requester is distinct from old.requester
+     or new.addressee is distinct from old.addressee
+     or new.created_at is distinct from old.created_at then
+    raise exception 'arkadaslik taraflari degistirilemez';
+  end if;
+  -- Tek geçerli geçiş: bekleyen istek kabul edilir. Kabul edilmiş bir
+  -- arkadaşlık "bekliyor"a geri döndürülemez.
+  if new.status is distinct from old.status
+     and not (old.status = 'pending' and new.status = 'accepted') then
+    raise exception 'gecersiz arkadaslik durumu degisikligi';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_friendship_update on public.friendships;
+create trigger on_friendship_update
+  before update on public.friendships
+  for each row execute function public.friendship_guncelleme_kontrol();
+
 -- ------------------------------------------------------------ özel mesajlar
 -- Yalnızca arkadaş olan kişiler birbirine yazabilir.
 
@@ -508,6 +572,35 @@ create policy messages_delete on public.messages
   for delete to authenticated
   using (sender = auth.uid());
 
+/*
+  Alıcının güncelleyebileceği tek şey "okundu" bilgisi.
+
+  messages_update satır düzeyinde alıcıya izin veriyordu ama sütun kısıtı
+  yoktu: alıcı, karşı tarafın kendisine yazdığı mesajın metnini değiştirip
+  "onun ağzından" bir şey yazdırabiliyordu.
+*/
+create or replace function public.mesaj_guncelleme_kontrol()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.sender is distinct from old.sender
+     or new.receiver is distinct from old.receiver
+     or new.body is distinct from old.body
+     or new.created_at is distinct from old.created_at then
+    raise exception 'mesaj icerigi degistirilemez';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_message_update on public.messages;
+create trigger on_message_update
+  before update on public.messages
+  for each row execute function public.mesaj_guncelleme_kontrol();
+
 -- ---------------------------------------------------------------- depolama
 -- Fotoğraflar için özel (public olmayan) kova; erişim imzalı URL ile verilir.
 
@@ -538,6 +631,10 @@ as $$
     select 1
     from public.puzzles p
     where p.image_path = p_yol
+      -- Yolun klasörü satırın sahibiyle aynı olmalı. Insert politikası bunu
+      -- zaten zorluyor; burada ikinci kez kontrol ediliyor ki politika ileride
+      -- gevşetilse bile başkasının klasöründeki dosya açılmasın.
+      and (storage.foldername(p_yol))[1] = p.owner::text
       and (
         p.owner = auth.uid()
         or (
