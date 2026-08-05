@@ -27,8 +27,11 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          # TURN bilgileri depoya yazılmasın diye Actions secrets'tan geliyor.
-          # Tanımlı değilse .env'deki değerler kullanılır.
+          # .env artık depoda değil (bkz. .env.example); tüm derleme ayarları
+          # Actions secrets'tan geliyor. Supabase satırları eksik olursa
+          # yayınlanan sitede giriş ve ortak geçmiş çalışmaz.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_TURN_URLS: ${{ secrets.VITE_TURN_URLS }}
           VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
           VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
