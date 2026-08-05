@@ -72,6 +72,36 @@ export function oturumZamanAsimiMi(): boolean {
   }
 }
 
+/**
+ * Şifre sıfırlama bağlantısıyla mı gelindi.
+ *
+ * detectSessionInUrl kapalı (adres çubuğundaki #room=... ile çakışmasın diye),
+ * bu yüzden kurtarma jetonunu elle okuyoruz. Supabase bağlantıyı
+ * #access_token=...&refresh_token=...&type=recovery biçiminde döndürür.
+ */
+export function kurtarmaJetonu(): { access_token: string; refresh_token: string } | null {
+  try {
+    const h = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash
+    if (!h.includes('type=recovery')) return null
+    const p = new URLSearchParams(h)
+    const access_token = p.get('access_token')
+    const refresh_token = p.get('refresh_token')
+    if (!access_token || !refresh_token) return null
+    return { access_token, refresh_token }
+  } catch {
+    return null
+  }
+}
+
+/** Kurtarma jetonunu adres çubuğundan temizle (geçmişe yazmadan) */
+export function kurtarmaJetonunuTemizle(): void {
+  try {
+    history.replaceState(null, '', location.pathname + location.search)
+  } catch {
+    // yoksay
+  }
+}
+
 export function etkinlikDamgasiniSil(): void {
   try {
     localStorage.removeItem(ETKINLIK_ANAHTARI)

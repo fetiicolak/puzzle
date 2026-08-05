@@ -28,8 +28,8 @@ export default function AuthScreen({
   mevcutHesap,
   onMevcutlaDevam,
 }: Props) {
-  const { signIn, signUp } = useAuth()
-  const [mod, setMod] = useState<'giris' | 'kayit'>('giris')
+  const { signIn, signUp, sifreSifirla } = useAuth()
+  const [mod, setMod] = useState<'giris' | 'kayit' | 'sifirla'>('giris')
   // "Beni hatırla" e-postayı hatırlar; şifre her girişte istenir
   const [email, setEmail] = useState(hatirlananEposta)
   const [sifre, setSifre] = useState('')
@@ -47,6 +47,16 @@ export default function AuthScreen({
     // oturum yazılmadan önce nereye kaydedileceği belli olmalı
     beniHatirlaAyarla(hatirla)
     try {
+      if (mod === 'sifirla') {
+        const sonuc = await sifreSifirla(email)
+        if (sonuc) setHata(sonuc)
+        else {
+          setBilgi(
+            'Sıfırlama bağlantısı e-postana gönderildi. Gelen kutunu (ve gereksiz klasörünü) kontrol et.',
+          )
+        }
+        return
+      }
       const sonuc =
         mod === 'giris' ? await signIn(email, sifre) : await signUp(email, sifre, ad)
       if (sonuc) {
@@ -124,18 +134,54 @@ export default function AuthScreen({
           required
           onChange={(e) => setEmail(e.target.value)}
         />
-        <input
-          className="input"
-          type="password"
-          autoComplete={mod === 'giris' ? 'current-password' : 'new-password'}
-          placeholder="Şifre"
-          value={sifre}
-          minLength={6}
-          required
-          onChange={(e) => setSifre(e.target.value)}
-        />
+        {mod !== 'sifirla' && (
+          <input
+            className="input"
+            type="password"
+            autoComplete={mod === 'giris' ? 'current-password' : 'new-password'}
+            placeholder="Şifre"
+            value={sifre}
+            minLength={6}
+            required
+            onChange={(e) => setSifre(e.target.value)}
+          />
+        )}
 
-        <label className="checkbox">
+        {mod === 'sifirla' && (
+          <small className="muted sifirla-not">
+            E-postanı yaz, sana yeni şifre belirleyebileceğin bir bağlantı gönderelim.
+          </small>
+        )}
+
+        {mod === 'giris' && (
+          <button
+            type="button"
+            className="baglanti-dugme"
+            onClick={() => {
+              setMod('sifirla')
+              setHata(null)
+              setBilgi(null)
+            }}
+          >
+            Şifremi unuttum
+          </button>
+        )}
+
+        {mod === 'sifirla' && (
+          <button
+            type="button"
+            className="baglanti-dugme"
+            onClick={() => {
+              setMod('giris')
+              setHata(null)
+              setBilgi(null)
+            }}
+          >
+            ← Girişe dön
+          </button>
+        )}
+
+        <label className="checkbox" hidden={mod === 'sifirla'}>
           <input
             type="checkbox"
             checked={hatirla}
@@ -154,7 +200,13 @@ export default function AuthScreen({
         {bilgi && <div className="form-info">{bilgi}</div>}
 
         <button className="btn btn-primary btn-lg" type="submit" disabled={bekle}>
-          {bekle ? 'Bir saniye…' : mod === 'giris' ? 'Giriş yap' : 'Hesap aç'}
+          {bekle
+            ? 'Bir saniye…'
+            : mod === 'giris'
+              ? 'Giriş yap'
+              : mod === 'kayit'
+                ? 'Hesap aç'
+                : 'Sıfırlama bağlantısı gönder'}
         </button>
       </form>
 

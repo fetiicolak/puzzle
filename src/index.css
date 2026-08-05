@@ -434,6 +434,25 @@ button {
   flex: 1;
 }
 
+/* "Şifremi unuttum" gibi metin görünümlü düğmeler */
+.baglanti-dugme {
+  align-self: flex-start;
+  padding: 2px 0;
+  color: var(--accent-soft);
+  font: inherit;
+  font-size: 0.83rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.baglanti-dugme:hover {
+  color: var(--accent);
+}
+.sifirla-not {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
 /* giriş ekranının altındaki koşullar/gizlilik satırı */
 .yasal-satir {
   max-width: 340px;

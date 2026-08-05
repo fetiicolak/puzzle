@@ -31,6 +31,10 @@ interface AuthState {
   signUp: (email: string, password: string, displayName: string) => Promise<string | null>
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
+  /** Şifre sıfırlama bağlantısı gönder */
+  sifreSifirla: (email: string) => Promise<string | null>
+  /** Kurtarma bağlantısıyla gelindikten sonra yeni şifreyi yaz */
+  sifreyiDegistir: (yeniSifre: string) => Promise<string | null>
 }
 
 const Ctx = createContext<AuthState | null>(null)
@@ -130,6 +134,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           epostayiHatirla(email)
           etkinligiDamgala()
         }
+        return error ? hataMetni(error.message) : null
+      },
+
+      async sifreSifirla(email) {
+        if (!supabase) return 'Sunucu bağlantısı yapılandırılmamış.'
+        // Bağlantıya tıklayınca sitenin kendisine dönsün; kurtarma jetonu
+        // adres çubuğundaki # kısmında gelir (bkz. client.ts kurtarmaJetonu)
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: location.origin + location.pathname,
+        })
+        return error ? hataMetni(error.message) : null
+      },
+
+      async sifreyiDegistir(yeniSifre) {
+        if (!supabase) return 'Sunucu bağlantısı yapılandırılmamış.'
+        const { error } = await supabase.auth.updateUser({ password: yeniSifre })
         return error ? hataMetni(error.message) : null
       },
 

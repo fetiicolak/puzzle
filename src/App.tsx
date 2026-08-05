@@ -4,10 +4,12 @@ import ConfirmDialog from './components/ConfirmDialog'
 import GameScreen, { type GameConfig } from './components/GameScreen'
 import HomeScreen from './components/HomeScreen'
 import JoinChoiceScreen from './components/JoinChoiceScreen'
+import NewPasswordScreen from './components/NewPasswordScreen'
 import SetupScreen, { type StartOptions } from './components/SetupScreen'
 import { randomRoomCode } from './net/peer'
 import { savePuzzle, type SavedPuzzle } from './storage'
 import { useAuth } from './supabase/auth'
+import { kurtarmaJetonu, kurtarmaJetonunuTemizle, supabase } from './supabase/client'
 import { createRemotePuzzle } from './supabase/puzzles'
 
 type Screen =
@@ -76,6 +78,23 @@ export default function App() {
    * cihazında açanı yanlış hesapla odaya sokuyordu.
    */
   const [davetGirisi, setDavetGirisi] = useState(false)
+  /**
+   * Şifre sıfırlama bağlantısıyla mı gelindi.
+   *
+   * detectSessionInUrl kapalı olduğu için (adres çubuğundaki #room=... ile
+   * çakışmasın diye) kurtarma jetonunu elle okuyup oturumu kendimiz kuruyoruz.
+   */
+  const [sifreYenileme, setSifreYenileme] = useState(false)
+
+  useEffect(() => {
+    const jeton = kurtarmaJetonu()
+    if (!jeton || !supabase) return
+    setSifreYenileme(true)
+    void supabase.auth.setSession(jeton).finally(() => {
+      // Jeton adres çubuğunda kalmasın
+      kurtarmaJetonunuTemizle()
+    })
+  }, [])
   const [saklaniyor, setSaklaniyor] = useState(false)
   /** Bilgi/hata kutusu — tarayıcının alert'i yerine */
   const [bilgi, setBilgi] = useState<{
@@ -195,6 +214,19 @@ export default function App() {
             setMisafirDevam(true)
             // Cihazda oturum açık olsa bile misafir olarak girilir
             setScreen({ s: 'game', config: misafirConfig(screen.roomCode, true) })
+          }}
+        />
+      )
+    }
+
+    // Şifre sıfırlama bağlantısı her şeyden önce gelir
+    if (sifreYenileme) {
+      return (
+        <NewPasswordScreen
+          onBitti={() => setSifreYenileme(false)}
+          onVazgec={() => {
+            setSifreYenileme(false)
+            void auth.signOut()
           }}
         />
       )
