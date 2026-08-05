@@ -738,10 +738,17 @@ create policy avatars_delete on storage.objects
 /*
   Kullanıcının kendi hesabını tamamen silmesi (KVKK/GDPR gereği).
 
-  auth.users silinince tablolar cascade ile temizleniyor ama DEPO kapsam
-  dışında: cascade storage.objects'e ulaşmıyor. Fotoğraflar elle siliniyor.
+  DEPODAKİ DOSYALAR BURADA SİLİNMİYOR: Supabase, storage.objects tablosundan
+  doğrudan silmeyi engelliyor ("Direct deletion from storage tables is not
+  allowed. Use the Storage API instead."). Denendi ve fonksiyonun tamamı bu
+  yüzden hata veriyordu. Bu yüzden dosyaları istemci Storage API ile siliyor
+  (src/supabase/profile.ts -> hesabiSil), ardından bu fonksiyon çağrılıyor.
 
-  Fonksiyon tek işlem içinde çalışır; herhangi bir adım hata verirse hiçbiri
+  Sıra bilinçli: önce dosyalar, sonra hesap. Arada bir kesinti olursa
+  dosyalar gitmiş, hesap durur — kullanıcı tekrar deneyebilir. Tersi
+  olsaydı sahipsiz dosyalar geride kalır ve artık silinemezdi.
+
+  Fonksiyon tek işlem içinde çalışır; bir adım hata verirse hiçbiri
   uygulanmaz, yarım silinmiş hesap kalmaz.
 */
 create or replace function public.hesabi_sil()
@@ -756,10 +763,6 @@ begin
   if ben is null then
     raise exception 'oturum yok';
   end if;
-
-  delete from storage.objects
-  where bucket_id in ('puzzle-images', 'avatars')
-    and (storage.foldername(name))[1] = ben::text;
 
   delete from public.messages where sender = ben or receiver = ben;
   delete from public.friendships where requester = ben or addressee = ben;

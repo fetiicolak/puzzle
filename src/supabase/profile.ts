@@ -146,14 +146,35 @@ export async function avatarUrlleri(yollar: (string | null | undefined)[]): Prom
   return harita
 }
 
+/** Bir kovadaki kendi klasörünü tamamen boşalt */
+async function klasoruBosalt(kova: string, uid: string): Promise<void> {
+  if (!supabase) return
+  const { data } = await supabase.storage.from(kova).list(uid, { limit: 1000 })
+  const yollar = (data ?? []).map((d) => `${uid}/${d.name}`)
+  if (yollar.length > 0) await supabase.storage.from(kova).remove(yollar)
+}
+
 /**
  * Hesabı ve ona bağlı her şeyi sil.
  *
- * Karar ve silme işi sunucuda (schema.sql -> hesabi_sil): tablolar, depodaki
- * fotoğraflar ve hesabın kendisi tek işlemde gidiyor.
+ * İki adım, bu sırayla:
+ *  1. Depodaki dosyalar — Storage API ile. Supabase, SQL'den storage.objects
+ *     silmeyi engelliyor, bu yüzden sunucu fonksiyonu bunu yapamıyor.
+ *  2. Tablolar ve hesabın kendisi — hesabi_sil() RPC'si, tek işlemde.
+ *
+ * Arada kesinti olursa dosyalar gitmiş, hesap durur; kullanıcı tekrar
+ * deneyebilir. Tersi sırada sahipsiz dosyalar geride kalır ve artık
+ * silinemezdi (kaydı olmayan dosyaya erişim kuralı izin vermiyor).
  */
 export async function hesabiSil(): Promise<void> {
   if (!supabase) throw new Error('Sunucu bağlantısı yok')
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+  if (!ben) throw new Error('Önce giriş yapmalısın')
+
+  await klasoruBosalt('puzzle-images', ben)
+  await klasoruBosalt('avatars', ben)
+
   const { error } = await supabase.rpc('hesabi_sil')
   if (error) throw new Error(error.message)
   await supabase.auth.signOut()
