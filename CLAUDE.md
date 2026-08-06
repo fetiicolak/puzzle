@@ -103,6 +103,38 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   gitmez veya bağlantı çalışmaz. Bu ikisi yapılmadıysa akış hâlâ "tamamlanmadı"
   sayılır — kod değil, panel eksik.
 
+## Açık işler
+
+Bittikçe buradan sil. Sıra kabaca öncelik sırası.
+
+**Kullanıcıda (kod işi değil)**
+- [ ] SMTP sağlayıcısı bağla (Resend/Brevo) — şifre sıfırlama bunsuz çalışmıyor
+- [ ] Supabase → URL Configuration → izinli yönlendirmelere site adresini ekle
+- [ ] `b@gmail.com` tekrar açılamıyor; hata metni alınacak
+- [ ] Depolama kotası kararı: 1 GB ≈ 200-700 fotoğraf, dolunca ne olacak
+
+**Doğrulanmamış**
+- [ ] A5 uçtan uca test: hız sınırı, engelleme, şikayet, alıcının mesaj silmesi
+      (iki hesap gerekiyor)
+
+**Bilinen tutarsızlıklar**
+- [ ] `Tutorial.tsx` araç listesinde 🔊 ses ve ♪ müzik düğmeleri yok
+- [ ] `README.md` eskimiş: "sunucu/hesap/veritabanı yoktur" ve "fotoğraf hiçbir
+      sunucuya yüklenmez" artık yanlış — gizlilik açısından yanlış vaat
+
+**Teknik borç**
+- [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)
+- [ ] Kod bölme — tek chunk ~600 KB
+- [ ] ESLint + `lint` script'i
+- [ ] Erişilebilirlik: modal `role="dialog"`, odak tuzağı, ikon butonlara `aria-label`,
+      `HomeScreen`'deki tıklanabilir `article`'lar klavyeyle açılamıyor
+- [ ] Test kapsamı: `supabase/`, `net/peer.ts` ve bileşenler test edilmiyor
+      (şu an yalnızca `engine` 41 + `protocol` 22)
+
+**Ölçek büyürse**
+- [ ] Kendi TURN sunucusu (şimdilik metered.ca ücretsiz katman)
+- [ ] Senkronizasyonu Supabase Realtime'a taşı — P2P bağlantı sorunlarını kökten bitirir
+
 ## Çalıştırma
 
 ```bash
