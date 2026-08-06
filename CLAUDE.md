@@ -96,6 +96,12 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   ile bitmesini bekle, sonra canlı paketi indirip değerlerin girdiğini doğrula.
 - Kullanıcının Supabase panelinden yapması gerekenler (kod işi değil):
   SMTP sağlayıcısı, e-posta doğrulama, izinli yönlendirme adresleri.
+- **Şifremi unuttum akışı kod tarafında tam** (2026-08-06 doğrulandı: `tsc -b`
+  ve testler temiz, uçtan uca akış — link → oturum → yeni şifre — kod
+  seviyesinde eksiksiz). Gerçek e-postayla denenmedi; panelde SMTP sağlayıcısı
+  bağlanmadan ve site adresi izinli yönlendirmelere eklenmeden e-posta hiç
+  gitmez veya bağlantı çalışmaz. Bu ikisi yapılmadıysa akış hâlâ "tamamlanmadı"
+  sayılır — kod değil, panel eksik.
 
 ## Çalıştırma
 
