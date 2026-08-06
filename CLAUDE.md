@@ -1,0 +1,120 @@
+# Birlikte Puzzle — çalışma notları
+
+İki kişinin aynı yapbozu gerçek zamanlı birlikte çözdüğü Türkçe site.
+Vite + React 19 + TypeScript, Canvas 2D motoru, PeerJS (WebRTC) ile P2P,
+Supabase (Auth + Postgres + Storage), GitHub Pages'te yayında.
+
+Bu dosya projeye özel kuralları ve daha önce canımızı yakmış tuzakları
+tutar. Genel iyi kodlama tavsiyeleri burada yok.
+
+## Dil
+
+- Arayüz, kod, yorumlar, değişken ve fonksiyon adları **Türkçe**.
+  `oyuncuCikar`, `hataMetni`, `misafirKimligi` gibi. Yeni kod da böyle olmalı.
+- Kullanıcıya gösterilen hiçbir metin İngilizce olmamalı. Supabase'in ham
+  hata metinleri `hataMetni()` (`src/supabase/client.ts`) içinden geçirilir.
+
+## Araç tuzakları
+
+- **PowerShell ile Türkçe dosyalarda toplu metin değiştirme yapma.**
+  `(Get-Content ... ) -replace ... | Set-Content` UTF-8 Türkçe karakterleri
+  bozuyor. Bir kez tüm bir turun işi bu yüzden geri alındı. Edit aracını kullan.
+- **Commit mesajlarını dosyaya yazıp `git commit -F` ile ver.** `-m` ile çok
+  satırlı mesaj PowerShell'de parçalanıyor. Mesaj metni ASCII olsun.
+- **Adres çubuğunda yalnızca `#` kısmı değişiyorsa sayfa yeniden yüklenmez.**
+  `location.href = '...#room=x'` sonrası `location.reload()` gerekiyor; yoksa
+  açılış kodu (davet, şifre sıfırlama) hiç çalışmaz. İki kez buna takıldık.
+- Tarayıcı paneli arka plandayken CSS animasyonları ilerlemiyor; ölçüm
+  alırken `el.style.animation = 'none'` yapıp öyle ölç.
+
+## Arayüz kuralları
+
+- **`alert` / `confirm` / `prompt` kullanılmaz.** `ConfirmDialog` var;
+  bilgi/hata kutusu için `tekButon` propu. Kaynakta hiç `alert(` kalmamalı.
+- Modaller `createPortal` ile `document.body`'ye çizilir. Sebep: `oda-panel`
+  gibi `backdrop-filter` kullanan kutular sabit konumlu çocukları için yeni
+  sınırlayıcı blok yaratıyor, pencere ekrandan taşıyor.
+- Pencere genişliği `min(100%, Npx)` — `vw` kullanma. `modal-arka`'nın 18px
+  iç boşluğu var, `94vw` onu taşırıp pencereyi kenara yapıştırıyor.
+- Açılır liste için `Select` bileşeni kullanılır. Tarayıcının kendi `<select>`
+  menüsü sayfanın koyu temasını almıyor, Windows'ta okunmuyordu.
+- Yeni ekranlarda 320 / 390 / 768 genişliklerini kontrol et.
+
+## Sunucu ve güvenlik
+
+- **Güvenlik kararı her zaman sunucuda verilir.** İstemci yalnızca sonucu
+  gösterir. Oda yetkileri (`oyuncu_cikar`, `yetki_ayarla`), kilit kontrolü ve
+  ban `security definer` fonksiyonlarda; hepsinde `set search_path = public`.
+- **`supabase/schema.sql` idempotent kalmalı** — `create or replace`,
+  `drop policy if exists`, `add column if not exists`. Hem boş şemada hem
+  mevcut şema üzerinde ikinci kez hatasız çalışmalı.
+- **Fonksiyon tanım sırası önemli.** `language sql` fonksiyonları oluşturulurken
+  referansları doğrulanıyor; bir fonksiyon kendinden sonra tanımlanan başka
+  birine başvuramaz. `profil_gorunur` bu yüzden dosyanın sonunda.
+- **Şemayı değiştirdiysen kullanıcıya "SQL'i yeniden çalıştır" de.** Commit
+  mesajının başına da yaz. Kullanıcı çalıştırmadan düzeltme canlıya geçmez.
+- **Satır düzeyi politika sütunu korumaz.** "Bu satırı güncelleyebilir" demek
+  "her sütunu değiştirebilir" demektir. Sütun kısıtı için trigger yaz;
+  örnek desen: `puzzle_guncelleme_kontrol`, `friendship_guncelleme_kontrol`.
+- **Supabase, SQL'den `storage.objects` silmeye izin vermiyor.** Dosya silme
+  istemciden Storage API ile yapılır (`hesabiSil` içindeki `klasoruBosalt`).
+- İstemcide tolerans: yeni sütun eksikse kayıt tamamen başarısız olmasın
+  (`createRemotePuzzle` içindeki `eksikSutun` geri düşüşü).
+
+## P2P
+
+- Karşı taraf bizim kodumuzu çalıştırmak zorunda değil; konsoldan elle mesaj
+  gönderebilir. Gelen her mesaj `dogrula()` (`src/net/protocol.ts`) süzgecinden
+  geçer — `peer.ts` içinde, **yansıtmadan önce**.
+- Yetki `from` damgasına dayanır: host yansıtırken damgayı kendi bastığı için
+  (`{ ...msg, from: id }`) misafir onu taklit edemez. `meta`/`img`/`state`/
+  `full`/`kick` yalnızca doğrudan host'tan kabul edilir.
+- `tray`/`shuffle` bilerek herkeste — iş birliğine dayalı düğmeler.
+- Yeni mesaj tipi eklersen `dogrula`'ya alan doğrulaması ve gerekiyorsa
+  `HOST_YETKILI` kaydını eklemeyi unutma; testi `protocol.test.ts`'e yaz.
+
+## Bilinçli tercihler (değiştirmeden önce düşün)
+
+- **StrictMode kapalı** (`src/main.tsx`). Çift effect, aynı oda kimliğiyle iki
+  PeerJS bağlantısı açıp `unavailable-id` hatası veriyor.
+- **`detectSessionInUrl: false`** — adres çubuğundaki `#room=` ile çakışıyor.
+  Şifre sıfırlama jetonu bu yüzden elle okunuyor (`kurtarmaJetonu`).
+- **Ses dosyası yok, Web Audio ile üretiliyor** (`src/audio.ts`). Paket
+  büyümüyor, telif yok, çevrimdışı çalışıyor.
+- **Spotify embed kullanılmadı**: tam parça için dinleyicinin hesabını şart
+  koşuyor, kesintisiz dönmüyor, ses seviyesi dışarıdan ayarlanamıyor.
+- **Örnek eserler kamu malı** (sahibi 70+ yıl önce vefat etmiş) veya CC0.
+  Telifli eser eklenmez — Picasso bu yüzden reddedildi.
+
+## Sırlar ve dağıtım
+
+- `.env` git'te izlenmiyor; şablon `.env.example`. Üretim değerleri **GitHub
+  Actions secrets**'tan geliyor (`VITE_SUPABASE_*`, `VITE_TURN_*`).
+  Yeni bir `VITE_` değişkeni eklersen `deploy.yml`'deki `env:` bloğuna da ekle,
+  yoksa canlıda boş kalır.
+- `main`'e push → Actions → GitHub Pages. `gh run watch <id> --exit-status`
+  ile bitmesini bekle, sonra canlı paketi indirip değerlerin girdiğini doğrula.
+- Kullanıcının Supabase panelinden yapması gerekenler (kod işi değil):
+  SMTP sağlayıcısı, e-posta doğrulama, izinli yönlendirme adresleri.
+
+## Çalıştırma
+
+```bash
+npm run dev      # http://localhost:5173
+npm test         # Vitest — engine + protocol
+npm run build    # tsc -b && vite build
+```
+
+Lint yok; `tsconfig` sıkı (`strict`, `noUnusedLocals`, `noUnusedParameters`).
+`npx tsc -b` temiz olmadan commit etme.
+
+## Doğrulama beklentisi
+
+Bu projede "yazdım, herhalde çalışır" kabul edilmiyor. Değişiklik tarayıcıda
+gözlemlenebiliyorsa `preview_start` ile çalıştırıp gerçekten dene; güvenlik
+düzeltmesi yaptıysan saldırıyı tekrarlayıp reddedildiğini gör. Test edemediğin
+bir şey varsa raporda **açıkça** söyle.
+
+Girişli akışlar için iki hesap gerekiyor ve aynı adreste tek oturum tutulabilir
+— biri canlı sitede, biri `localhost:5173`'te açılır. Hesap açma ve şifre
+girme kullanıcıya bırakılır.
