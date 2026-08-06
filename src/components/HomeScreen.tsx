@@ -5,7 +5,16 @@ import ProfileDialog from './ProfileDialog'
 import RenameDialog from './RenameDialog'
 import Select from './Select'
 import { basHarfler } from '../ad'
-import { SAMPLES, sampleThumbUrl, sampleUrl, type Sample } from '../samples'
+import {
+  KATEGORI_ADI,
+  KATEGORI_SIRASI,
+  kategoriSayisi,
+  SAMPLES,
+  sampleThumbUrl,
+  sampleUrl,
+  type Kategori,
+  type Sample,
+} from '../samples'
 import {
   listPuzzles,
   removePuzzle,
@@ -123,6 +132,8 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   const [siralama, setSiralama] = useState<Siralama>('yeni')
   /** "Tablolarım" katlanır; arkadaşlar gibi tıklayınca açılır */
   const [tablolarAcik, setTablolarAcik] = useState(false)
+  /** Galeri filtresi; null = hepsi */
+  const [kategori, setKategori] = useState<Kategori | null>(null)
   const [profilAcik, setProfilAcik] = useState(false)
   const [benimAvatar, setBenimAvatar] = useState<string | null>(null)
   /** Profilde ad değişince üst çubuk hemen güncellensin */
@@ -214,6 +225,8 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     zaman: p.updatedAt,
     parca: p.pieceCount,
   }))
+
+  const gorunenler = kategori ? SAMPLES.filter((s) => s.kategori === kategori) : SAMPLES
 
   const pick = async (src: File | Sample) => {
     setBusy(true)
@@ -668,10 +681,38 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       <section className="block">
         <h2 className="section-label">
           Hazır olanlar
-          <em className="field-hint">{SAMPLES.length} eser</em>
+          <em className="field-hint">
+            {kategori ? `${gorunenler.length} eser` : `${SAMPLES.length} eser`}
+          </em>
         </h2>
+
+        <div className="kategori-cubugu">
+          <button
+            className={`chip ${kategori === null ? 'active' : ''}`}
+            onClick={() => {
+              setKategori(null)
+              setHepsiniGoster(false)
+            }}
+          >
+            Hepsi
+          </button>
+          {KATEGORI_SIRASI.map((k) => (
+            <button
+              key={k}
+              className={`chip ${kategori === k ? 'active' : ''}`}
+              onClick={() => {
+                setKategori(k)
+                setHepsiniGoster(false)
+              }}
+            >
+              {KATEGORI_ADI[k]}
+              <em className="chip-sayi">{kategoriSayisi(k)}</em>
+            </button>
+          ))}
+        </div>
+
         <div className="sample-grid">
-          {(hepsiniGoster ? SAMPLES : SAMPLES.slice(0, 12)).map((s) => (
+          {(hepsiniGoster ? gorunenler : gorunenler.slice(0, 12)).map((s) => (
             <button
               key={s.file}
               className="sample"
@@ -687,9 +728,9 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
             </button>
           ))}
         </div>
-        {!hepsiniGoster && SAMPLES.length > 12 && (
+        {!hepsiniGoster && gorunenler.length > 12 && (
           <button className="btn btn-secondary" onClick={() => setHepsiniGoster(true)}>
-            Tümünü göster ({SAMPLES.length - 12} tane daha)
+            Tümünü göster ({gorunenler.length - 12} tane daha)
           </button>
         )}
       </section>

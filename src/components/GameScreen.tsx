@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { PuzzleBoard } from '../engine/board'
 import { generateCut, renderPieceBitmaps } from '../engine/cutter'
 import {
@@ -17,8 +17,20 @@ import {
   type GameState,
   type StateSnapshot,
 } from '../engine/state'
+import Certificate from './Certificate'
 import ConfirmDialog from './ConfirmDialog'
 import RoomPanel, { type BagliKisi } from './RoomPanel'
+import {
+  birlesme,
+  kutlama,
+  muzigiBaslat,
+  muzigiDurdur,
+  muzikAcikMi,
+  sesAcikMi,
+  sesiAyarla,
+  sesiKapat,
+  tik,
+} from '../audio'
 import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
 import {
@@ -184,6 +196,11 @@ export default function GameScreen({ config, onExit }: Props) {
   /** Bağlantı testi sonucu; null iken test hiç çalıştırılmamış */
   const [test, setTest] = useState<BaglantiTesti | null>(null)
   const [testSuruyor, setTestSuruyor] = useState(false)
+  /** Ses efektleri ve arka plan müziği */
+  const [sesler, setSesler] = useState(sesAcikMi)
+  const [muzik, setMuzik] = useState(false)
+  /** Bitiş ekranından açılan hatıra kartı */
+  const [sertifika, setSertifika] = useState(false)
   /** Şu an bağlı olanlar: peer kimliği -> ad + hesap kimliği */
   const [bagliOlanlar, setBagliOlanlar] = useState<Map<string, BagliKisi>>(new Map())
   const [chatAcik, setChatAcik] = useState(false)
@@ -311,7 +328,7 @@ export default function GameScreen({ config, onExit }: Props) {
           r.room?.send({ t: 'drop', g, anchor: anchor.id, x: anchor.x, y: anchor.y })
         }
         const res = dropGroup(game, g)
-        afterStateChange(res.completed)
+        afterStateChange(res)
       },
       onCursor: (x, y) => {
         const now = performance.now()
@@ -328,7 +345,7 @@ export default function GameScreen({ config, onExit }: Props) {
         rotateGroup(game, g, 1)
         r.room?.send({ t: 'rot', g, d: 1 })
         const res = dropGroup(game, g)
-        afterStateChange(res.completed)
+        afterStateChange(res)
       },
       onSplit: (pieceId) => {
         if (!canSplit(game, pieceId)) return
@@ -339,7 +356,7 @@ export default function GameScreen({ config, onExit }: Props) {
         const y = p.y + game.cut.cellH * 0.65
         if (splitPiece(game, pieceId, newGroup, x, y)) {
           r.room?.send({ t: 'split', piece: pieceId, group: newGroup, x, y })
-          afterStateChange(false)
+          afterStateChange({ completed: false })
         }
       },
     })
@@ -358,8 +375,20 @@ export default function GameScreen({ config, onExit }: Props) {
 
   const progressDone = (game: GameState) => progress(game) >= 1
 
-  const afterStateChange = (completed: boolean) => {
+  /**
+   * @param sonuc dropGroup'un döndürdüğü özet; ses efektleri buna göre çalar.
+   *   Karşı tarafın hamlelerinde de çalıyor — birlikte oynadığını duymak
+   *   oyunun havasının bir parçası.
+   */
+  const afterStateChange = (sonuc: {
+    completed: boolean
+    snappedToFrame?: boolean
+    merges?: number
+  }) => {
     const r = refs.current
+    const { completed } = sonuc
+    if (sonuc.merges && sonuc.merges > 0) birlesme()
+    else if (sonuc.snappedToFrame) tik()
     if (!r.game || !r.board) return
     // birleşmelerde geçersiz kalan kilitleri temizle
     for (const g of [...r.board.lockedGroups.keys()]) {
@@ -369,6 +398,7 @@ export default function GameScreen({ config, onExit }: Props) {
     setProg(progress(r.game))
     if (completed && !r.completed) {
       r.completed = true
+      kutlama()
       setPhase('done')
       // Tamamlanma bilgisi beklemeden sunucuya yazılmalı. Normal kayıt 8
       // saniyede bir yapıldığı için, son kayıttan hemen sonra biten puzzle
@@ -449,7 +479,7 @@ export default function GameScreen({ config, onExit }: Props) {
         setGroupPos(r.game, msg.g, msg.anchor, msg.x, msg.y)
         r.board?.lockedGroups.delete(msg.g)
         const res = dropGroup(r.game, msg.g)
-        afterStateChange(res.completed)
+        afterStateChange(res)
         break
       }
       case 'cursor': {
@@ -467,26 +497,26 @@ export default function GameScreen({ config, onExit }: Props) {
       case 'split': {
         if (!r.game) break
         splitPiece(r.game, msg.piece, msg.group, msg.x, msg.y)
-        afterStateChange(false)
+        afterStateChange({ completed: false })
         break
       }
       case 'rot': {
         if (!r.game) break
         rotateGroup(r.game, msg.g, msg.d)
         const res = dropGroup(r.game, msg.g)
-        afterStateChange(res.completed)
+        afterStateChange(res)
         break
       }
       case 'tray': {
         if (!r.game) break
         arrangeTray(r.game, msg.seed)
-        afterStateChange(false)
+        afterStateChange({ completed: false })
         break
       }
       case 'shuffle': {
         if (!r.game) break
         shufflePieces(r.game, msg.seed)
-        afterStateChange(false)
+        afterStateChange({ completed: false })
         break
       }
       case 'chat': {
@@ -789,6 +819,7 @@ export default function GameScreen({ config, onExit }: Props) {
       window.removeEventListener('pagehide', onUnload)
       document.removeEventListener('visibilitychange', onVisibility)
       save(true)
+      sesiKapat()
       r.board?.destroy()
       r.room?.close()
       r.board = null
@@ -803,6 +834,18 @@ export default function GameScreen({ config, onExit }: Props) {
     if (phase !== 'playing' || tanitimGorulduMu()) return
     setTanitim(true)
     tanitimiIsaretle()
+  }, [phase])
+
+  // Müzik açık bırakıldıysa oyuna girer girmez değil, ilk dokunuşta başlar:
+  // tarayıcı kullanıcı etkileşimi olmadan ses çaldırmıyor.
+  useEffect(() => {
+    if (phase !== 'playing' || !muzikAcikMi()) return
+    const basla = () => {
+      void muzigiBaslat().then((oldu) => setMuzik(oldu))
+      window.removeEventListener('pointerdown', basla)
+    }
+    window.addEventListener('pointerdown', basla, { once: true })
+    return () => window.removeEventListener('pointerdown', basla)
   }, [phase])
 
   // süre sayacı + düzenli otomatik kayıt
@@ -847,7 +890,7 @@ export default function GameScreen({ config, onExit }: Props) {
     const seed = (Math.random() * 0xffffffff) >>> 0
     arrangeTray(r.game, seed)
     r.room?.send({ t: 'tray', seed })
-    afterStateChange(false)
+    afterStateChange({ completed: false })
     r.board?.fitView()
   }
 
@@ -857,7 +900,7 @@ export default function GameScreen({ config, onExit }: Props) {
     const seed = (Math.random() * 0xffffffff) >>> 0
     shufflePieces(r.game, seed)
     r.room?.send({ t: 'shuffle', seed })
-    afterStateChange(false)
+    afterStateChange({ completed: false })
     r.board?.fitView()
   }
 
@@ -1108,6 +1151,38 @@ export default function GameScreen({ config, onExit }: Props) {
             ⬚
           </button>
           <button
+            className={`icon-btn ${sesler ? 'on' : ''}`}
+            onClick={() => {
+              const yeni = !sesler
+              sesiAyarla(yeni)
+              setSesler(yeni)
+              if (!yeni) setMuzik(false)
+            }}
+            title={sesler ? 'Ses efektlerini kapat' : 'Ses efektlerini aç'}
+          >
+            {sesler ? '🔊' : '🔈'}
+          </button>
+          <button
+            className={`icon-btn ${muzik ? 'on' : ''}`}
+            onClick={() => {
+              if (muzik) {
+                muzigiDurdur()
+                setMuzik(false)
+              } else {
+                // Tarayıcı sesi ancak kullanıcı dokunduktan sonra açtırır;
+                // bu tıklama o izni veriyor.
+                if (!sesler) {
+                  sesiAyarla(true)
+                  setSesler(true)
+                }
+                void muzigiBaslat().then((oldu) => setMuzik(oldu))
+              }
+            }}
+            title={muzik ? 'Müziği kapat' : 'Sakin arka plan müziği'}
+          >
+            ♪
+          </button>
+          <button
             className={`icon-btn ${ghost ? 'on' : ''}`}
             onClick={() => {
               const b = refs.current.board
@@ -1305,6 +1380,20 @@ export default function GameScreen({ config, onExit }: Props) {
           parca={refs.current.game?.pieces.length ?? refs.current.pieceCount}
           image={refs.current.imageDataUrl}
           onExit={onExit}
+          onSertifika={() => setSertifika(true)}
+        />
+      )}
+
+      {sertifika && (
+        <Certificate
+          baslik={title}
+          ressam={artist}
+          // Odadaki herkes + ben; misafirlerin kendi verdiği adlar da dahil
+          kisiler={[benimAdim, ...[...bagliOlanlar.values()].map((k) => k.ad)]}
+          saniye={elapsed}
+          parca={refs.current.game?.pieces.length ?? refs.current.pieceCount}
+          gorsel={refs.current.imageDataUrl}
+          onKapat={() => setSertifika(false)}
         />
       )}
     </div>
@@ -1396,6 +1485,7 @@ function Celebration({
   parca,
   image,
   onExit,
+  onSertifika,
 }: {
   surprise: string
   elapsed: number
@@ -1405,6 +1495,7 @@ function Celebration({
   parca: number
   image: string
   onExit: () => void
+  onSertifika: () => void
 }) {
   const konfeti = useMemo(
     () =>
@@ -1448,9 +1539,14 @@ function Celebration({
             {formatTime(elapsed)}
           </p>
           {surprise && <blockquote className="surprise">{surprise}</blockquote>}
-          <button className="btn btn-primary" onClick={onExit}>
-            Tamam
-          </button>
+          <div className="action-row">
+            <button className="btn btn-secondary" onClick={onSertifika}>
+              🏅 Hatıra kartı
+            </button>
+            <button className="btn btn-primary" onClick={onExit}>
+              Tamam
+            </button>
+          </div>
         </div>
       </div>
     </>

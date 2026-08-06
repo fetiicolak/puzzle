@@ -488,6 +488,53 @@ button {
   text-wrap: pretty;
 }
 
+/* galeri kategori çubuğu */
+.kategori-cubugu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  width: 100%;
+}
+.kategori-cubugu .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chip-sayi {
+  font-style: normal;
+  font-size: 0.72rem;
+  opacity: 0.6;
+}
+.chip.active .chip-sayi {
+  opacity: 0.75;
+}
+
+/* hatıra kartı */
+.sertifika-kutu {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(100%, 640px);
+  max-height: 88dvh;
+  overflow-y: auto;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(46, 35, 60, 0.98), rgba(26, 20, 38, 0.98));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: rise 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+.sertifika-tuval {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+.sertifika-butonlar {
+  flex-wrap: wrap;
+}
+
 /* beklenmeyen hatada gösterilen kurtarma kartı */
 .hata-kart {
   display: flex;
