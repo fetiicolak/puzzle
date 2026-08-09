@@ -99,6 +99,25 @@ export async function profilKaydet(alanlar: {
 }
 
 /**
+ * "Şu an sitedeyim" damgası.
+ *
+ * Arkadaş listesindeki yeşil ışık bunu okuyor. Sunucuda ayrı bir oturum
+ * defteri tutmak yerine tek bir sütun güncelleniyor: bağlantı kopsa, sekme
+ * kapansa, telefon uykuya geçse bile damga eskiyor ve kişi kendiliğinden
+ * çevrimdışı görünüyor — ayrıca "çıkış" bildirimi göndermek gerekmiyor.
+ *
+ * Sessizce başarısız olur: şema henüz güncellenmemişse sütun yoktur ve bu
+ * yüzden oyunun akışı bozulmamalı.
+ */
+export async function nabizAt(uid: string): Promise<void> {
+  if (!supabase) return
+  await supabase
+    .from('profiles')
+    .update({ last_seen: new Date().toISOString() })
+    .eq('id', uid)
+}
+
+/**
  * Profil fotoğrafını yükle ve yolunu döndür. Dosya adına zaman damgası
  * ekleniyor: aynı yola ikinci kez yazmak yerine yenisini koyup eskiyi siliyoruz,
  * böylece tarayıcı önbelleği eski fotoğrafı göstermiyor.

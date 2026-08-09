@@ -6,6 +6,8 @@ interface Props {
   rotation: boolean
   /** Odada mı oynanıyor — tek başınaysa birlikte oynama adımı atlanır */
   odada: boolean
+  /** Hesapla mı oynanıyor — misafirde arkadaş düğmesi hiç yok */
+  hesapVar: boolean
   onKapat: () => void
 }
 
@@ -22,7 +24,7 @@ function dokunmatikMi(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 }
 
-function adimlariKur(rotation: boolean, odada: boolean): Adim[] {
+function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim[] {
   const dokunmatik = dokunmatikMi()
   const adimlar: Adim[] = [
     {
@@ -72,6 +74,8 @@ function adimlariKur(rotation: boolean, odada: boolean): Adim[] {
       { simge: '⫴', ad: 'Yerleşmemiş parçaları yanlara diz' },
       { simge: '🔀', ad: 'Parçaları yeniden karıştır' },
       { simge: '⬚', ad: 'Sadece kenar parçalarını öne çıkar' },
+      { simge: '🔊', ad: 'Ses efektlerini aç / kapat' },
+      { simge: '♪', ad: 'Arka plan müziğini aç / kapat' },
       { simge: '⊞', ad: 'Izgarayı göster / gizle' },
       { simge: '🖼', ad: 'Orijinal görsele bak' },
       { simge: '⤢', ad: 'Hepsini ekrana sığdır' },
@@ -85,6 +89,8 @@ function adimlariKur(rotation: boolean, odada: boolean): Adim[] {
       metin: 'Karşı tarafın imleci tahtada görünür; tuttuğu parça renkli çerçeveyle işaretlenir.',
       araclar: [
         { simge: '👥', ad: 'Odadakiler ve yetkiler' },
+        // arkadaş düğmesi yalnızca hesapla görünüyor
+        ...(hesapVar ? [{ simge: '🤝', ad: 'Arkadaşına mesaj at, odaya davet et' }] : []),
         { simge: '💬', ad: 'Oda içi sohbet' },
         { simge: '📹', ad: 'Görüntülü konuş' },
         { simge: '🎙', ad: 'Yalnızca sesli konuş' },
@@ -103,8 +109,11 @@ function adimlariKur(rotation: boolean, odada: boolean): Adim[] {
  * birlikte oynama adımı hiç görünmez. Dokunmatik cihazda sağ tık yerine
  * basılı tutma anlatılır.
  */
-export default function Tutorial({ rotation, odada, onKapat }: Props) {
-  const adimlar = useMemo(() => adimlariKur(rotation, odada), [rotation, odada])
+export default function Tutorial({ rotation, odada, hesapVar, onKapat }: Props) {
+  const adimlar = useMemo(
+    () => adimlariKur(rotation, odada, hesapVar),
+    [rotation, odada, hesapVar],
+  )
   const [i, setI] = useState(0)
   const adim = adimlar[i]
   const sonMu = i === adimlar.length - 1

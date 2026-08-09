@@ -10,6 +10,7 @@ import {
   arkadasligiSil,
   arkadasliklariGetir,
   birlikteOynananlar,
+  cevrimiciMi,
   engellenenler,
   engeliKaldir,
   okunmamisSayilari,
@@ -58,6 +59,14 @@ export default function FriendsSection() {
     }
   }, [tazele])
 
+  // Liste açıkken "şu an sitede" ışığı tazelensin. Kapalıyken sorgu atmıyoruz:
+  // görünmeyen bir listeyi dakikada bir yenilemenin karşılığı yok.
+  useEffect(() => {
+    if (!acik) return
+    const zamanlayici = setInterval(() => void tazele(), 60_000)
+    return () => clearInterval(zamanlayici)
+  }, [acik, tazele])
+
   const sarmala = async (anahtar: string, is: () => Promise<void>) => {
     setIslemdeki(anahtar)
     setHata(null)
@@ -81,10 +90,20 @@ export default function FriendsSection() {
   const bas = basHarfler
 
   /** Fotoğrafı varsa göster, yoksa baş harf */
-  const Avatar = ({ kisi, sonuk }: { kisi: Kisi; sonuk?: boolean }) => {
+  const Avatar = ({
+    kisi,
+    sonuk,
+    isik,
+  }: {
+    kisi: Kisi
+    sonuk?: boolean
+    /** Sitedeyse fotoğrafın çevresine yeşil halka (yalnızca arkadaşlarda anlamlı) */
+    isik?: boolean
+  }) => {
     const url = kisi.avatarPath ? avatarlar.get(kisi.avatarPath) : null
+    const cevrimici = isik && cevrimiciMi(kisi.sonGorulme)
     return (
-      <span className={`avatar ${sonuk ? 'dim' : ''}`}>
+      <span className={`avatar ${sonuk ? 'dim' : ''} ${cevrimici ? 'cevrimici' : ''}`}>
         {url ? <img src={url} alt="" /> : bas(kisi.ad)}
       </span>
     )
@@ -179,9 +198,10 @@ export default function FriendsSection() {
         <div className="friend-list">
           {arkadaslar.map((a) => (
             <div key={a.id} className="friend-row">
-              <Avatar kisi={a.kisi} />
+              <Avatar kisi={a.kisi} isik />
               <div className="info">
                 <b>{a.kisi.ad}</b>
+                <small>{cevrimiciMi(a.kisi.sonGorulme) ? 'şu an sitede' : 'çevrimdışı'}</small>
               </div>
               <button
                 className="btn btn-sm btn-secondary"

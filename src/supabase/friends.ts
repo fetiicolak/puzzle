@@ -10,6 +10,21 @@ export interface Kisi {
   ad: string
   /** avatars kovasındaki fotoğrafın yolu */
   avatarPath?: string | null
+  /** Sitede en son görüldüğü an (ISO); şema eskiyse null */
+  sonGorulme?: string | null
+}
+
+/**
+ * Kişi şu an sitede mi.
+ *
+ * Damga dakikada bir yenileniyor (bkz. nabizAt). İki dakikalık pencere bir
+ * atlanan damgayı ve saat farkını affeder; daha darı, sayfa açıkken bile
+ * ışığın yanıp sönmesine yol açıyor.
+ */
+export function cevrimiciMi(sonGorulme: string | null | undefined): boolean {
+  if (!sonGorulme) return false
+  const fark = Date.now() - new Date(sonGorulme).getTime()
+  return fark >= 0 && fark < 2 * 60_000
 }
 
 export interface Arkadaslik {
@@ -30,20 +45,40 @@ interface FriendRow {
 interface KisaProfil {
   ad: string
   avatarPath: string | null
+  sonGorulme: string | null
 }
 
 async function adlariGetir(idler: string[]): Promise<Map<string, KisaProfil>> {
   const harita = new Map<string, KisaProfil>()
   if (!supabase || idler.length === 0) return harita
-  const { data } = await supabase
+
+  interface ProfilSatiri {
+    id: string
+    display_name: string
+    avatar_path: string | null
+    last_seen?: string | null
+  }
+
+  // last_seen yeni bir sütun. Şema henüz çalıştırılmadıysa tüm sorgu
+  // başarısız olup arkadaş listesi boşalacağına, o alansız devam edelim.
+  const ilk = await supabase
     .from('profiles')
-    .select('id,display_name,avatar_path')
+    .select('id,display_name,avatar_path,last_seen')
     .in('id', idler)
-  for (const p of data ?? []) {
-    const satir = p as { id: string; display_name: string; avatar_path: string | null }
+  let satirlar = (ilk.data ?? []) as ProfilSatiri[]
+  if (ilk.error) {
+    const geri = await supabase
+      .from('profiles')
+      .select('id,display_name,avatar_path')
+      .in('id', idler)
+    satirlar = (geri.data ?? []) as ProfilSatiri[]
+  }
+
+  for (const satir of satirlar) {
     harita.set(satir.id, {
       ad: satir.display_name || 'İsimsiz',
       avatarPath: satir.avatar_path ?? null,
+      sonGorulme: satir.last_seen ?? null,
     })
   }
   return harita
@@ -74,6 +109,7 @@ export async function arkadasliklariGetir(): Promise<Arkadaslik[]> {
         id: karsiId,
         ad: adlar.get(karsiId)?.ad ?? 'İsimsiz',
         avatarPath: adlar.get(karsiId)?.avatarPath ?? null,
+        sonGorulme: adlar.get(karsiId)?.sonGorulme ?? null,
       },
       yon: s.requester === ben ? 'giden' : 'gelen',
       durum: s.status,
@@ -123,6 +159,7 @@ export async function birlikteOynananlar(haricTut: string[]): Promise<Kisi[]> {
     id,
     ad: adlar.get(id)?.ad ?? 'İsimsiz',
     avatarPath: adlar.get(id)?.avatarPath ?? null,
+    sonGorulme: adlar.get(id)?.sonGorulme ?? null,
   }))
 }
 

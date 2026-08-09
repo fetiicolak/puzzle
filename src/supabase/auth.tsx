@@ -11,6 +11,7 @@ import {
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { oturumVerisiniTemizle } from '../storage'
+import { nabizAt } from './profile'
 import {
   hataMetni,
   epostayiHatirla,
@@ -101,6 +102,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearInterval(tik)
     }
   }, [])
+
+  // Arkadaşlara "şu an sitede" görünmek için düzenli damga. Sekme arka plana
+  // düştüğünde durur: başka bir sekmede açık unutulan site kişiyi sonsuza
+  // kadar çevrimiçi göstermemeli.
+  const uid = session?.user?.id ?? null
+  useEffect(() => {
+    if (!supabase || !uid) return
+    const at = () => {
+      if (document.visibilityState === 'visible') void nabizAt(uid).catch(() => {})
+    }
+    at()
+    const zamanlayici = setInterval(at, 60_000)
+    document.addEventListener('visibilitychange', at)
+    return () => {
+      clearInterval(zamanlayici)
+      document.removeEventListener('visibilitychange', at)
+    }
+  }, [uid])
 
   const value = useMemo<AuthState>(() => {
     const user = session?.user ?? null

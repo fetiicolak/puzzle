@@ -36,6 +36,12 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   sınırlayıcı blok yaratıyor, pencere ekrandan taşıyor.
 - Pencere genişliği `min(100%, Npx)` — `vw` kullanma. `modal-arka`'nın 18px
   iç boşluğu var, `94vw` onu taşırıp pencereyi kenara yapıştırıyor.
+- **Üst çubuğa düğme eklersen `Tutorial.tsx`'in araç listesine de ekle.**
+  Liste elle yazılıyor, kendiliğinden güncellenmiyor; koşullu görünen bir
+  düğme turda da aynı koşulla görünmeli (örn. `hesapVar`).
+- **Kullanıcı metnindeki adresler `Linkli` ile basılır.** Ham metin basmak,
+  paylaşılan oda linkini kopyala-yapıştır işine çeviriyor. Ayrıştırıcı yalnızca
+  http/https tanır (`javascript:` bağlantıya dönüşmemeli) ve testi var.
 - Açılır liste için `Select` bileşeni kullanılır. Tarayıcının kendi `<select>`
   menüsü sayfanın koyu temasını almıyor, Windows'ta okunmuyordu.
 - Yeni ekranlarda 320 / 390 / 768 genişliklerini kontrol et.
@@ -85,6 +91,11 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   koşuyor, kesintisiz dönmüyor, ses seviyesi dışarıdan ayarlanamıyor.
 - **Örnek eserler kamu malı** (sahibi 70+ yıl önce vefat etmiş) veya CC0.
   Telifli eser eklenmez — Picasso bu yüzden reddedildi.
+- **"Şu an sitede" tek sütunla çözülüyor** (`profiles.last_seen`, `nabizAt`).
+  Realtime kanalı ya da ayrı oturum defteri yok: sekme kapansa, ağ kopsa,
+  telefon uykuya geçse bile damga eskiyor ve kişi kendiliğinden çevrimdışı
+  görünüyor. "Çıktım" bildirimi göndermek gerekmiyor. Damga dakikada bir,
+  yalnızca sekme öndeyken atılıyor; okuma penceresi 2 dakika (`cevrimiciMi`).
 
 ## Sırlar ve dağıtım
 
@@ -116,11 +127,8 @@ Bittikçe buradan sil. Sıra kabaca öncelik sırası.
 **Doğrulanmamış**
 - [ ] A5 uçtan uca test: hız sınırı, engelleme, şikayet, alıcının mesaj silmesi
       (iki hesap gerekiyor)
-
-**Bilinen tutarsızlıklar**
-- [ ] `Tutorial.tsx` araç listesinde 🔊 ses ve ♪ müzik düğmeleri yok
-- [ ] `README.md` eskimiş: "sunucu/hesap/veritabanı yoktur" ve "fotoğraf hiçbir
-      sunucuya yüklenmez" artık yanlış — gizlilik açısından yanlış vaat
+- [ ] Oyun içi arkadaş paneli (🤝): "şu an sitede" ışığı, mesaj kutusu ve
+      "Davet et" ile giden davet mesajı (iki hesap gerekiyor)
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)

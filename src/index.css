@@ -1324,6 +1324,13 @@ button {
 .oda-satir .info small {
   font-size: 0.76rem;
 }
+/* arkadaş paneli satırı oda satırından kalabalık (💬 + Davet et): ad kırpılsın */
+.ad-kisa {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .oda-satir .del {
   flex: none;
   width: 30px;
@@ -1685,6 +1692,22 @@ button {
   border-bottom-left-radius: 14px;
   border-bottom-right-radius: 4px;
 }
+
+/* mesaj içindeki adres: tıklanabilir olduğu belli olsun, balonu taşırmasın */
+.mesaj-link {
+  color: var(--accent-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+.mesaj-link:hover {
+  color: var(--accent);
+}
+/* kendi balonun açık renkli: aynı vurgu rengi orada okunmuyor */
+.chat-satir.ben .mesaj-link {
+  color: #2a0d16;
+  font-weight: 700;
+}
 .chat-tepkiler {
   display: flex;
   gap: 4px;
@@ -1811,6 +1834,17 @@ button {
   background: var(--surface-2);
   color: var(--muted);
   border: 1px solid var(--line);
+}
+
+/*
+  "Şu an sitede" halkası.
+
+  Nokta yerine halka: .avatar'da overflow:hidden var (fotoğrafı daireye
+  kırpıyor), içine konan küçük bir işaret kenarda kırpılırdı. box-shadow
+  öğenin dışında kaldığı için kırpılmıyor.
+*/
+.avatar.cevrimici {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ok);
 }
 
 .badge {

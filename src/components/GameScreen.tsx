@@ -19,6 +19,8 @@ import {
 } from '../engine/state'
 import Certificate from './Certificate'
 import ConfirmDialog from './ConfirmDialog'
+import FriendsPanel from './FriendsPanel'
+import Linkli from './Linkli'
 import RoomPanel, { type BagliKisi } from './RoomPanel'
 import {
   birlesme,
@@ -189,6 +191,8 @@ export default function GameScreen({ config, onExit }: Props) {
   const [sadeceSes, setSadeceSes] = useState(false)
   const [gorusmeBekliyor, setGorusmeBekliyor] = useState(false)
   const [odaPanel, setOdaPanel] = useState(false)
+  /** Arkadaş listesi: kim sitede, mesaj ve odaya davet */
+  const [arkadasPanel, setArkadasPanel] = useState(false)
   /** Nasıl oynanır turu; ilk oyunda kendiliğinden açılır */
   const [tanitim, setTanitim] = useState(false)
   /** Bilgi/hata kutusu — tarayıcının alert'i yerine */
@@ -1087,10 +1091,26 @@ export default function GameScreen({ config, onExit }: Props) {
         {roomStatus !== 'idle' && (
           <button
             className={`icon-btn ${odaPanel ? 'on' : ''}`}
-            onClick={() => setOdaPanel((v) => !v)}
+            onClick={() => {
+              setOdaPanel((v) => !v)
+              setArkadasPanel(false)
+            }}
             title="Odadakiler"
           >
             👥
+          </button>
+        )}
+        {/* Arkadaş listesi yalnızca hesapla anlamlı; misafirde arkadaşlık yok */}
+        {hesap && (
+          <button
+            className={`icon-btn ${arkadasPanel ? 'on' : ''}`}
+            onClick={() => {
+              setArkadasPanel((v) => !v)
+              setOdaPanel(false)
+            }}
+            title="Arkadaşlar — mesaj gönder, odaya davet et"
+          >
+            🤝
           </button>
         )}
         {roomStatus !== 'idle' && (
@@ -1267,6 +1287,7 @@ export default function GameScreen({ config, onExit }: Props) {
         <Tutorial
           rotation={refs.current.rotation}
           odada={roomStatus !== 'idle'}
+          hesapVar={!!hesap}
           onKapat={() => setTanitim(false)}
         />
       )}
@@ -1289,6 +1310,10 @@ export default function GameScreen({ config, onExit }: Props) {
             })
           }}
         />
+      )}
+
+      {arkadasPanel && (
+        <FriendsPanel davetLinki={inviteLink} onKapat={() => setArkadasPanel(false)} />
       )}
 
       {chatAcik && (
@@ -1440,7 +1465,9 @@ function ChatPanel({
         {satirlar.map((s, i) => (
           <div key={i} className={`chat-satir ${s.benMi ? 'ben' : ''}`}>
             {!s.benMi && <small className="chat-ad">{s.ad}</small>}
-            <span className="chat-balon">{s.metin}</span>
+            <span className="chat-balon">
+              <Linkli metin={s.metin} />
+            </span>
           </div>
         ))}
         <div ref={sonRef} />

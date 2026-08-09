@@ -11,6 +11,8 @@ create table if not exists public.profiles (
   -- yaş yerine doğum yılı tutuluyor: her yıl güncellenmesi gerekmesin
   birth_year int check (birth_year between 1900 and 2100),
   gender text check (gender in ('kadin', 'erkek', 'diger', 'gizli')),
+  -- sitede en son ne zaman görüldü (arkadaş listesindeki "şu an sitede" ışığı)
+  last_seen timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -18,6 +20,7 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists avatar_path text;
 alter table public.profiles add column if not exists birth_year int;
 alter table public.profiles add column if not exists gender text;
+alter table public.profiles add column if not exists last_seen timestamptz;
 
 alter table public.profiles enable row level security;
 

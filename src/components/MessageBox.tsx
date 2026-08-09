@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import ConfirmDialog from './ConfirmDialog'
+import Linkli from './Linkli'
 import { basHarfler } from '../ad'
 import { hataMetni } from '../supabase/client'
 import {
@@ -103,7 +105,12 @@ export default function MessageBox({ kisi, onKapat }: Props) {
     })
   }
 
-  return (
+  /*
+    Pencere sayfanın köküne çiziliyor: oyun içindeki arkadaş panelinden de
+    açılıyor ve o panel backdrop-filter kullandığı için sabit konumlu çocuk
+    ekrana değil panele göre yerleşip kenardan taşıyor (bkz. ConfirmDialog).
+  */
+  return createPortal(
     <div className="modal-arka" onClick={onKapat}>
       <div className="mesaj-kutusu" onClick={(e) => e.stopPropagation()}>
         <header className="chat-head">
@@ -214,7 +221,9 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           )}
           {mesajlar.map((m) => (
             <div key={m.id} className={`chat-satir ${m.benMi ? 'ben' : ''}`}>
-              <span className="chat-balon">{m.metin}</span>
+              <span className="chat-balon">
+                <Linkli metin={m.metin} />
+              </span>
               <small className="chat-ad">
                 {saat(m.ts)}
                 {/* Rahatsız eden bir mesajı gelen kutundan kaldırabilirsin */}
@@ -279,6 +288,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
