@@ -90,20 +90,32 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
 - Tutamağa `touch-action: none` gerekiyor, yoksa dokunmatikte tarayıcı hareketi
   kaydırma sanıp `pointermove`'ları kesiyor. Sürükleme düğme/kutu üstünden
   başlamaz (`closest('button, input, …')`).
-- **Boyu değişebilen panelde `useBoyut`** (`surukle.ts`) kullanılır; şimdilik
-  yalnızca orijinal görselde var. Yalnızca **genişlik** saklanıyor, yükseklik
-  en-boy oranından geliyor; oran sürükleme başlarken panelden ölçülüyor, yani
-  hangi fotoğraf olduğunu bilmek gerekmiyor.
-  - Tutamak `pointerdown`'da `stopPropagation()` çağırıyor. Panelin tamamı
-    taşıma tutamağı olduğu için bu olmazsa köşeden çekmek paneli taşıyor.
-  - Üst sınır iki yandan geliyor: pencere genişliği ve **oranla genişliğe
-    çevrilmiş yükseklik**. İkincisi olmazsa yatay ekranda panel üst çubuğun
-    altına giriyor.
-  - Saklanan genişlik açılışta ve `resize`'da yeniden sınırlanıyor — küçük
-    ekranda açılan büyük panel taşmasın. Depoya yalnızca `pointerup`'ta
-    yazılıyor.
-  - ↺ hem yeri hem boyu sıfırlıyor; kullanıcı için tek bir "eski hâline dön"
-    var, iki ayrı düğmeye panelde yer de yok.
+- **Taşıma tutamağı `PanelBaslik`'tir, panelin tamamı değil.** Önce panelin
+  kendisi tutamak yapılmıştı; sürükleme düğme/video/kutu üstünden başlamadığı
+  için görüşme penceresinde iki kamera açıkken tutulacak boş yer kalmıyor,
+  panel dokunmatikte hiç taşınamıyordu. Her yüzen panel `PanelBaslik` ile
+  başlar: soldaki çift çizgi "buradan tut" işareti, çubuk en az 40 px.
+  Kapatma/geri döndürme düğmeleri de orada — içeriğin üstüne binmiyorlar.
+- **Panel içindeki görsel `useYakinlastir` ile büyür, panel büyümez**
+  (`surukle.ts`). İki parmak · fare tekerleği · çift dokunuş (1 ↔ 2,5 kat).
+  Önce paneli köşeden büyütmeyi denedik, kullanışlı bulunmadı.
+  - Tekerlek **elle** bağlanıyor (`addEventListener(..., { passive: false })`).
+    React kendi `onWheel`'ini kök öğeye passive takıyor, orada
+    `preventDefault()` çalışmıyor ve tekerlek sayfayı kaydırmaya devam ediyor.
+  - Çerçeve kendi dokunuşlarını tüketiyor (`stopPropagation`); görselin
+    üstünden panel taşınmıyor. Taşıma yalnızca başlık çubuğundan — dokunmatikte
+    tek belirsizlik buydu.
+  - Kaydırma sınırı görselin çerçeveden kaçmasını engelliyor: `x` daima
+    `[en - en*ölçek, 0]` aralığında.
+  - ↺ hem yeri hem yakınlaştırmayı sıfırlıyor; kullanıcı için tek bir "eski
+    hâline dön" var.
+- **Cihazın durum çubuğu için `env(safe-area-inset-*)` bırak.** `index.html`'de
+  `viewport-fit=cover` var; kurulu uygulamada (ve Android 15'in kenardan kenara
+  kipinde) saat ve bildirim simgeleri üst çubuğun üstüne biniyordu, düğmelere
+  basmak imkânsızdı. `.game-topbar` ve `.screen` üst dolgularını `calc(... +
+  env(safe-area-inset-top, 0px))` ile, yanları `max(..., env(...))` ile veriyor.
+  Tarayıcı sekmesinde bu değerler 0 — orada hiçbir şey değişmiyor, o yüzden
+  masaüstünde denemek bu hatayı **göstermez**.
 
 ## Çizim başarımı
 
@@ -258,11 +270,20 @@ denenmedi. Parantez içi, denemek için gereken şey.
 - [ ] Odadan çıkınca kameranın gerçekten bırakılması — cihazın ışığı sönüyor
       mu? Tarayıcı paneli `getUserMedia`'yı engellediği için tuvalden üretilen
       sahte akışla denendi, gerçek kamerayla denenmedi. (2026-08-06)
-- [ ] Panellerin parmakla sürüklenmesi ve orijinal görselin köşeden
-      büyütülmesi. Sentetik `pointerType: 'touch'` olaylarıyla çalışıyor;
-      gerçek dokunmatikte `touch-action: none` yeterli mi, sürükleme sayfayı
-      kaydırıyor mu görülmedi. Köşe tutamağı dokunmatikte 34 px (fare 24 px) —
-      parmakla tutulabiliyor mu ölçülmedi. (2026-08-09)
+- [ ] Panellerin başlık çubuğundan parmakla sürüklenmesi ve orijinal görselde
+      iki parmakla yakınlaştırma. Sentetik `pointerType: 'touch'` olaylarıyla
+      dördü de taşınıyor, kıskaç oranı birebir çıkıyor; gerçek dokunmatikte
+      `touch-action: none` yeterli mi, sürükleme sayfayı kaydırıyor mu
+      görülmedi. (2026-08-10)
+- [ ] **Güvenli alan dolgusu.** Tarayıcıda `env(safe-area-inset-*)` hep 0
+      olduğu için düzeltmenin işe yaradığı yalnızca gerçek cihazda, kurulu
+      uygulamada görülür. Beklenen: üst çubuk saatin/bildirimlerin altına
+      inmiyor. (2026-08-10)
+- [ ] **Android'de galeriye yönlenme.** `accept="image/*"` zaten doğruydu;
+      girdi `hidden` yerine ekran dışına alındı (bazı Android sürümleri
+      `display: none` girdide accept'i yok sayıyor). Tahmin — düzelmezse
+      seçici uygulamayı işletim sistemi belirliyor, cihazda "Dosyalar"
+      varsayılan yapılmış olabilir. (2026-08-10)
 - [ ] `hafifMod`'un doğru cihazlarda açılması. Ölçüt `hardwareConcurrency` ve
       `deviceMemory`; ikisi de kaba ipuçları, gerçek telefonlarda ne dediği
       bilinmiyor. Konsoldan `__puzzle.board.hafifMod` ile bakılır.

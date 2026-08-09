@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDil } from '../dil'
+import PanelBaslik from './PanelBaslik'
 import { useSurukle } from './surukle'
 
 interface Props {
@@ -127,16 +128,25 @@ export default function VideoPanel({
   onKapat,
 }: Props) {
   const { ceviri } = useDil()
-  // Görüşme penceresi her yerinden tutulup taşınabiliyor (düğmeler ve video
-  // öğeleri hariç) — telefonlardaki küçük görüşme penceresi gibi.
+  /*
+    Panel başlık çubuğundan taşınıyor. Önce panelin tamamı tutamaktı ama
+    sürükleme <video> ve düğme üstünden başlamıyor; iki kamera açıkken panelde
+    tutulacak boş yer kalmıyordu, dokunmatikte hiç taşınamıyordu.
+  */
   const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLElement>('video')
   return (
-    <aside
-      ref={kokRef}
-      style={stil}
-      className={`video-panel panel-tutamac ${sadeceSes ? 'sesli' : ''}`}
-      {...tutamac}
-    >
+    <aside ref={kokRef} style={stil} className={`video-panel ${sadeceSes ? 'sesli' : ''}`}>
+      <PanelBaslik baslik={ceviri('Görüşme')} tutamac={tutamac}>
+        {tasindi && (
+          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+            ↺
+          </button>
+        )}
+        <button className="icon-btn" onClick={onKapat} title={ceviri('Görüşmeyi bitir')}>
+          ✕
+        </button>
+      </PanelBaslik>
+
       <div className="video-grid">
         {[...uzaklar.entries()].map(([id, akis]) => (
           <div key={id} className="video-kutu">
@@ -184,14 +194,6 @@ export default function VideoPanel({
         >
           {sesAcik ? '🎤' : '🔇'}
         </button>
-        <button className="icon-btn" onClick={onKapat} title={ceviri('Görüşmeyi bitir')}>
-          ✕
-        </button>
-        {tasindi && (
-          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
-            ↺
-          </button>
-        )}
       </div>
     </aside>
   )

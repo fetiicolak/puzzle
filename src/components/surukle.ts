@@ -63,151 +63,6 @@ function sinirla(x: number, y: number, en: number): Konum {
   }
 }
 
-/** En küçük panel genişliği — altında görsel tanınmaz oluyor */
-const EN_AZ_EN = 140
-
-function boyOku(ad: string): number | null {
-  try {
-    const ham = localStorage.getItem(anahtar(`${ad}-boy`))
-    if (!ham) return null
-    const n = Number(ham)
-    return Number.isFinite(n) && n >= EN_AZ_EN ? n : null
-  } catch {
-    return null
-  }
-}
-
-function boyYaz(ad: string, en: number | null): void {
-  try {
-    if (en) localStorage.setItem(anahtar(`${ad}-boy`), String(Math.round(en)))
-    else localStorage.removeItem(anahtar(`${ad}-boy`))
-  } catch {
-    // depolama kapalıysa boyut bu oturumda tutulur, kalıcı olmaz
-  }
-}
-
-export interface BoyutDurumu {
-  /** Kullanıcının seçtiği genişlik; seçmediyse null (CSS varsayılanı geçerli) */
-  genislik: number | null
-  /** Köşedeki tutamağa yayılır */
-  boyTutamac: {
-    onPointerDown: (e: ReactPointerEvent) => void
-    onPointerMove: (e: ReactPointerEvent) => void
-    onPointerUp: (e: ReactPointerEvent) => void
-    onPointerCancel: (e: ReactPointerEvent) => void
-  }
-  /** Boyut varsayılandan farklı mı */
-  boyVar: boolean
-  boySifirla: () => void
-}
-
-/**
- * Panelin köşesinden çekilerek büyütülmesi.
- *
- * Yalnızca genişlik tutuluyor: içerik (orijinal görsel) `width: 100%` olduğu
- * için yükseklik en-boy oranıyla kendiliğinden geliyor. Oran, sürükleme
- * başladığı anda panelin kendisinden ölçülüyor — hangi fotoğraf olduğunu
- * bilmeye gerek kalmıyor.
- *
- * @param ad `useSurukle` ile aynı ad verilir; anahtar `-boy` ekiyle ayrılıyor.
- */
-export function useBoyut<T extends HTMLElement>(
-  ad: string,
-  kokRef: React.RefObject<T | null>,
-): BoyutDurumu {
-  const [genislik, setGenislik] = useState<number | null>(() => boyOku(ad))
-  const kavramaRef = useRef<{ x: number; y: number; en: number; oran: number } | null>(null)
-
-  const enSinirla = useCallback((en: number, oran: number) => {
-    // Yükseklik sınırı orana göre genişlik sınırına çevriliyor; oran 0 ise
-    // (görsel henüz yüklenmemiş) yalnızca pencere genişliği sınırlıyor.
-    const enBuyuk = Math.min(
-      window.innerWidth - 2 * PAY,
-      oran > 0 ? (window.innerHeight - ustSinir() - PAY) / oran : Infinity,
-    )
-    return Math.round(Math.min(Math.max(EN_AZ_EN, en), Math.max(EN_AZ_EN, enBuyuk)))
-  }, [])
-
-  // Saklanan genişlik, ekran o zamandan beri küçüldüyse taşıyor olabilir
-  useEffect(() => {
-    const ayarla = () => {
-      const kok = kokRef.current
-      if (!kok) return
-      const r = kok.getBoundingClientRect()
-      if (!r.width) return
-      const oran = r.height / r.width
-      setGenislik((g) => (g === null ? g : enSinirla(g, oran)))
-    }
-    ayarla()
-    window.addEventListener('resize', ayarla)
-    return () => window.removeEventListener('resize', ayarla)
-  }, [kokRef, enSinirla])
-
-  const onPointerDown = useCallback(
-    (e: ReactPointerEvent) => {
-      const kok = kokRef.current
-      if (!kok) return
-      const r = kok.getBoundingClientRect()
-      kavramaRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-        en: r.width,
-        oran: r.width ? r.height / r.width : 0,
-      }
-      try {
-        ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-      } catch {
-        // yakalanamazsa yeniden boyutlandırma yine çalışır
-      }
-      e.preventDefault()
-      // Panelin tamamı sürükleme tutamağı; köşedeki dokunuş taşımaya dönüşmesin
-      e.stopPropagation()
-    },
-    [kokRef],
-  )
-
-  const onPointerMove = useCallback(
-    (e: ReactPointerEvent) => {
-      const k = kavramaRef.current
-      if (!k) return
-      // Köşe çapraz çekiliyor: yatay ve dikey hareketin büyüğü kazanıyor,
-      // böylece aşağı doğru çekmek de büyütüyor.
-      const yatay = e.clientX - k.x
-      const dikey = k.oran ? (e.clientY - k.y) / k.oran : 0
-      const d = Math.abs(yatay) >= Math.abs(dikey) ? yatay : dikey
-      setGenislik(enSinirla(k.en + d, k.oran))
-    },
-    [enSinirla],
-  )
-
-  const boyBitir = useCallback(() => {
-    if (!kavramaRef.current) return
-    kavramaRef.current = null
-    setGenislik((g) => {
-      boyYaz(ad, g)
-      return g
-    })
-  }, [ad])
-
-  const boySifirla = useCallback(() => {
-    kavramaRef.current = null
-    setGenislik(null)
-    boyYaz(ad, null)
-  }, [ad])
-
-  return {
-    genislik,
-    boyTutamac: {
-      onPointerDown,
-      onPointerMove,
-      onPointerUp: boyBitir,
-      onPointerCancel: boyBitir,
-    },
-    boyVar: genislik !== null,
-    boySifirla,
-  }
-}
-
 export interface SurukleDurumu<T extends HTMLElement> {
   /** Panelin kök öğesine verilir */
   kokRef: React.RefObject<T | null>
@@ -314,5 +169,232 @@ export function useSurukle<T extends HTMLElement>(ad: string): SurukleDurumu<T> 
     },
     tasindi: konum !== null,
     sifirla,
+  }
+}
+
+// --------------------------------------------------------------- yakınlaştırma
+
+/** Görselin en fazla kaç kat büyütülebileceği */
+const EN_COK_OLCEK = 6
+/** Çift dokunuşun götürdüğü ara kademe */
+const CIFT_DOKUNUS_OLCEGI = 2.5
+
+interface Zum {
+  olcek: number
+  x: number
+  y: number
+}
+
+const BASLANGIC: Zum = { olcek: 1, x: 0, y: 0 }
+
+export interface YakinlastirDurumu<T extends HTMLElement> {
+  /** Görseli saran, taşmayı kesen çerçeveye verilir */
+  cerceveRef: React.RefObject<T | null>
+  /** Görselin kendisine verilir */
+  gorselStil: CSSProperties
+  /** Çerçeveye yayılır */
+  tutamac: {
+    onPointerDown: (e: ReactPointerEvent) => void
+    onPointerMove: (e: ReactPointerEvent) => void
+    onPointerUp: (e: ReactPointerEvent) => void
+    onPointerCancel: (e: ReactPointerEvent) => void
+  }
+  /** Görsel büyütülmüş durumda mı */
+  yakin: boolean
+  zumSifirla: () => void
+}
+
+/**
+ * Panel içindeki görseli yakınlaştırma.
+ *
+ * Panelin boyu sabit kalıyor, büyüyen görselin kendisi: telefonda iki parmak,
+ * farede kaydırma tekerleği, her ikisinde çift dokunuş. Önce paneli köşesinden
+ * büyütmeyi denemiştik, kullanışlı bulunmadı — küçük bir pencerede parçayı
+ * ayırt etmek için gereken şey panelin büyümesi değil, görselin yakınlaşması.
+ *
+ * Çerçeve kendi dokunuşlarını tüketiyor (`stopPropagation`), yani görselin
+ * üstünden panel taşınmıyor. Panel yalnızca başlık çubuğundan taşınıyor;
+ * ikisinin ayrı olması dokunmatikte tek belirsizliği ortadan kaldırıyor.
+ */
+export function useYakinlastir<T extends HTMLElement>(): YakinlastirDurumu<T> {
+  const cerceveRef = useRef<T | null>(null)
+  const [zum, setZum] = useState<Zum>(BASLANGIC)
+  // aynı anda ekrandaki parmaklar (fare tek "parmak" sayılır)
+  const parmaklarRef = useRef(new Map<number, { x: number; y: number }>())
+  const kiskacRef = useRef<{ mesafe: number; x: number; y: number } | null>(null)
+  const dokunusRef = useRef<{ zaman: number; x: number; y: number } | null>(null)
+
+  /** Görselin çerçeveden dışarı kaçmasını engelle */
+  const sinirlaZum = useCallback((z: Zum): Zum => {
+    const c = cerceveRef.current
+    if (!c) return z
+    const r = c.getBoundingClientRect()
+    // görsel 1 katta çerçeveyi tam dolduruyor: taşma payı (olcek - 1) kadar
+    const enAzX = r.width - r.width * z.olcek
+    const enAzY = r.height - r.height * z.olcek
+    return {
+      olcek: z.olcek,
+      x: Math.min(0, Math.max(enAzX, z.x)),
+      y: Math.min(0, Math.max(enAzY, z.y)),
+    }
+  }, [])
+
+  /** İmleç/parmak nerede duruyorsa orayı sabit tutarak ölçekle */
+  const noktadaOlcekle = useCallback(
+    (px: number, py: number, carpan: number) => {
+      setZum((z) => {
+        const yeni = Math.min(EN_COK_OLCEK, Math.max(1, z.olcek * carpan))
+        const f = yeni / z.olcek
+        return sinirlaZum({
+          olcek: yeni,
+          x: px - (px - z.x) * f,
+          y: py - (py - z.y) * f,
+        })
+      })
+    },
+    [sinirlaZum],
+  )
+
+  /** Olay konumunu çerçevenin sol üstüne göre ver */
+  const yerel = useCallback((x: number, y: number) => {
+    const c = cerceveRef.current
+    if (!c) return { x, y }
+    const r = c.getBoundingClientRect()
+    return { x: x - r.left, y: y - r.top }
+  }, [])
+
+  const zumSifirla = useCallback(() => {
+    kiskacRef.current = null
+    setZum(BASLANGIC)
+  }, [])
+
+  /*
+    Tekerlek elle bağlanıyor: React kendi `onWheel` dinleyicisini kök öğeye
+    passive olarak takıyor, orada preventDefault çağrılamıyor ve tekerlek
+    sayfayı kaydırmaya devam ediyor.
+  */
+  useEffect(() => {
+    const c = cerceveRef.current
+    if (!c) return
+    const tekerlek = (e: WheelEvent) => {
+      e.preventDefault()
+      const n = yerel(e.clientX, e.clientY)
+      noktadaOlcekle(n.x, n.y, Math.exp(-e.deltaY * 0.0016))
+    }
+    c.addEventListener('wheel', tekerlek, { passive: false })
+    return () => c.removeEventListener('wheel', tekerlek)
+  }, [noktadaOlcekle, yerel])
+
+  // Panel/pencere boyu değişince görsel çerçevenin dışında kalmış olabilir
+  useEffect(() => {
+    const ayarla = () => setZum((z) => sinirlaZum(z))
+    window.addEventListener('resize', ayarla)
+    return () => window.removeEventListener('resize', ayarla)
+  }, [sinirlaZum])
+
+  const onPointerDown = useCallback((e: ReactPointerEvent) => {
+    parmaklarRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (parmaklarRef.current.size === 2) {
+      const [a, b] = [...parmaklarRef.current.values()]
+      kiskacRef.current = {
+        mesafe: Math.hypot(a.x - b.x, a.y - b.y),
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2,
+      }
+    }
+    try {
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    } catch {
+      // yakalanamazsa yakınlaştırma yine çalışır
+    }
+    e.preventDefault()
+    // Görselin üstü kendi bölgesi: buradaki dokunuş paneli taşımasın
+    e.stopPropagation()
+  }, [])
+
+  const onPointerMove = useCallback(
+    (e: ReactPointerEvent) => {
+      const parmaklar = parmaklarRef.current
+      const onceki = parmaklar.get(e.pointerId)
+      if (!onceki) return
+      parmaklar.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (parmaklar.size >= 2) {
+        const [a, b] = [...parmaklar.values()]
+        const mesafe = Math.hypot(a.x - b.x, a.y - b.y)
+        const orta = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+        const k = kiskacRef.current
+        kiskacRef.current = { mesafe, ...orta }
+        if (!k || k.mesafe <= 0) return
+        // iki parmak birlikte kayarsa görsel de kaysın
+        const kayma = { x: orta.x - k.x, y: orta.y - k.y }
+        const n = yerel(orta.x, orta.y)
+        setZum((z) => sinirlaZum({ ...z, x: z.x + kayma.x, y: z.y + kayma.y }))
+        noktadaOlcekle(n.x, n.y, mesafe / k.mesafe)
+        return
+      }
+
+      // tek parmak: yalnızca yakınlaşmışken kaydırmak anlamlı
+      setZum((z) =>
+        z.olcek <= 1
+          ? z
+          : sinirlaZum({
+              ...z,
+              x: z.x + (e.clientX - onceki.x),
+              y: z.y + (e.clientY - onceki.y),
+            }),
+      )
+    },
+    [noktadaOlcekle, sinirlaZum, yerel],
+  )
+
+  const bitir = useCallback(
+    (e: ReactPointerEvent) => {
+      const parmaklar = parmaklarRef.current
+      const bas = parmaklar.get(e.pointerId)
+      parmaklar.delete(e.pointerId)
+      if (parmaklar.size < 2) kiskacRef.current = null
+      if (!bas) return
+
+      /*
+        Çift dokunuş elle sayılıyor: `dblclick` dokunmatikte her tarayıcıda
+        çıkmıyor. Parmak kaymışsa (kaydırma) dokunuş sayılmıyor.
+      */
+      const simdi = Date.now()
+      const onceki = dokunusRef.current
+      const kaydi = Math.hypot(e.clientX - bas.x, e.clientY - bas.y) > 10
+      dokunusRef.current = kaydi ? null : { zaman: simdi, x: e.clientX, y: e.clientY }
+      if (
+        !kaydi &&
+        onceki &&
+        simdi - onceki.zaman < 320 &&
+        Math.hypot(e.clientX - onceki.x, e.clientY - onceki.y) < 24
+      ) {
+        dokunusRef.current = null
+        const n = yerel(e.clientX, e.clientY)
+        setZum((z) => {
+          if (z.olcek > 1) return BASLANGIC
+          const f = CIFT_DOKUNUS_OLCEGI
+          return sinirlaZum({ olcek: f, x: n.x - n.x * f, y: n.y - n.y * f })
+        })
+      }
+    },
+    [sinirlaZum, yerel],
+  )
+
+  return {
+    cerceveRef,
+    gorselStil: {
+      transform: `translate(${zum.x}px, ${zum.y}px) scale(${zum.olcek})`,
+      transformOrigin: '0 0',
+    },
+    tutamac: {
+      onPointerDown,
+      onPointerMove,
+      onPointerUp: bitir,
+      onPointerCancel: bitir,
+    },
+    yakin: zum.olcek > 1,
+    zumSifirla,
   }
 }

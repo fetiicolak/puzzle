@@ -3,6 +3,7 @@ import ConfirmDialog from './ConfirmDialog'
 import { basHarfler } from '../ad'
 import { useDil } from '../dil'
 import { avatarUrlleri } from '../supabase/profile'
+import PanelBaslik from './PanelBaslik'
 import { useSurukle } from './surukle'
 import { odaKatilimcilari, oyuncuCikar, yetkiAyarla, type OdaKisisi } from '../supabase/room'
 
@@ -103,9 +104,7 @@ export default function RoomPanel({
 
   return (
     <aside ref={kokRef} style={stil} className="oda-panel">
-      <header className="chat-head panel-tutamac" {...tutamac}>
-        <b>{ceviri('Odadakiler')}</b>
-        <span className="spacer" />
+      <PanelBaslik baslik={ceviri('Odadakiler')} tutamac={tutamac}>
         {tasindi && (
           <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
             ↺
@@ -114,7 +113,7 @@ export default function RoomPanel({
         <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
           ✕
         </button>
-      </header>
+      </PanelBaslik>
 
       {cikarilacak && (
         <ConfirmDialog

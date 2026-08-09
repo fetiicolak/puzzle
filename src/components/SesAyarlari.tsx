@@ -6,6 +6,7 @@ import {
   muzikSeviyesi,
   muzikSeviyesiAyarla,
 } from '../audio'
+import PanelBaslik from './PanelBaslik'
 import { useSurukle } from './surukle'
 
 interface Props {
@@ -34,9 +35,7 @@ export default function SesAyarlari({ sesler, muzik, onSesler, onMuzik, onKapat 
 
   return (
     <aside ref={kokRef} style={stil} className="ses-panel">
-      <header className="chat-head panel-tutamac" {...tutamac}>
-        <b>{ceviri('Ses')}</b>
-        <span className="spacer" />
+      <PanelBaslik baslik={ceviri('Ses')} tutamac={tutamac}>
         {tasindi && (
           <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
             ↺
@@ -45,7 +44,7 @@ export default function SesAyarlari({ sesler, muzik, onSesler, onMuzik, onKapat 
         <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
           ✕
         </button>
-      </header>
+      </PanelBaslik>
 
       <div className="ses-satir">
         <button

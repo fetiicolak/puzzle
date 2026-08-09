@@ -36,7 +36,8 @@ import {
 } from '../audio'
 import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
-import { useBoyut, useSurukle } from './surukle'
+import PanelBaslik from './PanelBaslik'
+import { useSurukle, useYakinlastir } from './surukle'
 import {
   baglantiTesti,
   relayKullanilabilir,
@@ -1493,9 +1494,10 @@ export default function GameScreen({ config, onExit }: Props) {
 /**
  * Orijinal görselin köşedeki önizlemesi.
  *
- * Eskiden görselin kendisi bir düğmeydi ve tıklayınca kapanıyordu; şimdi
- * taşınabilir olduğu için tıklama ile sürükleme birbirine karışıyordu.
- * Kapatma ayrı bir düğmeye alındı.
+ * Düğmeler görselin üstünde duruyordu ve fotoğrafın o köşesini kapatıyordu;
+ * artık ayrı bir başlık çubuğundalar. Çubuk aynı zamanda taşıma tutamağı:
+ * görselin kendisi yakınlaştırmaya ayrıldığı için taşıma ile yakınlaştırma
+ * birbirine karışmıyor.
  */
 function OrijinalPanel({
   gorsel,
@@ -1508,27 +1510,26 @@ function OrijinalPanel({
 }) {
   const { ceviri } = useDil()
   const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLDivElement>('orijinal')
-  const { genislik, boyTutamac, boyVar, boySifirla } = useBoyut('orijinal', kokRef)
+  const { cerceveRef, gorselStil, tutamac: zumTutamac, yakin, zumSifirla } =
+    useYakinlastir<HTMLDivElement>()
 
-  // ↺ hem yeri hem boyu varsayılana döndürsün: kullanıcı için tek bir "eski
-  // hâline dön" var, ikisi ayrı düğme olsa panelde yer de kalmıyor.
+  // ↺ hem yeri hem yakınlaştırmayı varsayılana döndürsün: kullanıcı için tek
+  // bir "eski hâline dön" var, ikisi ayrı düğme olsa panelde yer de kalmıyor.
   const hepsiniSifirla = () => {
     sifirla()
-    boySifirla()
+    zumSifirla()
   }
 
   return (
     <div
       ref={kokRef}
-      style={genislik ? { ...stil, width: genislik } : stil}
+      style={stil}
       // kaydir yalnızca dar ekranda iş görüyor: geniş ekranda sohbet sağ
       // altta, önizleme sol altta duruyor ve çakışmıyorlar
-      className={`peek panel-tutamac ${chatAcik && !tasindi ? 'kaydir' : ''}`}
-      {...tutamac}
+      className={`peek ${chatAcik && !tasindi ? 'kaydir' : ''}`}
     >
-      <img src={gorsel} alt={ceviri('Orijinal')} draggable={false} />
-      <div className="peek-araclar">
-        {(tasindi || boyVar) && (
+      <PanelBaslik baslik={ceviri('Orijinal')} tutamac={tutamac}>
+        {(tasindi || yakin) && (
           <button className="icon-btn" onClick={hepsiniSifirla} title={ceviri('Yerine döndür')}>
             ↺
           </button>
@@ -1536,8 +1537,15 @@ function OrijinalPanel({
         <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
           ✕
         </button>
+      </PanelBaslik>
+      <div
+        ref={cerceveRef}
+        className="peek-cerceve"
+        title={ceviri('İki parmakla ya da tekerlekle yakınlaştır')}
+        {...zumTutamac}
+      >
+        <img src={gorsel} alt={ceviri('Orijinal')} style={gorselStil} draggable={false} />
       </div>
-      <div className="boy-tutamac" title={ceviri('Köşeden çekerek büyült')} {...boyTutamac} />
     </div>
   )
 }
@@ -1568,9 +1576,7 @@ function ChatPanel({
 
   return (
     <aside ref={kokRef} style={stil} className="chat">
-      <header className="chat-head panel-tutamac" {...tutamac}>
-        <b>{ceviri('Sohbet')}</b>
-        <span className="spacer" />
+      <PanelBaslik baslik={ceviri('Sohbet')} tutamac={tutamac}>
         {tasindi && (
           <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
             ↺
@@ -1579,7 +1585,7 @@ function ChatPanel({
         <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
           ✕
         </button>
-      </header>
+      </PanelBaslik>
 
       <div className="chat-body">
         {satirlar.length === 0 && (

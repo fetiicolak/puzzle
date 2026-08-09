@@ -482,7 +482,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         ref={fileRef}
         type="file"
         accept="image/*"
-        hidden
+        className="dosya-girisi"
         onChange={(e) => {
           const f = e.target.files?.[0]
           if (f) void pick(f)

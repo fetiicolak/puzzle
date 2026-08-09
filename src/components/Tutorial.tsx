@@ -103,8 +103,9 @@ function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim
   adimlar.push({
     simge: '🪟',
     baslik: 'Pencereleri istediğin yere koy',
-    metin:
-      'Kameralar, sohbet ve orijinal görsel taşınabilir: başlığından tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner. Orijinal görseli sağ alt köşesinden çekerek büyütebilirsin.',
+    metin: dokunmatik
+      ? 'Kameralar, sohbet ve orijinal görsel taşınabilir: başlık çubuğundan tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner. Orijinal görselde iki parmakla yakınlaştırabilir, çift dokunuşla eski hâline döndürebilirsin.'
+      : 'Kameralar, sohbet ve orijinal görsel taşınabilir: başlık çubuğundan tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner. Orijinal görselde fare tekerleğiyle yakınlaştırabilir, çift tıklayarak eski hâline döndürebilirsin.',
   })
 
   return adimlar

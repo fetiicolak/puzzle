@@ -126,9 +126,12 @@ export const SOZLUK: Record<string, string> = {
   'Yerine döndür': 'Move back',
   Orijinal: 'Original',
   'Pencereleri istediğin yere koy': 'Put the windows where you like',
-  'Kameralar, sohbet ve orijinal görsel taşınabilir: başlığından tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner. Orijinal görseli sağ alt köşesinden çekerek büyütebilirsin.':
-    'The cameras, the chat and the original picture can be moved: grab one by its header and drag it anywhere. Where you leave it is remembered, and ↺ sends it back. You can enlarge the original picture by pulling its bottom-right corner.',
-  'Köşeden çekerek büyült': 'Drag the corner to resize',
+  'Kameralar, sohbet ve orijinal görsel taşınabilir: başlık çubuğundan tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner. Orijinal görselde iki parmakla yakınlaştırabilir, çift dokunuşla eski hâline döndürebilirsin.':
+    'The cameras, the chat and the original picture can be moved: grab one by its title bar and drag it anywhere. Where you leave it is remembered, and ↺ sends it back. Pinch with two fingers to zoom into the original picture, double-tap to reset it.',
+  'Kameralar, sohbet ve orijinal görsel taşınabilir: başlık çubuğundan tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner. Orijinal görselde fare tekerleğiyle yakınlaştırabilir, çift tıklayarak eski hâline döndürebilirsin.':
+    'The cameras, the chat and the original picture can be moved: grab one by its title bar and drag it anywhere. Where you leave it is remembered, and ↺ sends it back. Use the mouse wheel to zoom into the original picture, double-click to reset it.',
+  'İki parmakla ya da tekerlekle yakınlaştır': 'Pinch or scroll to zoom',
+  Görüşme: 'Call',
 
   // ------------------------------------------------------------ tanıtım turu
   'Parçayı sürükle': 'Drag a piece',

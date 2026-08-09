@@ -222,7 +222,9 @@ button {
   width: 100%;
   max-width: 760px;
   margin: 0 auto;
-  padding: 22px 20px 64px;
+  /* üstteki durum çubuğu ve alttaki gezinme çubuğu için pay — bkz. .game-topbar */
+  padding: calc(22px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px))
+    calc(64px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
 }
 .screen-center {
   justify-content: center;
@@ -1626,8 +1628,8 @@ button {
   max-height: calc(45vh - 45px);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  /* başlık çubuğu kenardan kenara; iç boşluk alttaki bölümlerde */
+  overflow: hidden;
   /*
     Burada backdrop-filter yok. Zemin zaten %96 opak, bulanıklık neredeyse
     görünmüyordu; buna karşılık panelin arkasındaki tuval her karede
@@ -1648,6 +1650,7 @@ button {
   gap: 6px;
   min-height: 0;
   overflow-y: auto;
+  padding: 8px 8px 0;
 }
 .video-kutu {
   position: relative;
@@ -1728,6 +1731,8 @@ button {
   display: flex;
   gap: 5px;
   justify-content: center;
+  padding: 8px;
+  flex: none;
 }
 
 @media (max-width: 700px) {
@@ -1743,7 +1748,7 @@ button {
 .chat {
   position: absolute;
   right: 12px;
-  bottom: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   width: min(88vw, 320px);
   /* kameralarla toplamı ekranı taşmasın — bkz. .video-panel */
   max-height: min(calc(55vh - 45px), 460px);
@@ -1774,6 +1779,22 @@ button {
   Panellerin tutulup taşınabilen kısmı. touch-action: none olmadan dokunmatikte
   tarayıcı hareketi kaydırma sanıp pointermove'ları kesiyor.
 */
+/*
+  Dosya seçici görünmüyor ama çizimden çıkarılmıyor.
+
+  `hidden` (display: none) verilen girdide bazı Android sürümleri accept'i
+  yok sayıp galeri yerine doğrudan dosya yöneticisini açıyor. Ekran dışına
+  taşımak aynı görsel sonucu veriyor, girdi ise çizimde kalıyor.
+*/
+.dosya-girisi {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .panel-tutamac {
   cursor: move;
   touch-action: none;
@@ -1783,6 +1804,43 @@ button {
 /* düğmeler tutamağın içinde de olsa kendi imleçlerini korusun */
 .panel-tutamac button {
   cursor: pointer;
+}
+
+/*
+  Yüzen panellerin başlık çubuğu. Tek taşıma tutamağı burası: panelin tamamı
+  tutamak yapıldığında sürükleme video/düğme üstünden başlamadığı için iki
+  kamera açıkken tutulacak yer kalmıyordu.
+*/
+.panel-baslik {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* parmakla tutulabilecek yükseklik */
+  min-height: 40px;
+  padding: 6px 8px 6px 10px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.panel-baslik-ad {
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.panel-baslik .spacer {
+  flex: 1;
+}
+/* "buradan tut" işareti — iki kısa çizgi */
+.panel-tut {
+  width: 12px;
+  height: 14px;
+  flex: none;
+  background-image: linear-gradient(var(--muted), var(--muted)),
+    linear-gradient(var(--muted), var(--muted));
+  background-size: 12px 2px;
+  background-position: 0 4px, 0 8px;
+  background-repeat: no-repeat;
+  opacity: 0.65;
 }
 .chat-body {
   flex: 1;
@@ -2059,11 +2117,20 @@ button {
   background: var(--bg-2);
 }
 
+/*
+  Üst çubuk cihazın durum çubuğunun altında kalmasın.
+
+  viewport-fit=cover ile sayfa ekranın tamamına yayılıyor; kurulu uygulamada
+  (ve Android 15'in kenardan kenara kipinde) saat ve bildirim simgeleri
+  içeriğin üstüne biniyor, düğmelere basmak imkânsız hâle geliyordu. Tarayıcı
+  sekmesinde bu değerler 0 — orada hiçbir şey değişmiyor.
+*/
 .game-topbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 11px;
+  padding: calc(9px + env(safe-area-inset-top, 0px)) max(11px, env(safe-area-inset-right, 0px))
+    9px max(11px, env(safe-area-inset-left, 0px));
   background: rgba(18, 14, 26, 0.82);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -2219,7 +2286,7 @@ button {
 .peek {
   position: absolute;
   left: 14px;
-  bottom: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   width: min(30vw, 230px);
   padding: 0;
   border-radius: var(--radius);
@@ -2230,61 +2297,24 @@ button {
   background: var(--bg);
   animation: pop 0.22s ease;
 }
+/*
+  Görselin yakınlaştırma bölgesi. Taşmayı burası kesiyor; büyüyen şey panel
+  değil, içindeki görsel. touch-action: none olmadan iki parmak hareketini
+  tarayıcı sayfa yakınlaştırması sanıyor.
+*/
+.peek-cerceve {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  cursor: zoom-in;
+  line-height: 0;
+}
 .peek img {
   width: 100%;
   display: block;
-  /* tarayıcının kendi görsel sürüklemesi panelin sürüklenmesini bozuyor */
+  /* tarayıcının kendi görsel sürüklemesi yakınlaştırmayı bozuyor */
   -webkit-user-drag: none;
   user-select: none;
-}
-.peek-araclar {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  display: flex;
-  gap: 4px;
-}
-.peek-araclar .icon-btn {
-  background: rgba(18, 14, 26, 0.82);
-}
-/*
-  Sağ alt köşeden çekerek büyütme tutamağı. Panelin tamamı taşıma tutamağı
-  olduğu için buradaki pointerdown yayılmayı durduruyor (bkz. useBoyut).
-*/
-.boy-tutamac {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 24px;
-  height: 24px;
-  cursor: nwse-resize;
-  touch-action: none;
-  background: rgba(18, 14, 26, 0.82);
-  border-top-left-radius: 8px;
-}
-.boy-tutamac::before,
-.boy-tutamac::after {
-  content: '';
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.72);
-  border-right: 2px solid rgba(255, 255, 255, 0.72);
-}
-.boy-tutamac::before {
-  width: 12px;
-  height: 12px;
-}
-.boy-tutamac::after {
-  width: 6px;
-  height: 6px;
-}
-/* parmakla tutulabilecek kadar büyük olsun */
-@media (pointer: coarse) {
-  .boy-tutamac {
-    width: 34px;
-    height: 34px;
-  }
 }
 @media (max-width: 700px) {
   /*
@@ -2499,7 +2529,8 @@ button {
 
 @media (max-width: 420px) {
   .screen {
-    padding: 16px 15px 52px;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 15px
+      calc(52px + env(safe-area-inset-bottom, 0px));
     gap: 15px;
   }
   .game-topbar {
@@ -2561,6 +2592,14 @@ button {
   }
   .peek {
     width: 42vw;
+  }
+  /*
+    Dar telefonda önizleme ve görüşme penceresi 120-160 px; başlık metni
+    düğmelerle yarışıyor. Tutamak çizgisi ile ✕ kalsın yeter.
+  */
+  .peek .panel-baslik-ad,
+  .video-panel .panel-baslik-ad {
+    display: none;
   }
   .sample-grid {
     grid-template-columns: repeat(2, 1fr);

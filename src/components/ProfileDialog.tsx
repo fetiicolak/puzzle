@@ -181,7 +181,7 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
                 ref={dosyaRef}
                 type="file"
                 accept="image/*"
-                hidden
+                className="dosya-girisi"
                 onChange={(e) => {
                   const f = e.target.files?.[0]
                   if (f) void fotoSec(f)
