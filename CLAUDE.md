@@ -200,19 +200,44 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
 
 Bittikçe buradan sil. Sıra kabaca öncelik sırası.
 
+**Bu liste her turda güncellenir.** Bir iş bitip doğrulandıysa satırı sil; bir
+şey yazılıp da denenemediyse "Doğrulanmamış"a ekle, neyin eksik olduğunu ve
+tarihi yaz. "Herhalde çalışır" diye sessizce geçme — denenmemiş iş bitmiş
+sayılmıyor.
+
 **Kullanıcıda (kod işi değil)**
 - [ ] SMTP sağlayıcısı bağla (Resend/Brevo) — şifre sıfırlama bunsuz çalışmıyor
 - [ ] Supabase → URL Configuration → izinli yönlendirmelere site adresini ekle
 - [ ] `b@gmail.com` tekrar açılamıyor; hata metni alınacak
 - [ ] Depolama kotası kararı: 1 GB ≈ 200-700 fotoğraf, dolunca ne olacak
 
-**Doğrulanmamış**
+**Doğrulanmamış** — kod yazıldı, `tsc`/test/build temiz, ama şu koşulda hiç
+denenmedi. Parantez içi, denemek için gereken şey.
+
+*Gerçek cihaz gerekiyor (tarayıcı paneli yetmiyor)*
+- [ ] Başarım: 200 / 300 / 500 parça, kamera açıkken, zayıf bir tablet ya da
+      telefonda. Ölçümler geliştirme makinesinde yapıldı; oran korunmalı ama
+      gerçek kare hızı bilinmiyor. (2026-08-09'da eklendi)
+- [ ] Odadan çıkınca kameranın gerçekten bırakılması — cihazın ışığı sönüyor
+      mu? Tarayıcı paneli `getUserMedia`'yı engellediği için tuvalden üretilen
+      sahte akışla denendi, gerçek kamerayla denenmedi. (2026-08-06)
+- [ ] Panellerin parmakla sürüklenmesi. Sentetik `pointerType: 'touch'`
+      olaylarıyla çalışıyor; gerçek dokunmatikte `touch-action: none` yeterli
+      mi, sürükleme sayfayı kaydırıyor mu görülmedi. (2026-08-09)
+- [ ] `hafifMod`'un doğru cihazlarda açılması. Ölçüt `hardwareConcurrency` ve
+      `deviceMemory`; ikisi de kaba ipuçları, gerçek telefonlarda ne dediği
+      bilinmiyor. Konsoldan `__puzzle.board.hafifMod` ile bakılır.
+
+*İki hesap gerekiyor*
 - [ ] A5 uçtan uca test: hız sınırı, engelleme, şikayet, alıcının mesaj silmesi
-      (iki hesap gerekiyor)
 - [ ] Oyun içi arkadaş paneli (🤝): "şu an sitede" ışığı, mesaj kutusu ve
-      "Davet et" ile giden davet mesajı (iki hesap gerekiyor)
+      "Davet et" ile giden davet mesajı
 - [ ] Ana ekrandaki Mesajlar bölümü: önizleme, okunmamış rozeti ve sıralama
-      (iki hesap gerekiyor)
+
+*Bilinen, kabul edilmiş sınır (düzeltilecekse iş var)*
+- [ ] 390 px genişlikte "Odadakiler" paneli (320 px) ile kamera paneli yan yana
+      sığmıyor, üst üste biniyor. Odadakiler üstte ve geçici; şimdilik
+      bırakıldı. Tablette ve masaüstünde sorun yok.
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)
@@ -220,8 +245,8 @@ Bittikçe buradan sil. Sıra kabaca öncelik sırası.
 - [ ] ESLint + `lint` script'i
 - [ ] Erişilebilirlik: modal `role="dialog"`, odak tuzağı, ikon butonlara `aria-label`,
       `HomeScreen`'deki tıklanabilir `article`'lar klavyeyle açılamıyor
-- [ ] Test kapsamı: `supabase/`, `net/peer.ts` ve bileşenler test edilmiyor
-      (şu an yalnızca `engine` 41 + `protocol` 22)
+- [ ] Test kapsamı: `supabase/`, `net/peer.ts`, `engine/board.ts` ve bileşenler
+      test edilmiyor (şu an `engine` 41 + `protocol` 23 + `Linkli` 12 = 76)
 
 **Ölçek büyürse**
 - [ ] Kendi TURN sunucusu (şimdilik metered.ca ücretsiz katman)
