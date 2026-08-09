@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useDil } from '../dil'
 
 interface Props {
   baslik: string
@@ -31,6 +32,9 @@ export default function ConfirmDialog({
   onOnayla,
   onIptal,
 }: Props) {
+  // Başlık, mesaj ve düğme yazısı çağıran taraftan Türkçe geliyor; çeviri
+  // burada, tek yerde yapılıyor.
+  const { ceviri } = useDil()
   const [calisiyor, setCalisiyor] = useState(false)
   const [hata, setHata] = useState<string | null>(null)
 
@@ -63,15 +67,15 @@ export default function ConfirmDialog({
   return createPortal(
     <div className="modal-arka" onClick={() => !calisiyor && onIptal()}>
       <div className="dialog" onClick={(e) => e.stopPropagation()}>
-        <h3>{baslik}</h3>
-        <p className="dialog-mesaj">{mesaj}</p>
+        <h3>{ceviri(baslik)}</h3>
+        <p className="dialog-mesaj">{ceviri(mesaj)}</p>
 
         {hata && <div className="form-error">{hata}</div>}
 
         <div className="dialog-butonlar">
           {!tekButon && (
             <button className="btn btn-ghost" disabled={calisiyor} onClick={onIptal}>
-              İptal
+              {ceviri('İptal')}
             </button>
           )}
           <button
@@ -79,7 +83,7 @@ export default function ConfirmDialog({
             disabled={calisiyor}
             onClick={() => void onayla()}
           >
-            {calisiyor ? 'Bekle…' : onayYazisi}
+            {calisiyor ? ceviri('Bekle…') : ceviri(onayYazisi)}
           </button>
         </div>
       </div>

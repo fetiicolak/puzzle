@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import { basHarfler } from '../ad'
+import { useDil } from '../dil'
 import { hataMetni } from '../supabase/client'
 import { avatarUrlleri } from '../supabase/profile'
 import {
@@ -17,6 +18,7 @@ import {
 } from '../supabase/friends'
 
 export default function FriendsSection() {
+  const { ceviri } = useDil()
   const [arkadasliklar, setArkadasliklar] = useState<Arkadaslik[]>([])
   const [oneriler, setOneriler] = useState<Kisi[]>([])
   const [yukleniyor, setYukleniyor] = useState(true)
@@ -70,7 +72,7 @@ export default function FriendsSection() {
       await tazele()
     } catch (e) {
       // Ham İngilizce sunucu metni kullanıcıya gösterilmesin
-      setHata(e instanceof Error ? hataMetni(e.message) : 'İşlem yapılamadı')
+      setHata(e instanceof Error ? hataMetni(e.message) : ceviri('İşlem yapılamadı'))
     } finally {
       setIslemdeki(null)
     }
@@ -129,7 +131,7 @@ export default function FriendsSection() {
         aria-expanded={acik}
       >
         <span className="katlanir-ok">▸</span>
-        Arkadaşlar
+        {ceviri('Arkadaşlar')}
         <em className="field-hint">{toplam}</em>
         {gelenler.length > 0 && <span className="badge">{gelenler.length}</span>}
       </button>
@@ -137,7 +139,10 @@ export default function FriendsSection() {
       {cikarilacak && (
         <ConfirmDialog
           baslik="Arkadaşlıktan çıkar"
-          mesaj={`${cikarilacak.kisi.ad} arkadaş listenden çıkarılacak. Birbirinize mesaj gönderemezsiniz; birlikte çözdüğünüz tablolar durmaya devam eder.`}
+          mesaj={ceviri(
+            '{ad} arkadaş listenden çıkarılacak. Birbirinize mesaj gönderemezsiniz; birlikte çözdüğünüz tablolar durmaya devam eder.',
+            { ad: cikarilacak.kisi.ad },
+          )}
           onayYazisi="Çıkar"
           tehlikeli
           onIptal={() => setCikarilacak(null)}
@@ -158,21 +163,21 @@ export default function FriendsSection() {
               <Avatar kisi={a.kisi} />
               <div className="info">
                 <b>{a.kisi.ad}</b>
-                <small>seni arkadaş olarak ekledi</small>
+                <small>{ceviri('seni arkadaş olarak ekledi')}</small>
               </div>
               <button
                 className="btn btn-sm btn-primary"
                 disabled={islemdeki === a.id}
                 onClick={() => void sarmala(a.id, () => arkadasligiKabulEt(a.id))}
               >
-                Kabul et
+                {ceviri('Kabul et')}
               </button>
               <button
                 className="btn btn-sm btn-ghost"
                 disabled={islemdeki === a.id}
                 onClick={() => void sarmala(a.id, () => arkadasligiSil(a.id))}
               >
-                Yoksay
+                {ceviri('Yoksay')}
               </button>
             </div>
           ))}
@@ -186,11 +191,15 @@ export default function FriendsSection() {
               <Avatar kisi={a.kisi} isik />
               <div className="info">
                 <b>{a.kisi.ad}</b>
-                <small>{cevrimiciMi(a.kisi.sonGorulme) ? 'şu an sitede' : 'çevrimdışı'}</small>
+                <small>
+                  {cevrimiciMi(a.kisi.sonGorulme)
+                    ? ceviri('şu an sitede')
+                    : ceviri('çevrimdışı')}
+                </small>
               </div>
               <button
                 className="del"
-                title="Arkadaşlıktan çıkar"
+                title={ceviri('Arkadaşlıktan çıkar')}
                 disabled={islemdeki === a.id}
                 onClick={() => setCikarilacak(a)}
               >
@@ -208,14 +217,14 @@ export default function FriendsSection() {
               <Avatar kisi={a.kisi} sonuk />
               <div className="info">
                 <b>{a.kisi.ad}</b>
-                <small>istek gönderildi</small>
+                <small>{ceviri('istek gönderildi')}</small>
               </div>
               <button
                 className="btn btn-sm btn-ghost"
                 disabled={islemdeki === a.id}
                 onClick={() => void sarmala(a.id, () => arkadasligiSil(a.id))}
               >
-                Geri al
+                {ceviri('Geri al')}
               </button>
             </div>
           ))}
@@ -224,21 +233,21 @@ export default function FriendsSection() {
 
       {engelliler.length > 0 && (
         <>
-          <p className="hint-line">Engellediklerin</p>
+          <p className="hint-line">{ceviri('Engellediklerin')}</p>
           <div className="friend-list">
             {engelliler.map((k) => (
               <div key={k.id} className="friend-row muted-row">
                 <Avatar kisi={k} sonuk />
                 <div className="info">
                   <b>{k.ad}</b>
-                  <small>sana mesaj gönderemez</small>
+                  <small>{ceviri('sana mesaj gönderemez')}</small>
                 </div>
                 <button
                   className="btn btn-sm btn-ghost"
                   disabled={islemdeki === k.id}
                   onClick={() => void sarmala(k.id, () => engeliKaldir(k.id))}
                 >
-                  Engeli kaldır
+                  {ceviri('Engeli kaldır')}
                 </button>
               </div>
             ))}
@@ -248,7 +257,7 @@ export default function FriendsSection() {
 
       {oneriler.length > 0 && (
         <>
-          <p className="hint-line">Birlikte puzzle çözdüklerin</p>
+          <p className="hint-line">{ceviri('Birlikte puzzle çözdüklerin')}</p>
           <div className="friend-list">
             {oneriler.map((k) => (
               <div key={k.id} className="friend-row">
@@ -261,7 +270,7 @@ export default function FriendsSection() {
                   disabled={islemdeki === k.id}
                   onClick={() => void sarmala(k.id, () => arkadaslikIste(k.id))}
                 >
-                  {islemdeki === k.id ? '…' : 'Ekle'}
+                  {islemdeki === k.id ? '…' : ceviri('Ekle')}
                 </button>
               </div>
             ))}

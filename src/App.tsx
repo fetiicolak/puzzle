@@ -7,6 +7,7 @@ import JoinChoiceScreen from './components/JoinChoiceScreen'
 import NewPasswordScreen from './components/NewPasswordScreen'
 import SetupScreen, { type StartOptions } from './components/SetupScreen'
 import { randomRoomCode } from './net/peer'
+import { useDil } from './dil'
 import { savePuzzle, type SavedPuzzle } from './storage'
 import { useAuth } from './supabase/auth'
 import { kurtarmaJetonu, kurtarmaJetonunuTemizle, supabase } from './supabase/client'
@@ -39,6 +40,7 @@ function misafirConfig(kod: string, misafirZorla = false): GameConfig {
 
 export default function App() {
   const auth = useAuth()
+  const { dil, ceviri } = useDil()
   const [screen, setScreenRaw] = useState<Screen>(initialScreen)
 
   /**
@@ -145,16 +147,19 @@ export default function App() {
         updatedAt: Date.now(),
         unlockAt: opts.unlockAt,
       })
-      const ne = new Date(opts.unlockAt!).toLocaleString('tr-TR')
+      const ne = new Date(opts.unlockAt!).toLocaleString(dil === 'en' ? 'en-GB' : 'tr-TR')
       setBilgi({
         baslik: 'Özel gün için saklandı',
-        mesaj: `"${opts.title}" ${ne} tarihinde açılacak. O güne kadar kimse göremez.`,
+        mesaj: ceviri('"{ad}" {ne} tarihinde açılacak. O güne kadar kimse göremez.', {
+          ad: opts.title,
+          ne,
+        }),
         sonra: goHome,
       })
     } catch {
       setBilgi({
         baslik: 'Kaydedilemedi',
-        mesaj: 'Bağlantını kontrol edip tekrar dene.',
+        mesaj: ceviri('Bağlantını kontrol edip tekrar dene.'),
       })
     } finally {
       setSaklaniyor(false)
@@ -180,7 +185,7 @@ export default function App() {
       return (
         <div className="overlay">
           <div className="spinner" />
-          <p>Özel gün için saklanıyor…</p>
+          <p>{ceviri('Özel gün için saklanıyor…')}</p>
         </div>
       )
     }
@@ -189,7 +194,7 @@ export default function App() {
       return (
         <div className="overlay">
           <div className="spinner" />
-          <p>Bir saniye…</p>
+          <p>{ceviri('Bir saniye…')}</p>
         </div>
       )
     }
@@ -239,7 +244,7 @@ export default function App() {
         <AuthScreen
           baslik={
             <>
-              Davete <span>katıl</span>
+              {ceviri('Davete')} <span>{ceviri('katıl')}</span>
             </>
           }
           altYazi="Hesabınla gir; çözdüğünüz tablo ikinizin de geçmişine düşsün."
@@ -271,7 +276,7 @@ export default function App() {
       return (
         <div className="overlay">
           <div className="spinner" />
-          <p>Odaya bağlanılıyor</p>
+          <p>{ceviri('Odaya bağlanılıyor')}</p>
         </div>
       )
     }

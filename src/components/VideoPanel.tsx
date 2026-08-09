@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useDil } from '../dil'
 
 interface Props {
   yerel: MediaStream | null
@@ -20,6 +21,7 @@ interface Props {
  * oynatmayı reddederse kullanıcıya dokunması için bir düğme gösteriyoruz.
  */
 function Video({ akis, sessiz }: { akis: MediaStream; sessiz?: boolean }) {
+  const { ceviri } = useDil()
   const ref = useRef<HTMLVideoElement>(null)
   const [dokunGerek, setDokunGerek] = useState(false)
   const [takildi, setTakildi] = useState(false)
@@ -87,7 +89,9 @@ function Video({ akis, sessiz }: { akis: MediaStream; sessiz?: boolean }) {
   return (
     <>
       <video ref={ref} autoPlay playsInline muted={sessiz} />
-      {takildi && !dokunGerek && <span className="video-takildi">görüntü takıldı…</span>}
+      {takildi && !dokunGerek && (
+        <span className="video-takildi">{ceviri('görüntü takıldı…')}</span>
+      )}
       {dokunGerek && (
         <button
           className="video-dokun"
@@ -98,7 +102,7 @@ function Video({ akis, sessiz }: { akis: MediaStream; sessiz?: boolean }) {
             )
           }}
         >
-          ▶ Dokun
+          ▶ {ceviri('Dokun')}
         </button>
       )}
     </>
@@ -121,6 +125,7 @@ export default function VideoPanel({
   onKamera,
   onKapat,
 }: Props) {
+  const { ceviri } = useDil()
   return (
     <aside className={`video-panel ${sadeceSes ? 'sesli' : ''}`}>
       <div className="video-grid">
@@ -132,7 +137,7 @@ export default function VideoPanel({
               <>
                 {/* Kamerasız görüşmede sesin çalması için yine de öğe gerekli */}
                 <Video akis={akis} />
-                <span className="video-sesli-rozet">🎙 sesli</span>
+                <span className="video-sesli-rozet">🎙 {ceviri('sesli')}</span>
               </>
             )}
           </div>
@@ -141,14 +146,14 @@ export default function VideoPanel({
           <div className="video-kutu ben">
             {/* kendi sesimizi duymayalım diye sessiz — yankının ilk kaynağı bu */}
             <Video akis={yerel} sessiz />
-            <span className="video-etiket">sen</span>
+            <span className="video-etiket">{ceviri('sen')}</span>
           </div>
         )}
         {uzaklar.size === 0 && (
           <p className="muted video-bos">
             {sadeceSes
-              ? 'Mikrofonun açık. Karşı taraf katılınca sesini duyacaksın.'
-              : 'Karşı taraf kamerasını açınca burada görünecek.'}
+              ? ceviri('Mikrofonun açık. Karşı taraf katılınca sesini duyacaksın.')
+              : ceviri('Karşı taraf kamerasını açınca burada görünecek.')}
           </p>
         )}
       </div>
@@ -158,7 +163,7 @@ export default function VideoPanel({
           <button
             className={`icon-btn ${kameraAcik ? 'on' : ''}`}
             onClick={onKamera}
-            title={kameraAcik ? 'Kamerayı kapat' : 'Kamerayı aç'}
+            title={kameraAcik ? ceviri('Kamerayı kapat') : ceviri('Kamerayı aç')}
           >
             {kameraAcik ? '📹' : '🚫'}
           </button>
@@ -166,11 +171,11 @@ export default function VideoPanel({
         <button
           className={`icon-btn ${sesAcik ? 'on' : ''}`}
           onClick={onSes}
-          title={sesAcik ? 'Mikrofonu kapat' : 'Mikrofonu aç'}
+          title={sesAcik ? ceviri('Mikrofonu kapat') : ceviri('Mikrofonu aç')}
         >
           {sesAcik ? '🎤' : '🔇'}
         </button>
-        <button className="icon-btn" onClick={onKapat} title="Görüşmeyi bitir">
+        <button className="icon-btn" onClick={onKapat} title={ceviri('Görüşmeyi bitir')}>
           ✕
         </button>
       </div>

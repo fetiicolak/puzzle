@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import ConfirmDialog from './ConfirmDialog'
 import Linkli from './Linkli'
 import { basHarfler } from '../ad'
+import { useDil } from '../dil'
 import { hataMetni } from '../supabase/client'
 import {
   engelle,
@@ -29,6 +30,7 @@ const EMOJILER = [
 
 /** Bir arkadaşla yazışma penceresi */
 export default function MessageBox({ kisi, onKapat }: Props) {
+  const { dil, ceviri } = useDil()
   const [mesajlar, setMesajlar] = useState<Mesaj[]>([])
   const [metin, setMetin] = useState('')
   const [yukleniyor, setYukleniyor] = useState(true)
@@ -78,14 +80,17 @@ export default function MessageBox({ kisi, onKapat }: Props) {
       await tazele()
     } catch (err) {
       // Ham İngilizce sunucu metni kullanıcıya gösterilmesin
-      setHata(err instanceof Error ? hataMetni(err.message) : 'Mesaj gönderilemedi')
+      setHata(err instanceof Error ? hataMetni(err.message) : ceviri('Mesaj gönderilemedi'))
     } finally {
       setGonderiliyor(false)
     }
   }
 
   const saat = (iso: string) =>
-    new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+    new Date(iso).toLocaleTimeString(dil === 'en' ? 'en-GB' : 'tr-TR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
 
   /** Emojiyi imlecin bulunduğu yere ekle, odağı yazı alanında bırak */
   const emojiEkle = (e: string) => {
@@ -120,11 +125,11 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           <button
             className={`icon-btn ${menuAcik ? 'on' : ''}`}
             onClick={() => setMenuAcik((v) => !v)}
-            title="Diğer"
+            title={ceviri('Diğer')}
           >
             ⋯
           </button>
-          <button className="icon-btn" onClick={onKapat} title="Kapat">
+          <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
             ✕
           </button>
         </header>
@@ -134,13 +139,13 @@ export default function MessageBox({ kisi, onKapat }: Props) {
             {!sikayetAcik ? (
               <>
                 <button className="btn btn-ghost btn-sm" onClick={() => setSikayetAcik(true)}>
-                  ⚑ Şikayet et
+                  ⚑ {ceviri('Şikayet et')}
                 </button>
                 <button
                   className="btn btn-ghost btn-sm tehlike-yazi"
                   onClick={() => setEngelOnayi(true)}
                 >
-                  🚫 Engelle
+                  🚫 {ceviri('Engelle')}
                 </button>
               </>
             ) : (
@@ -154,17 +159,19 @@ export default function MessageBox({ kisi, onKapat }: Props) {
                     setSikayetAcik(false)
                     setMenuAcik(false)
                     setSebep('')
-                    setBilgi('Şikayetin iletildi. Teşekkürler.')
+                    setBilgi(ceviri('Şikayetin iletildi. Teşekkürler.'))
                   } catch (err) {
-                    setHata(err instanceof Error ? hataMetni(err.message) : 'Gönderilemedi')
+                    setHata(
+                      err instanceof Error ? hataMetni(err.message) : ceviri('Gönderilemedi'),
+                    )
                   }
                 }}
               >
                 <label className="field">
-                  <span className="field-label">Ne oldu?</span>
+                  <span className="field-label">{ceviri('Ne oldu?')}</span>
                   <textarea
                     className="input textarea"
-                    placeholder="Kısaca anlat…"
+                    placeholder={ceviri('Kısaca anlat…')}
                     value={sebep}
                     maxLength={1000}
                     required
@@ -177,10 +184,10 @@ export default function MessageBox({ kisi, onKapat }: Props) {
                     className="btn btn-ghost btn-sm"
                     onClick={() => setSikayetAcik(false)}
                   >
-                    Vazgeç
+                    {ceviri('Vazgeç')}
                   </button>
                   <button className="btn btn-primary btn-sm" type="submit">
-                    Gönder
+                    {ceviri('Gönder')}
                   </button>
                 </div>
               </form>
@@ -191,7 +198,10 @@ export default function MessageBox({ kisi, onKapat }: Props) {
         {engelOnayi && (
           <ConfirmDialog
             baslik="Engelle"
-            mesaj={`${kisi.ad} sana mesaj gönderemeyecek ve profilini göremeyecek. Aranızdaki arkadaşlık da kalkar. İstediğin zaman engeli kaldırabilirsin.`}
+            mesaj={ceviri(
+              '{ad} sana mesaj gönderemeyecek ve profilini göremeyecek. Aranızdaki arkadaşlık da kalkar. İstediğin zaman engeli kaldırabilirsin.',
+              { ad: kisi.ad },
+            )}
             onayYazisi="Engelle"
             tehlikeli
             onIptal={() => setEngelOnayi(false)}
@@ -207,6 +217,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           <ConfirmDialog
             baslik="Teşekkürler"
             mesaj={bilgi}
+            /* bilgi zaten çevrilmiş geliyor */
             tekButon
             onayYazisi="Tamam"
             onIptal={() => setBilgi(null)}
@@ -215,9 +226,9 @@ export default function MessageBox({ kisi, onKapat }: Props) {
         )}
 
         <div className="chat-body">
-          {yukleniyor && <p className="muted chat-bos">Yükleniyor…</p>}
+          {yukleniyor && <p className="muted chat-bos">{ceviri('Yükleniyor…')}</p>}
           {!yukleniyor && mesajlar.length === 0 && (
-            <p className="muted chat-bos">Henüz mesajlaşmamışsınız.</p>
+            <p className="muted chat-bos">{ceviri('Henüz mesajlaşmamışsınız.')}</p>
           )}
           {mesajlar.map((m) => (
             <div key={m.id} className={`chat-satir ${m.benMi ? 'ben' : ''}`}>
@@ -229,14 +240,16 @@ export default function MessageBox({ kisi, onKapat }: Props) {
                 {/* Rahatsız eden bir mesajı gelen kutundan kaldırabilirsin */}
                 <button
                   className="mesaj-sil"
-                  title="Bu mesajı sil"
+                  title={ceviri('Bu mesajı sil')}
                   onClick={async () => {
                     setHata(null)
                     try {
                       await mesajSil(m.id)
                       setMesajlar((l) => l.filter((x) => x.id !== m.id))
                     } catch (err) {
-                      setHata(err instanceof Error ? hataMetni(err.message) : 'Silinemedi')
+                      setHata(
+                        err instanceof Error ? hataMetni(err.message) : ceviri('Silinemedi'),
+                      )
                     }
                   }}
                 >
@@ -257,7 +270,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
               type="button"
               className="tepki"
               disabled={gonderiliyor}
-              title={`${e} ekle`}
+              title={ceviri('{emoji} ekle', { emoji: e })}
               onClick={() => emojiEkle(e)}
             >
               {e}
@@ -266,7 +279,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           <button
             type="button"
             className="tepki emoji-daha"
-            title={emojiAcik ? 'Daha az göster' : 'Daha fazla emoji'}
+            title={emojiAcik ? ceviri('Daha az göster') : ceviri('Daha fazla emoji')}
             onClick={() => setEmojiAcik((v) => !v)}
           >
             {emojiAcik ? '▴' : '⋯'}
@@ -277,14 +290,14 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           <input
             ref={girdiRef}
             className="input"
-            placeholder="Mesaj yaz…"
+            placeholder={ceviri('Mesaj yaz…')}
             value={metin}
             maxLength={1000}
             disabled={gonderiliyor}
             onChange={(e) => setMetin(e.target.value)}
           />
           <button className="btn btn-primary btn-sm" type="submit" disabled={gonderiliyor}>
-            Gönder
+            {ceviri('Gönder')}
           </button>
         </form>
       </div>

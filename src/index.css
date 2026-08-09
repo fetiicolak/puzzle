@@ -1127,6 +1127,39 @@ button {
   opacity: 0.85;
 }
 
+/* ---------------------------------------------------------- dil seçici */
+
+.dil-secici {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.dil-dugme {
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.dil-dugme:hover {
+  color: var(--text);
+}
+.dil-dugme.secili {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.dil-secici.ince .dil-dugme {
+  padding: 3px 7px;
+  font-size: 0.65rem;
+}
+
 /* ------------------------------------------------------- mesaj listesi */
 
 /*

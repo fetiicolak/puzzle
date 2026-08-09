@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import { basHarfler } from '../ad'
+import { useDil } from '../dil'
 import { avatarUrlleri } from '../supabase/profile'
 import { odaKatilimcilari, oyuncuCikar, yetkiAyarla, type OdaKisisi } from '../supabase/room'
 
@@ -40,6 +41,7 @@ export default function RoomPanel({
   onCikarildi,
   onMisafirCikar,
 }: Props) {
+  const { ceviri } = useDil()
   const [kisiler, setKisiler] = useState<OdaKisisi[]>([])
   const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
   const [yukleniyor, setYukleniyor] = useState(!!puzzleId)
@@ -80,7 +82,7 @@ export default function RoomPanel({
       await is()
       await tazele()
     } catch (e) {
-      setHata(e instanceof Error ? e.message : 'İşlem yapılamadı')
+      setHata(e instanceof Error ? e.message : ceviri('İşlem yapılamadı'))
     } finally {
       setIslemdeki(null)
     }
@@ -100,9 +102,9 @@ export default function RoomPanel({
   return (
     <aside className="oda-panel">
       <header className="chat-head">
-        <b>Odadakiler</b>
+        <b>{ceviri('Odadakiler')}</b>
         <span className="spacer" />
-        <button className="icon-btn" onClick={onKapat} title="Kapat">
+        <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
           ✕
         </button>
       </header>
@@ -110,9 +112,15 @@ export default function RoomPanel({
       {cikarilacak && (
         <ConfirmDialog
           baslik="Odadan çıkar"
-          mesaj={`${cikarilacak.ad} bu odadan çıkarılacak. Puzzle onun geçmişinden kalkar ve aynı davet linkiyle geri giremez.${
-            cikarilacak.rol === 'mod' ? ' Bu kişinin çıkarma yetkisi de gider.' : ''
-          }`}
+          mesaj={
+            ceviri(
+              '{ad} bu odadan çıkarılacak. Puzzle onun geçmişinden kalkar ve aynı davet linkiyle geri giremez.',
+              { ad: cikarilacak.ad },
+            ) +
+            (cikarilacak.rol === 'mod'
+              ? ' ' + ceviri('Bu kişinin çıkarma yetkisi de gider.')
+              : '')
+          }
           onayYazisi="Çıkar"
           tehlikeli
           onIptal={() => setCikarilacak(null)}
@@ -127,7 +135,7 @@ export default function RoomPanel({
       )}
 
       <div className="oda-liste">
-        {yukleniyor && <p className="muted chat-bos">Yükleniyor…</p>}
+        {yukleniyor && <p className="muted chat-bos">{ceviri('Yükleniyor…')}</p>}
 
         {kisiler.map((k) => {
           const url = k.avatarPath ? avatarlar.get(k.avatarPath) : null
@@ -140,11 +148,15 @@ export default function RoomPanel({
               <div className="info">
                 <b>
                   {k.ad}
-                  {k.id === benimId && <span className="rol-etiket">sen</span>}
-                  {k.rol === 'owner' && <span className="rol-etiket kurucu">kurucu</span>}
-                  {k.rol === 'mod' && <span className="rol-etiket">yetkili</span>}
+                  {k.id === benimId && <span className="rol-etiket">{ceviri('sen')}</span>}
+                  {k.rol === 'owner' && (
+                    <span className="rol-etiket kurucu">{ceviri('kurucu')}</span>
+                  )}
+                  {k.rol === 'mod' && <span className="rol-etiket">{ceviri('yetkili')}</span>}
                 </b>
-                <small className="muted">{cevrimici ? 'odada' : 'şu an bağlı değil'}</small>
+                <small className="muted">
+                  {cevrimici ? ceviri('odada') : ceviri('şu an bağlı değil')}
+                </small>
               </div>
 
               {benimRol === 'owner' && k.rol !== 'owner' && k.id !== benimId && (
@@ -153,21 +165,21 @@ export default function RoomPanel({
                   disabled={islemdeki === k.id}
                   title={
                     k.rol === 'mod'
-                      ? 'Çıkarma yetkisini geri al'
-                      : 'Bu kişi de başkalarını çıkarabilsin'
+                      ? ceviri('Çıkarma yetkisini geri al')
+                      : ceviri('Bu kişi de başkalarını çıkarabilsin')
                   }
                   onClick={() =>
                     void sarmala(k.id, () => yetkiAyarla(puzzleId!, k.id, k.rol !== 'mod'))
                   }
                 >
-                  {k.rol === 'mod' ? 'Yetkiyi al' : 'Yetki ver'}
+                  {k.rol === 'mod' ? ceviri('Yetkiyi al') : ceviri('Yetki ver')}
                 </button>
               )}
 
               {cikarabilirMiyim(k) && (
                 <button
                   className="del"
-                  title="Odadan çıkar"
+                  title={ceviri('Odadan çıkar')}
                   disabled={islemdeki === k.id}
                   onClick={() => setCikarilacak(k)}
                 >
@@ -184,16 +196,16 @@ export default function RoomPanel({
             <div className="info">
               <b>
                 {m.ad}
-                {!m.uid && <span className="rol-etiket">misafir</span>}
+                {!m.uid && <span className="rol-etiket">{ceviri('misafir')}</span>}
               </b>
               <small className="muted">
-                {m.uid ? 'odada' : 'hesapsız girdi'}
+                {m.uid ? ceviri('odada') : ceviri('hesapsız girdi')}
               </small>
             </div>
             {benHost && (
               <button
                 className="del"
-                title="Odadan çıkar"
+                title={ceviri('Odadan çıkar')}
                 onClick={() => setCikarilacakMisafir(m)}
               >
                 ✕
@@ -205,7 +217,10 @@ export default function RoomPanel({
         {cikarilacakMisafir && (
           <ConfirmDialog
             baslik="Odadan çıkar"
-            mesaj={`${cikarilacakMisafir.ad} bu odadan çıkarılacak ve bağlantısı kesilecek. Aynı davet linkiyle geri giremez; ama oda kapanıp yeniden kurulursa tekrar girebilir.`}
+            mesaj={ceviri(
+              '{ad} bu odadan çıkarılacak ve bağlantısı kesilecek. Aynı davet linkiyle geri giremez; ama oda kapanıp yeniden kurulursa tekrar girebilir.',
+              { ad: cikarilacakMisafir.ad },
+            )}
             onayYazisi="Çıkar"
             tehlikeli
             onIptal={() => setCikarilacakMisafir(null)}
@@ -217,7 +232,7 @@ export default function RoomPanel({
         )}
 
         {!yukleniyor && kisiler.length === 0 && listeDisi.length === 0 && (
-          <p className="muted chat-bos">Şimdilik yalnızsın.</p>
+          <p className="muted chat-bos">{ceviri('Şimdilik yalnızsın.')}</p>
         )}
       </div>
 
@@ -225,8 +240,9 @@ export default function RoomPanel({
 
       {benimRol === 'owner' && kisiler.length > 1 && (
         <small className="muted oda-not">
-          Yetki verdiğin kişi sıradan katılımcıları çıkarabilir; sana ve diğer yetkililere
-          dokunamaz.
+          {ceviri(
+            'Yetki verdiğin kişi sıradan katılımcıları çıkarabilir; sana ve diğer yetkililere dokunamaz.',
+          )}
         </small>
       )}
     </aside>

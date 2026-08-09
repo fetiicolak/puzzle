@@ -42,6 +42,7 @@ import {
   type BaglantiTesti,
   type RoomStatus,
 } from '../net/peer'
+import { cevir, suankiDil, useDil } from '../dil'
 import { chunkDataUrl, type Msg } from '../net/protocol'
 import {
   loadImage,
@@ -140,6 +141,11 @@ interface EngineRefs {
   destroyed: boolean
 }
 
+// Bileşen dışında ve olay işleyicilerinde kullanılan çeviri kısayolu;
+// dil <html lang>'ten okunuyor (bkz. dil.tsx)
+const c = (metin: string, degerler?: Record<string, string | number>) =>
+  cevir(suankiDil(), metin, degerler)
+
 function formatTime(sec: number): string {
   const h = Math.floor(sec / 3600)
   const m = Math.floor((sec % 3600) / 60)
@@ -169,10 +175,11 @@ const STATUS_COLOR: Record<RoomStatus, string> = {
 
 export default function GameScreen({ config, onExit }: Props) {
   const auth = useAuth()
+  const { ceviri } = useDil()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [phase, setPhase] = useState<'loading' | 'playing' | 'done'>('loading')
   const [loadText, setLoadText] = useState(
-    config.mode === 'guest' ? 'Odaya bağlanılıyor' : 'Parçalar kesiliyor',
+    config.mode === 'guest' ? c('Odaya bağlanılıyor') : c('Parçalar kesiliyor'),
   )
   const [error, setError] = useState<string | null>(null)
   const [roomStatus, setRoomStatus] = useState<RoomStatus>('idle')
@@ -298,7 +305,7 @@ export default function GameScreen({ config, onExit }: Props) {
   // ---- motor kurulumu ----
   const build = async (imageDataUrl: string, pieceCount: number, seed: number) => {
     const r = refs.current
-    setLoadText('Parçalar kesiliyor')
+    setLoadText(c('Parçalar kesiliyor'))
     const img = await loadImage(imageDataUrl)
     if (r.destroyed || !canvasRef.current) return
     const cut = generateCut(img.naturalWidth, img.naturalHeight, pieceCount, seed)
@@ -432,7 +439,7 @@ export default function GameScreen({ config, onExit }: Props) {
         r.rotation = msg.rotation ?? false
         r.imgChunks = []
         r.imgTotal = msg.imgChunks
-        setLoadText('Fotoğraf geliyor')
+        setLoadText(c('Fotoğraf geliyor'))
         break
       }
       case 'img': {
@@ -549,7 +556,7 @@ export default function GameScreen({ config, onExit }: Props) {
         if (msg.uid === benimKimligim) {
           r.room?.close()
           r.room = null
-          setError('Bu odadan çıkarıldın.')
+          setError(c('Bu odadan çıkarıldın.'))
         }
         break
       }
@@ -613,10 +620,12 @@ export default function GameScreen({ config, onExit }: Props) {
         if (config.mode === 'guest') {
           setError(
             detail === 'peer-unavailable'
-              ? 'Oda kapalı. Karşı tarafın sayfası hâlâ açık mı?'
+              ? c('Oda kapalı. Karşı tarafın sayfası hâlâ açık mı?')
               : relayKullanilabilir()
-                ? 'Bağlanamadık. Karşı taraf sayfayı öne alıp tekrar denesin.'
-                : 'Bağlanamadık. Ağınız doğrudan bağlantıya izin vermiyor ve yedek aktarma sunucusuna da ulaşılamadı. Farklı bir ağ (ör. mobil veri) deneyebilirsiniz.',
+                ? c('Bağlanamadık. Karşı taraf sayfayı öne alıp tekrar denesin.')
+                : c(
+                    'Bağlanamadık. Ağınız doğrudan bağlantıya izin vermiyor ve yedek aktarma sunucusuna da ulaşılamadı. Farklı bir ağ (ör. mobil veri) deneyebilirsiniz.',
+                  ),
           )
         }
       }
@@ -719,7 +728,7 @@ export default function GameScreen({ config, onExit }: Props) {
     setError(null)
     r.imgChunks = []
     r.imgTotal = -1
-    setLoadText('Odaya bağlanılıyor')
+    setLoadText(c('Odaya bağlanılıyor'))
     // Yeni bir Room kurmak yerine mevcut olanı sıfırla: eskisi arka planda
     // yaşamaya devam edip çakışan ikinci bir bağlantı açıyordu.
     if (r.room) r.room.retry()
@@ -741,7 +750,7 @@ export default function GameScreen({ config, onExit }: Props) {
         setLoadText('Puzzle getiriliyor')
         const uzak = await joinRemotePuzzle(kod)
         if (uzak && kilitliMi(uzak) && uzak.owner !== hesap.id) {
-          setError('Bu puzzle henüz açılmadı. Özel gün için saklanmış.')
+          setError(c('Bu puzzle henüz açılmadı. Özel gün için saklanmış.'))
           return
         }
         if (uzak && !r.destroyed) {
@@ -767,7 +776,7 @@ export default function GameScreen({ config, onExit }: Props) {
       }
     }
     if (r.destroyed) return
-    if (!r.game) setLoadText('Odaya bağlanılıyor')
+    if (!r.game) setLoadText(c('Odaya bağlanılıyor'))
     r.room = Room.join(kod, roomEvents)
   }
 
@@ -775,15 +784,15 @@ export default function GameScreen({ config, onExit }: Props) {
   const initRemote = async () => {
     const r = refs.current
     try {
-      setLoadText('Fotoğraf getiriliyor')
+      setLoadText(c('Fotoğraf getiriliyor'))
       const url = await puzzleImageUrl(config.imagePath!)
-      if (!url) throw new Error('Fotoğrafa erişilemedi')
+      if (!url) throw new Error(c('Fotoğrafa erişilemedi'))
       const dataUrl = await urlToDataUrl(url)
       if (r.destroyed) return
       await build(dataUrl, config.pieceCount!, config.seed!)
     } catch {
       if (!r.destroyed) {
-        setError('Fotoğrafa ulaşamadık. Bağlantını kontrol et.')
+        setError(c('Fotoğrafa ulaşamadık. Bağlantını kontrol et.'))
       }
     }
   }
@@ -872,7 +881,7 @@ export default function GameScreen({ config, onExit }: Props) {
     const id = setInterval(() => {
       const r = refs.current
       if (r.lastChunkAt && Date.now() - r.lastChunkAt > 20_000) {
-        setError('Bağlandık ama puzzle gelmedi. Karşı taraf sayfayı öne alsın.')
+        setError(c('Bağlandık ama puzzle gelmedi. Karşı taraf sayfayı öne alsın.'))
       }
     }, 2000)
     return () => clearInterval(id)
@@ -939,8 +948,8 @@ export default function GameScreen({ config, onExit }: Props) {
         baslik: 'Kamera açılamıyor',
         mesaj:
           location.protocol === 'https:' || location.hostname === 'localhost'
-            ? 'Bu tarayıcı kamera ve mikrofon erişimini desteklemiyor.'
-            : 'Kamera yalnızca güvenli bağlantıda (https) açılabilir.',
+            ? c('Bu tarayıcı kamera ve mikrofon erişimini desteklemiyor.')
+            : c('Kamera yalnızca güvenli bağlantıda (https) açılabilir.'),
       })
       return
     }
@@ -983,14 +992,18 @@ export default function GameScreen({ config, onExit }: Props) {
         baslik: yalnizSes ? 'Mikrofon açılamadı' : 'Kamera açılamadı',
         mesaj:
           ad === 'NotAllowedError'
-            ? 'İzin verilmedi. Tarayıcı adres çubuğundaki kilit simgesinden kamera ve mikrofon iznini açabilirsin.'
+            ? c(
+                'İzin verilmedi. Tarayıcı adres çubuğundaki kilit simgesinden kamera ve mikrofon iznini açabilirsin.',
+              )
             : ad === 'NotFoundError' || ad === 'OverconstrainedError'
               ? yalnizSes
-                ? 'Mikrofon bulunamadı.'
-                : 'Kamera bulunamadı. Yalnızca sesli konuşmayı deneyebilirsin.'
+                ? c('Mikrofon bulunamadı.')
+                : c('Kamera bulunamadı. Yalnızca sesli konuşmayı deneyebilirsin.')
               : ad === 'NotReadableError'
-                ? 'Kamera başka bir uygulamada açık görünüyor. Onu kapatıp tekrar dene.'
-                : `Açılamadı${ad ? ` (${ad})` : ''}. Sayfayı yenileyip tekrar dene.`,
+                ? c('Kamera başka bir uygulamada açık görünüyor. Onu kapatıp tekrar dene.')
+                : c('Açılamadı{ek}. Sayfayı yenileyip tekrar dene.', {
+                    ek: ad ? ` (${ad})` : '',
+                  }),
       })
       return
     }
@@ -1041,7 +1054,7 @@ export default function GameScreen({ config, onExit }: Props) {
   return (
     <div className="game-root">
       <div className="game-topbar">
-        <button className="icon-btn" onClick={onExit} title="Çık">
+        <button className="icon-btn" onClick={onExit} title={ceviri('Çık')}>
           ←
         </button>
         {title && (
@@ -1052,7 +1065,7 @@ export default function GameScreen({ config, onExit }: Props) {
         )}
         <span className="stat tabular">{formatTime(elapsed)}</span>
 
-        <div className="progress" title={`%${Math.round(prog * 100)} tamam`}>
+        <div className="progress" title={ceviri('%{yuzde} tamam', { yuzde: Math.round(prog * 100) })}>
           <div className="progress-fill" style={{ width: `${Math.round(prog * 100)}%` }} />
           <span className="progress-text tabular">%{Math.round(prog * 100)}</span>
         </div>
@@ -1064,12 +1077,12 @@ export default function GameScreen({ config, onExit }: Props) {
             className="stat"
             title={
               statusDetail
-                ? `${STATUS_TEXT[roomStatus]} (${statusDetail})`
-                : STATUS_TEXT[roomStatus]
+                ? `${ceviri(STATUS_TEXT[roomStatus])} (${statusDetail})`
+                : ceviri(STATUS_TEXT[roomStatus])
             }
           >
             <span className="status-dot" style={{ background: STATUS_COLOR[roomStatus] }} />
-            <span className="status-text">{STATUS_TEXT[roomStatus]}</span>
+            <span className="status-text">{ceviri(STATUS_TEXT[roomStatus])}</span>
             {config.mode !== 'guest' && (config.maxPlayers ?? 2) > 1 && (
               <span className="tabular">
                 {' '}
@@ -1080,12 +1093,12 @@ export default function GameScreen({ config, onExit }: Props) {
         )}
         {config.mode === 'guest' && (roomStatus === 'disconnected' || roomStatus === 'error') && (
           <button className="btn btn-sm btn-secondary" onClick={rejoin}>
-            Bağlan
+            {ceviri('Bağlan')}
           </button>
         )}
         {config.mode !== 'guest' && (
           <button className="btn btn-sm btn-secondary" onClick={createRoom}>
-            Davet
+            {ceviri('Davet')}
           </button>
         )}
         {roomStatus !== 'idle' && (
@@ -1095,7 +1108,7 @@ export default function GameScreen({ config, onExit }: Props) {
               setOdaPanel((v) => !v)
               setArkadasPanel(false)
             }}
-            title="Odadakiler"
+            title={ceviri('Odadakiler')}
           >
             👥
           </button>
@@ -1108,7 +1121,7 @@ export default function GameScreen({ config, onExit }: Props) {
               setArkadasPanel((v) => !v)
               setOdaPanel(false)
             }}
-            title="Arkadaşlar — mesaj gönder, odaya davet et"
+            title={ceviri('Arkadaşlar — mesaj gönder, odaya davet et')}
           >
             🤝
           </button>
@@ -1120,7 +1133,9 @@ export default function GameScreen({ config, onExit }: Props) {
             onClick={() =>
               yerelAkis && !sadeceSes ? gorusmeBitir() : void gorusmeBaslat(false)
             }
-            title={yerelAkis && !sadeceSes ? 'Görüşmeyi bitir' : 'Görüntülü konuş'}
+            title={
+              yerelAkis && !sadeceSes ? ceviri('Görüşmeyi bitir') : ceviri('Görüntülü konuş')
+            }
           >
             📹
           </button>
@@ -1130,7 +1145,7 @@ export default function GameScreen({ config, onExit }: Props) {
             className={`icon-btn ${sadeceSes ? 'on' : ''}`}
             disabled={gorusmeBekliyor}
             onClick={() => (sadeceSes ? gorusmeBitir() : void gorusmeBaslat(true))}
-            title={sadeceSes ? 'Görüşmeyi bitir' : 'Yalnızca sesli konuş'}
+            title={sadeceSes ? ceviri('Görüşmeyi bitir') : ceviri('Yalnızca sesli konuş')}
           >
             🎙
           </button>
@@ -1142,7 +1157,7 @@ export default function GameScreen({ config, onExit }: Props) {
               setChatAcik((v) => !v)
               setOkunmamis(0)
             }}
-            title="Sohbet"
+            title={ceviri('Sohbet')}
           >
             💬
             {okunmamis > 0 && <span className="dot-badge">{okunmamis}</span>}
@@ -1150,10 +1165,10 @@ export default function GameScreen({ config, onExit }: Props) {
         )}
         {/* İkincil araçlar: dar ekranda "⋯" ile açılır, geniş ekranda hep görünür */}
         <div className={`tool-group ${araclarAcik ? 'acik' : ''}`}>
-          <button className="icon-btn" onClick={tepsiyeDiz} title="Parçaları yanlara diz">
+          <button className="icon-btn" onClick={tepsiyeDiz} title={ceviri('Parçaları yanlara diz')}>
             ⫴
           </button>
-          <button className="icon-btn" onClick={karistir} title="Karıştır">
+          <button className="icon-btn" onClick={karistir} title={ceviri('Karıştır')}>
             🔀
           </button>
           <button
@@ -1166,7 +1181,7 @@ export default function GameScreen({ config, onExit }: Props) {
                 b.invalidate()
               }
             }}
-            title="Sadece kenarlar"
+            title={ceviri('Sadece kenarlar')}
           >
             ⬚
           </button>
@@ -1178,7 +1193,7 @@ export default function GameScreen({ config, onExit }: Props) {
               setSesler(yeni)
               if (!yeni) setMuzik(false)
             }}
-            title={sesler ? 'Ses efektlerini kapat' : 'Ses efektlerini aç'}
+            title={sesler ? ceviri('Ses efektlerini kapat') : ceviri('Ses efektlerini aç')}
           >
             {sesler ? '🔊' : '🔈'}
           </button>
@@ -1198,7 +1213,7 @@ export default function GameScreen({ config, onExit }: Props) {
                 void muzigiBaslat().then((oldu) => setMuzik(oldu))
               }
             }}
-            title={muzik ? 'Müziği kapat' : 'Sakin arka plan müziği'}
+            title={muzik ? ceviri('Müziği kapat') : ceviri('Sakin arka plan müziği')}
           >
             ♪
           </button>
@@ -1212,7 +1227,7 @@ export default function GameScreen({ config, onExit }: Props) {
                 b.invalidate()
               }
             }}
-            title="Izgara"
+            title={ceviri('Izgara')}
           >
             ⊞
           </button>
@@ -1220,28 +1235,28 @@ export default function GameScreen({ config, onExit }: Props) {
         <button
           className={`icon-btn tool-more ${araclarAcik ? 'on' : ''}`}
           onClick={() => setAraclarAcik((v) => !v)}
-          title="Diğer araçlar"
+          title={ceviri('Diğer araçlar')}
         >
           ⋯
         </button>
         <button
           className={`icon-btn ${peek ? 'on' : ''}`}
           onClick={() => setPeek((v) => !v)}
-          title="Orijinali göster"
+          title={ceviri('Orijinali göster')}
         >
           🖼
         </button>
         <button
           className="icon-btn"
           onClick={() => refs.current.board?.fitView()}
-          title="Hepsini göster"
+          title={ceviri('Hepsini göster')}
         >
           ⤢
         </button>
         <button
           className={`icon-btn ${tanitim ? 'on' : ''}`}
           onClick={() => setTanitim(true)}
-          title="Nasıl oynanır"
+          title={ceviri('Nasıl oynanır')}
         >
           ?
         </button>
@@ -1341,13 +1356,13 @@ export default function GameScreen({ config, onExit }: Props) {
           {test && (
             <div className="test-sonuc">
               <div className={`test-satir ${test.yerel ? 'iyi' : 'kotu'}`}>
-                <span>{test.yerel ? '✓' : '✕'}</span> Cihaz adresi
+                <span>{test.yerel ? '✓' : '✕'}</span> {ceviri('Cihaz adresi')}
               </div>
               <div className={`test-satir ${test.disAdres ? 'iyi' : 'kotu'}`}>
-                <span>{test.disAdres ? '✓' : '✕'}</span> Dışarıdan görünen adres
+                <span>{test.disAdres ? '✓' : '✕'}</span> {ceviri('Dışarıdan görünen adres')}
               </div>
               <div className={`test-satir ${test.aktarma ? 'iyi' : 'kotu'}`}>
-                <span>{test.aktarma ? '✓' : '✕'}</span> Aktarma sunucusu (TURN)
+                <span>{test.aktarma ? '✓' : '✕'}</span> {ceviri('Aktarma sunucusu (TURN)')}
               </div>
               <p className="muted test-ozet">{test.ozet}</p>
             </div>
@@ -1356,7 +1371,7 @@ export default function GameScreen({ config, onExit }: Props) {
           <div className="action-row">
             {config.mode === 'guest' && (
               <button className="btn btn-primary" onClick={rejoin}>
-                Tekrar dene
+                {ceviri('Tekrar dene')}
               </button>
             )}
             <button
@@ -1369,10 +1384,10 @@ export default function GameScreen({ config, onExit }: Props) {
                   .finally(() => setTestSuruyor(false))
               }}
             >
-              {testSuruyor ? 'Deneniyor…' : 'Bağlantıyı test et'}
+              {testSuruyor ? ceviri('Deneniyor…') : ceviri('Bağlantıyı test et')}
             </button>
             <button className="btn btn-ghost" onClick={onExit}>
-              Geri dön
+              {ceviri('Geri dön')}
             </button>
           </div>
         </div>
@@ -1380,18 +1395,18 @@ export default function GameScreen({ config, onExit }: Props) {
 
       {inviteOpen && inviteLink && (
         <div className="game-banner">
-          <b>Linki gönder</b>
+          <b>{ceviri('Linki gönder')}</b>
           <code>{inviteLink}</code>
           <div className="action-row">
             <button className="btn btn-primary" onClick={() => void copyInvite()}>
-              {copied ? 'Kopyalandı' : 'Kopyala'}
+              {copied ? ceviri('Kopyalandı') : ceviri('Kopyala')}
             </button>
             <button className="btn btn-ghost" onClick={() => setInviteOpen(false)}>
-              Kapat
+              {ceviri('Kapat')}
             </button>
           </div>
           {roomStatus === 'waiting' && (
-            <small className="muted">Sen bu sayfadayken bağlanabilirler.</small>
+            <small className="muted">{ceviri('Sen bu sayfadayken bağlanabilirler.')}</small>
           )}
         </div>
       )}
@@ -1442,6 +1457,7 @@ function ChatPanel({
   onGonder: (v: string) => void
   onKapat: () => void
 }) {
+  const { ceviri } = useDil()
   const sonRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     sonRef.current?.scrollIntoView({ block: 'end' })
@@ -1450,7 +1466,7 @@ function ChatPanel({
   return (
     <aside className="chat">
       <header className="chat-head">
-        <b>Sohbet</b>
+        <b>{ceviri('Sohbet')}</b>
         <button className="icon-btn" onClick={onKapat} title="Kapat">
           ✕
         </button>
@@ -1459,7 +1475,7 @@ function ChatPanel({
       <div className="chat-body">
         {satirlar.length === 0 && (
           <p className="muted chat-bos">
-            {bagli ? 'Henüz mesaj yok.' : 'Karşı taraf bağlanınca yazabilirsin.'}
+            {bagli ? ceviri('Henüz mesaj yok.') : ceviri('Karşı taraf bağlanınca yazabilirsin.')}
           </p>
         )}
         {satirlar.map((s, i) => (
@@ -1490,14 +1506,14 @@ function ChatPanel({
       >
         <input
           className="input"
-          placeholder={bagli ? 'Bir şeyler yaz…' : 'Bağlantı bekleniyor…'}
+          placeholder={bagli ? ceviri('Bir şeyler yaz…') : ceviri('Bağlantı bekleniyor…')}
           value={metin}
           maxLength={300}
           disabled={!bagli}
           onChange={(e) => onMetin(e.target.value)}
         />
         <button className="btn btn-primary btn-sm" type="submit" disabled={!bagli}>
-          Gönder
+          {ceviri('Gönder')}
         </button>
       </form>
     </aside>
@@ -1524,6 +1540,7 @@ function Celebration({
   onExit: () => void
   onSertifika: () => void
 }) {
+  const { ceviri } = useDil()
   const konfeti = useMemo(
     () =>
       Array.from({ length: 48 }, (_, i) => ({
@@ -1558,20 +1575,20 @@ function Celebration({
       <div className="celebration">
         <div className="celebration-card">
           {image && <img className="celebration-img" src={image} alt="" />}
-          <h2>Bitti</h2>
+          <h2>{ceviri('Bitti')}</h2>
           {title && <p className="celebration-eser">{title}</p>}
           {artist && <p className="celebration-ressam">{artist}</p>}
           <p className="muted">
-            {parca > 0 ? `${parca} parça · ` : ''}
+            {parca > 0 ? ceviri('{sayi} parça', { sayi: parca }) + ' · ' : ''}
             {formatTime(elapsed)}
           </p>
           {surprise && <blockquote className="surprise">{surprise}</blockquote>}
           <div className="action-row">
             <button className="btn btn-secondary" onClick={onSertifika}>
-              🏅 Hatıra kartı
+              🏅 {ceviri('Hatıra kartı')}
             </button>
             <button className="btn btn-primary" onClick={onExit}>
-              Tamam
+              {ceviri('Tamam')}
             </button>
           </div>
         </div>

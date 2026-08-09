@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import MessageBox from './MessageBox'
 import { basHarfler } from '../ad'
+import { useDil } from '../dil'
 import { hataMetni } from '../supabase/client'
 import { avatarUrlleri } from '../supabase/profile'
 import {
@@ -25,6 +26,7 @@ interface Props {
  * tıklayınca odaya giriyor (bkz. Linkli).
  */
 export default function FriendsPanel({ davetLinki, onKapat }: Props) {
+  const { ceviri } = useDil()
   const [arkadaslar, setArkadaslar] = useState<Kisi[]>([])
   const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
   const [okunmamis, setOkunmamis] = useState<Map<string, number>>(new Map())
@@ -59,10 +61,10 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
     setIslemdeki(kisi.id)
     setHata(null)
     try {
-      await mesajGonder(kisi.id, `Birlikte puzzle çözelim mi? ${davetLinki}`)
+      await mesajGonder(kisi.id, `${ceviri('Birlikte puzzle çözelim mi?')} ${davetLinki}`)
       setGonderilen((s) => new Set(s).add(kisi.id))
     } catch (e) {
-      setHata(e instanceof Error ? hataMetni(e.message) : 'Davet gönderilemedi')
+      setHata(e instanceof Error ? hataMetni(e.message) : ceviri('Davet gönderilemedi'))
     } finally {
       setIslemdeki(null)
     }
@@ -71,9 +73,9 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
   return (
     <aside className="oda-panel">
       <header className="chat-head">
-        <b>Arkadaşlar</b>
+        <b>{ceviri('Arkadaşlar')}</b>
         <span className="spacer" />
-        <button className="icon-btn" onClick={onKapat} title="Kapat">
+        <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
           ✕
         </button>
       </header>
@@ -89,11 +91,13 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
       )}
 
       <div className="oda-liste">
-        {yukleniyor && <p className="muted chat-bos">Yükleniyor…</p>}
+        {yukleniyor && <p className="muted chat-bos">{ceviri('Yükleniyor…')}</p>}
 
         {!yukleniyor && arkadaslar.length === 0 && (
           <p className="muted chat-bos">
-            Henüz arkadaşın yok. Ana ekrandaki Arkadaşlar bölümünden ekleyebilirsin.
+            {ceviri(
+              'Henüz arkadaşın yok. Ana ekrandaki Arkadaşlar bölümünden ekleyebilirsin.',
+            )}
           </p>
         )}
 
@@ -110,13 +114,15 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
                 <b>
                   <span className="ad-kisa">{k.ad}</span>
                 </b>
-                <small className="muted">{cevrimici ? 'şu an sitede' : 'çevrimdışı'}</small>
+                <small className="muted">
+                  {cevrimici ? ceviri('şu an sitede') : ceviri('çevrimdışı')}
+                </small>
               </div>
 
               <button
                 className="btn btn-sm btn-ghost"
                 onClick={() => setAcikSohbet(k)}
-                title="Mesaj yaz"
+                title={ceviri('Mesaj yaz')}
               >
                 💬
                 {okunmamisSayi > 0 && <span className="badge">{okunmamisSayi}</span>}
@@ -125,10 +131,18 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
               <button
                 className="btn btn-sm btn-secondary"
                 disabled={!davetLinki || islemdeki === k.id || gonderilen.has(k.id)}
-                title={davetLinki ? 'Davet linkini mesaj olarak gönder' : 'Önce odayı kur'}
+                title={
+                  davetLinki
+                    ? ceviri('Davet linkini mesaj olarak gönder')
+                    : ceviri('Önce odayı kur')
+                }
                 onClick={() => void davetEt(k)}
               >
-                {gonderilen.has(k.id) ? 'Gönderildi' : islemdeki === k.id ? '…' : 'Davet et'}
+                {gonderilen.has(k.id)
+                  ? ceviri('Gönderildi')
+                  : islemdeki === k.id
+                    ? '…'
+                    : ceviri('Davet et')}
               </button>
             </div>
           )
@@ -139,7 +153,7 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
 
       {!davetLinki && arkadaslar.length > 0 && (
         <small className="muted oda-not">
-          Davet gönderebilmek için önce üstteki “Davet” düğmesiyle odayı kur.
+          {ceviri('Davet gönderebilmek için önce üstteki “Davet” düğmesiyle odayı kur.')}
         </small>
       )}
     </aside>

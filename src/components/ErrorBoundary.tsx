@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { cevir, suankiDil } from '../dil'
 
 interface Props {
   children: ReactNode
@@ -43,28 +44,34 @@ export default class ErrorBoundary extends Component<Props, State> {
   render(): ReactNode {
     if (!this.state.hataVar) return this.props.children
 
+    // Sınıf bileşeni olduğu için useDil kullanılamıyor; dil, DilProvider'ın
+    // <html lang> üzerine yazdığı değerden okunuyor.
+    const ceviri = (m: string) => cevir(suankiDil(), m)
+
     return (
       <div className="screen screen-center">
         <div className="hata-kart">
           <div className="hata-simge" aria-hidden="true">
             🧩
           </div>
-          <h2>Bir şeyler ters gitti</h2>
+          <h2>{ceviri('Bir şeyler ters gitti')}</h2>
           <p className="muted">
-            Beklenmedik bir hata oldu ve oyun durdu. Çözdüğün tablolar sunucuda duruyor,
-            kaybolmadı.
+            {ceviri(
+              'Beklenmedik bir hata oldu ve oyun durdu. Çözdüğün tablolar sunucuda duruyor, kaybolmadı.',
+            )}
           </p>
           <div className="action-row">
             <button className="btn btn-primary" onClick={() => location.reload()}>
-              Sayfayı yenile
+              {ceviri('Sayfayı yenile')}
             </button>
             <button className="btn btn-ghost" onClick={this.kayitlariTemizle}>
-              Cihazdaki kayıtları temizle
+              {ceviri('Cihazdaki kayıtları temizle')}
             </button>
           </div>
           <small className="muted">
-            Yenilemek işe yaramazsa ikinci düğme bu cihazdaki yarım kalmış oyunları siler.
-            Hesabındaki tablolar etkilenmez.
+            {ceviri(
+              'Yenilemek işe yaramazsa ikinci düğme bu cihazdaki yarım kalmış oyunları siler. Hesabındaki tablolar etkilenmez.',
+            )}
           </small>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useDil } from '../dil'
 
 interface Props {
   /** Döndürmeli zorluk açık mı — kapalıysa o adım hiç gösterilmez */
@@ -110,6 +111,8 @@ function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim
  * basılı tutma anlatılır.
  */
 export default function Tutorial({ rotation, odada, hesapVar, onKapat }: Props) {
+  // Adımlar Türkçe kuruluyor, çeviri çizim sırasında yapılıyor
+  const { ceviri } = useDil()
   const adimlar = useMemo(
     () => adimlariKur(rotation, odada, hesapVar),
     [rotation, odada, hesapVar],
@@ -137,8 +140,8 @@ export default function Tutorial({ rotation, odada, hesapVar, onKapat }: Props) 
           {adim.simge}
         </div>
 
-        <h3>{adim.baslik}</h3>
-        <p className="dialog-mesaj">{adim.metin}</p>
+        <h3>{ceviri(adim.baslik)}</h3>
+        <p className="dialog-mesaj">{ceviri(adim.metin)}</p>
 
         {adim.araclar && (
           <ul className="tanitim-araclar">
@@ -147,7 +150,7 @@ export default function Tutorial({ rotation, odada, hesapVar, onKapat }: Props) 
                 <span className="tanitim-arac-simge" aria-hidden="true">
                   {a.simge}
                 </span>
-                {a.ad}
+                {ceviri(a.ad)}
               </li>
             ))}
           </ul>
@@ -161,16 +164,16 @@ export default function Tutorial({ rotation, odada, hesapVar, onKapat }: Props) 
 
         <div className="dialog-butonlar tanitim-butonlar">
           <button className="btn btn-ghost btn-sm" onClick={onKapat}>
-            Hepsini atla
+            {ceviri('Hepsini atla')}
           </button>
           <span className="spacer" />
           {i > 0 && (
             <button className="btn btn-ghost btn-sm" onClick={() => setI((n) => n - 1)}>
-              Geri
+              {ceviri('Geri')}
             </button>
           )}
           <button className="btn btn-primary" onClick={ileri}>
-            {sonMu ? 'Başla' : 'Atla'}
+            {sonMu ? ceviri('Başla') : ceviri('Atla')}
           </button>
         </div>
       </div>

@@ -9,10 +9,22 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
 
 ## Dil
 
-- Arayüz, kod, yorumlar, değişken ve fonksiyon adları **Türkçe**.
+- **Kod, yorumlar, değişken ve fonksiyon adları Türkçe.**
   `oyuncuCikar`, `hataMetni`, `misafirKimligi` gibi. Yeni kod da böyle olmalı.
-- Kullanıcıya gösterilen hiçbir metin İngilizce olmamalı. Supabase'in ham
-  hata metinleri `hataMetni()` (`src/supabase/client.ts`) içinden geçirilir.
+- **Arayüz iki dilli: Türkçe ve İngilizce.** Kullanıcıya gösterilen her metin
+  `ceviri('Türkçe metin')` içinden geçer (`useDil`, `src/dil.tsx`); İngilizce
+  karşılığı `src/sozluk.ts`'e yazılır.
+- **Anahtar, Türkçe metnin kendisi.** Sözlükte karşılığı olmayan metin ekranda
+  Türkçe kalır — uygulama kırılmaz. Türkçe metni değiştirirsen sözlükteki
+  anahtarı da değiştir, yoksa çeviri sessizce düşer.
+- Değişken içeren cümlelerde `{ad}` yer tutucusu kullanılır:
+  `ceviri('Bu cihazda {ad} olarak girişlisin.', { ad })`. Metni parçalayıp
+  birleştirme — kelime sırası dile göre değişiyor.
+- Bağlantı ya da kalın yazı içeren cümlelerde (ek almış Türkçe kelimeler)
+  şablon yerine `dil === 'tr' ? (...) : (...)` yazılır; örnek `AuthScreen`
+  içindeki yasal satır.
+- Supabase'in ham hata metinleri `hataMetni()` (`src/supabase/client.ts`)
+  içinden geçirilir.
 
 ## Araç tuzakları
 
@@ -131,6 +143,12 @@ Bittikçe buradan sil. Sıra kabaca öncelik sırası.
       "Davet et" ile giden davet mesajı (iki hesap gerekiyor)
 - [ ] Ana ekrandaki Mesajlar bölümü: önizleme, okunmamış rozeti ve sıralama
       (iki hesap gerekiyor)
+
+**İngilizce çeviri**
+Arayüzün tamamı çevrildi (~340 kalem). Kalan tek yer:
+- [ ] `public/gizlilik.html` ve `public/kosullar.html` — İngilizce sürüm yok;
+      hukuki metin olduğu için çeviri kullanıcı onayıyla yapılacak. İngilizce
+      seçiliyken bu iki sayfa hâlâ Türkçe açılıyor.
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)

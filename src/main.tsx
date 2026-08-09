@@ -2,15 +2,18 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary.tsx'
+import { DilProvider } from './dil.tsx'
 import { AuthProvider } from './supabase/auth.tsx'
 
 // Not: StrictMode bilinçli olarak kullanılmıyor — çift effect çalıştırması,
 // aynı oda ID'siyle iki PeerJS bağlantısı açıp "unavailable-id" hatasına yol açıyor.
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <DilProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </DilProvider>
   </ErrorBoundary>,
 )
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useDil } from '../dil'
 import { computeGrid } from '../engine/cutter'
 import { loadImage, nextUntitledName } from '../storage'
 
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBack }: Props) {
+  const { dil, ceviri } = useDil()
   const [title, setTitle] = useState(defaultTitle)
   const [pieces, setPieces] = useState(100)
   const [message, setMessage] = useState('')
@@ -59,11 +61,11 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
   const tarihHatasi = !ozelGun
     ? null
     : !tarih
-      ? 'Açılacağı tarihi ve saati seç.'
+      ? ceviri('Açılacağı tarihi ve saati seç.')
       : !Number.isFinite(tarihMs)
-        ? 'Bu tarih okunamadı, yeniden seç.'
+        ? ceviri('Bu tarih okunamadı, yeniden seç.')
         : !tarihGecerli
-          ? 'Tarih ileride bir zaman olmalı.'
+          ? ceviri('Tarih ileride bir zaman olmalı.')
           : null
 
   const start = (withPartner: boolean) => {
@@ -86,14 +88,14 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
 
   return (
     <div className="screen">
-      <h1 className="title">Hazırlık</h1>
+      <h1 className="title">{ceviri('Hazırlık')}</h1>
 
       <div className="setup-preview-wrap">
-        <img className="setup-preview" src={imageDataUrl} alt="Seçtiğin görsel" />
+        <img className="setup-preview" src={imageDataUrl} alt={ceviri('Seçtiğin görsel')} />
       </div>
 
       <label className="field">
-        <span className="field-label">Adı</span>
+        <span className="field-label">{ceviri('Adı')}</span>
         <input
           className="input"
           placeholder={nextUntitledName()}
@@ -105,10 +107,10 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
 
       <div className="field">
         <span className="field-label">
-          Kaç parça
+          {ceviri('Kaç parça')}
           {izgara && (
             <em className="field-hint">
-              {gercekSayi} parça · {izgara.cols}×{izgara.rows}
+              {ceviri('{sayi} parça', { sayi: gercekSayi })} · {izgara.cols}×{izgara.rows}
             </em>
           )}
         </span>
@@ -127,9 +129,11 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
 
       <div className="field">
         <span className="field-label">
-          Kaç kişi
+          {ceviri('Kaç kişi')}
           <em className="field-hint">
-            {maxPlayers === 2 ? 'ikiniz' : `sen + ${maxPlayers - 1} kişi`}
+            {maxPlayers === 2
+              ? ceviri('ikiniz')
+              : ceviri('sen + {sayi} kişi', { sayi: maxPlayers - 1 })}
           </em>
         </span>
         <div className="chip-row">
@@ -146,7 +150,7 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
       </div>
 
       <div className="field">
-        <span className="field-label">Zorluk</span>
+        <span className="field-label">{ceviri('Zorluk')}</span>
         <label className="checkbox">
           <input
             type="checkbox"
@@ -154,19 +158,19 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
             onChange={(e) => setRotation(e.target.checked)}
           />
           <span>
-            Parçalar çevrilmiş gelsin
-            <em className="field-hint"> çift tıkla döndürürsün</em>
+            {ceviri('Parçalar çevrilmiş gelsin')}
+            <em className="field-hint"> {ceviri('çift tıkla döndürürsün')}</em>
           </span>
         </label>
       </div>
 
       <label className="field">
         <span className="field-label">
-          Gizli not <em className="field-hint">isteğe bağlı</em>
+          {ceviri('Gizli not')} <em className="field-hint">{ceviri('isteğe bağlı')}</em>
         </span>
         <textarea
           className="input textarea"
-          placeholder="Bitince görsün diye bir şeyler yaz…"
+          placeholder={ceviri('Bitince görsün diye bir şeyler yaz…')}
           value={message}
           maxLength={500}
           onChange={(e) => setMessage(e.target.value)}
@@ -181,17 +185,17 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
             onChange={(e) => setOzelGun(e.target.checked)}
           />
           <span>
-            Özel gün için sakla
-            <em className="field-hint"> o tarihe kadar kilitli kalır</em>
+            {ceviri('Özel gün için sakla')}
+            <em className="field-hint"> {ceviri('o tarihe kadar kilitli kalır')}</em>
           </span>
         </label>
         {ozelGun && (
           <label className="field ozel-gun-alan">
             <span className="field-label">
-              Açılacağı tarih ve saat
+              {ceviri('Açılacağı tarih ve saat')}
               {tarihGecerli && (
                 <em className="field-hint">
-                  {new Date(tarihMs).toLocaleString('tr-TR', {
+                  {new Date(tarihMs).toLocaleString(dil === 'en' ? 'en-GB' : 'tr-TR', {
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',
@@ -216,21 +220,21 @@ export default function SetupScreen({ imageDataUrl, defaultTitle, onStart, onBac
 
       <div className="action-row">
         <button className="btn btn-ghost" onClick={onBack}>
-          Geri
+          {ceviri('Geri')}
         </button>
         <button
           className="btn btn-secondary"
           disabled={!!tarihHatasi}
           onClick={() => start(false)}
         >
-          Tek başıma
+          {ceviri('Tek başıma')}
         </button>
         <button
           className="btn btn-primary"
           disabled={!!tarihHatasi}
           onClick={() => start(true)}
         >
-          {ozelGun ? 'Sakla' : 'Birlikte oyna'}
+          {ozelGun ? ceviri('Sakla') : ceviri('Birlikte oyna')}
         </button>
       </div>
     </div>

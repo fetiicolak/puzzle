@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
+import DilSecici from './DilSecici'
+import { cevir, suankiDil, useDil } from '../dil'
 import FriendsSection from './FriendsSection'
 import MessagesSection from './MessagesSection'
 import ProfileDialog from './ProfileDialog'
@@ -48,25 +50,29 @@ interface Props {
   onSignIn: () => void
 }
 
+// Bu yardımcılar bileşen dışında; dil <html lang>'ten okunuyor (bkz. dil.tsx)
+const c = (metin: string, degerler?: Record<string, string | number>) =>
+  cevir(suankiDil(), metin, degerler)
+
 function sureMetni(sn: number): string {
   const s = Math.max(0, Math.round(sn))
   const saat = Math.floor(s / 3600)
   const dk = Math.floor((s % 3600) / 60)
-  if (saat > 0) return `${saat} sa ${dk} dk`
-  if (dk > 0) return `${dk} dk`
-  return `${s} sn`
+  if (saat > 0) return c('{saat} sa {dk} dk', { saat, dk })
+  if (dk > 0) return c('{dk} dk', { dk })
+  return c('{sn} sn', { sn: s })
 }
 
 /** Kilide kalan süre, insan diliyle */
 function geriSayim(iso: string): string {
   const fark = new Date(iso).getTime() - Date.now()
-  if (fark <= 0) return 'açıldı'
+  if (fark <= 0) return c('açıldı')
   const gun = Math.floor(fark / 86400000)
   const saat = Math.floor((fark % 86400000) / 3600000)
   const dk = Math.floor((fark % 3600000) / 60000)
-  if (gun > 0) return `${gun} gün ${saat} saat kaldı`
-  if (saat > 0) return `${saat} saat ${dk} dk kaldı`
-  return `${dk} dk kaldı`
+  if (gun > 0) return c('{gun} gün {saat} saat kaldı', { gun, saat })
+  if (saat > 0) return c('{saat} saat {dk} dk kaldı', { saat, dk })
+  return c('{dk} dk kaldı', { dk })
 }
 
 export type Siralama = 'yeni' | 'eski' | 'cokParca' | 'azParca'
@@ -103,14 +109,18 @@ function sirala<T>(
 function tarih(s: string | number): string {
   const d = new Date(s)
   const fark = (Date.now() - d.getTime()) / 86400000
-  if (fark < 1) return 'bugün'
-  if (fark < 2) return 'dün'
-  if (fark < 7) return `${Math.floor(fark)} gün önce`
-  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })
+  if (fark < 1) return c('bugün')
+  if (fark < 2) return c('dün')
+  if (fark < 7) return c('{gun} gün önce', { gun: Math.floor(fark) })
+  return d.toLocaleDateString(suankiDil() === 'en' ? 'en-GB' : 'tr-TR', {
+    day: 'numeric',
+    month: 'long',
+  })
 }
 
 export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSignIn }: Props) {
   const auth = useAuth()
+  const { ceviri } = useDil()
   const fileRef = useRef<HTMLInputElement>(null)
   const [saved, setSaved] = useState<SavedPuzzle[]>(listPuzzles)
   const [busy, setBusy] = useState(false)
@@ -146,7 +156,9 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   const kilitliUyarisi = (acilis: string) =>
     setBilgi({
       baslik: 'Henüz açılmadı',
-      mesaj: `Bu puzzle özel gün için saklanmış. ${new Date(acilis).toLocaleString('tr-TR')} tarihinde açılacak.`,
+      mesaj: ceviri('Bu puzzle özel gün için saklanmış. {ne} tarihinde açılacak.', {
+        ne: new Date(acilis).toLocaleString(suankiDil() === 'en' ? 'en-GB' : 'tr-TR'),
+      }),
     })
 
   // Liste render sırasında okunuyor; oyundan çıkarken yazılan son kayıt bundan
@@ -236,13 +248,14 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       const url = isSample ? sampleUrl(src) : src
       onPickImage(
         await toPuzzleImage(url),
-        isSample ? src.title : '',
+        // Ad kayda o anki dilde yazılır; sonradan yeniden adlandırılabilir
+        isSample ? ceviri(src.title) : '',
         isSample ? (src.artist ?? '') : '',
       )
     } catch {
       setBilgi({
         baslik: 'Görsel açılamadı',
-        mesaj: 'Bu dosya okunamadı. Başka bir fotoğraf deneyebilirsin.',
+        mesaj: ceviri('Bu dosya okunamadı. Başka bir fotoğraf deneyebilirsin.'),
       })
     } finally {
       setBusy(false)
@@ -285,16 +298,24 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
   /** Silme penceresinde gösterilecek açıklama */
   const silmeMesaji = (): string => {
     if (!silinecek) return ''
-    const ad = silinecek.p.title || 'İsimsiz'
+    const ad = silinecek.p.title || ceviri('İsimsiz')
     if (silinecek.tur === 'yerel') {
-      return `"${ad}" bu cihazdan silinecek. İlerlemen kaybolur, geri alınamaz.`
+      return ceviri('"{ad}" bu cihazdan silinecek. İlerlemen kaybolur, geri alınamaz.', { ad })
     }
     const kisiler = katilimcilar.get(silinecek.p.id) ?? []
     const kimle =
       kisiler.length > 0
-        ? ` ${kisiler.join(', ')} ile birlikte çözdüğünüz bu tablo herkesin geçmişinden kalkar.`
+        ? ' ' +
+          ceviri('{kisiler} ile birlikte çözdüğünüz bu tablo herkesin geçmişinden kalkar.', {
+            kisiler: kisiler.join(', '),
+          })
         : ''
-    return `"${ad}" kalıcı olarak silinecek; fotoğrafı da sunucudan kaldırılır.${kimle} Geri alınamaz.`
+    return (
+      ceviri('"{ad}" kalıcı olarak silinecek; fotoğrafı da sunucudan kaldırılır.', { ad }) +
+      kimle +
+      ' ' +
+      ceviri('Geri alınamaz.')
+    )
   }
 
   // Sürükle bırak: dosyayı sayfanın herhangi bir yerine bırakmak yeterli.
@@ -330,7 +351,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     else
       setBilgi({
         baslik: 'Bu dosya olmaz',
-        mesaj: 'Yalnızca resim dosyası bırakabilirsin (jpg, png, webp).',
+        mesaj: ceviri('Yalnızca resim dosyası bırakabilirsin (jpg, png, webp).'),
       })
   }
 
@@ -378,8 +399,8 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       {surukleniyor && (
         <div className="birak-katmani">
           <div className="birak-kutu">
-            <b>Bırak gitsin</b>
-            <small>Fotoğrafı buraya bırak, puzzle'a çevireyim</small>
+            <b>{ceviri('Bırak gitsin')}</b>
+            <small>{ceviri("Fotoğrafı buraya bırak, puzzle'a çevireyim")}</small>
           </div>
         </div>
       )}
@@ -403,7 +424,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
               <button
                 className="hesap-dugme"
                 onClick={() => setProfilAcik(true)}
-                title="Profilini düzenle"
+                title={ceviri('Profilini düzenle')}
               >
                 <span className="avatar">
                   {benimAvatar ? (
@@ -415,22 +436,32 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                 <span>{gorunenAd || auth.displayName}</span>
               </button>
               <span className="spacer" />
+              <DilSecici ince />
               <button className="btn btn-ghost btn-sm" onClick={() => setProfilAcik(true)}>
-                Profil
+                {ceviri('Profil')}
               </button>
               <button className="btn btn-ghost btn-sm" onClick={() => void auth.signOut()}>
-                Çıkış
+                {ceviri('Çıkış')}
               </button>
             </>
           ) : (
             <>
-              <span className="muted">Misafirsin</span>
+              <span className="muted">{ceviri('Misafirsin')}</span>
               <span className="spacer" />
+              <DilSecici ince />
               <button className="btn btn-ghost btn-sm" onClick={onSignIn}>
-                Giriş yap
+                {ceviri('Giriş yap')}
               </button>
             </>
           )}
+        </div>
+      )}
+
+      {/* Supabase kapalıysa üst çubuk hiç çizilmiyor; dil düğmesi yine de dursun */}
+      {!auth.enabled && (
+        <div className="account-bar">
+          <span className="spacer" />
+          <DilSecici ince />
         </div>
       )}
 
@@ -438,13 +469,15 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         <h1 className="title">
           Birlikte <span>Puzzle</span>
         </h1>
-        <p className="subtitle">Fotoğrafını seç, linki gönder, aynı puzzle'ı beraber çözün.</p>
+        <p className="subtitle">
+          {ceviri("Fotoğrafını seç, linki gönder, aynı puzzle'ı beraber çözün.")}
+        </p>
       </header>
 
       <button className="btn btn-primary btn-lg" disabled={busy} onClick={() => fileRef.current?.click()}>
-        {busy ? 'Hazırlanıyor…' : 'Fotoğraf yükle'}
+        {busy ? ceviri('Hazırlanıyor…') : ceviri('Fotoğraf yükle')}
       </button>
-      <small className="muted">ya da fotoğrafı sürükleyip buraya bırak</small>
+      <small className="muted">{ceviri('ya da fotoğrafı sürükleyip buraya bırak')}</small>
       <input
         ref={fileRef}
         type="file"
@@ -465,20 +498,22 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
               <>
                 <div className="stat-box">
                   <b>{s.bitenPuzzle}</b>
-                  <small>biten puzzle</small>
+                  <small>{ceviri('biten puzzle')}</small>
                 </div>
                 <div className="stat-box">
                   <b>{sureMetni(s.toplamSure)}</b>
-                  <small>toplam süre</small>
+                  <small>{ceviri('toplam süre')}</small>
                 </div>
                 <div className="stat-box">
                   <b>{s.toplamParca}</b>
-                  <small>çözülen parça</small>
+                  <small>{ceviri('çözülen parça')}</small>
                 </div>
                 {s.enHizli && (
                   <div className="stat-box">
                     <b>{sureMetni(s.enHizli.elapsed)}</b>
-                    <small>en hızlı · {s.enHizli.title}</small>
+                    <small>
+                      {ceviri('en hızlı')} · {s.enHizli.title}
+                    </small>
                   </div>
                 )}
               </>
@@ -500,18 +535,18 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
               aria-expanded={tablolarAcik}
             >
               <span className="katlanir-ok">▸</span>
-              Tablolarım
+              {ceviri('Tablolarım')}
               <em className="field-hint">{uzak.length}</em>
             </button>
             {tablolarAcik && uzak.length > 1 && (
               <Select
                 kucuk
-                etiket="Sıralama"
+                etiket={ceviri('Sıralama')}
                 deger={siralama}
                 onDegis={setSiralama}
                 secenekler={(Object.keys(SIRALAMA_ADI) as Siralama[]).map((s) => ({
                   deger: s,
-                  etiket: SIRALAMA_ADI[s],
+                  etiket: ceviri(SIRALAMA_ADI[s]),
                 }))}
               />
             )}
@@ -543,14 +578,15 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                     <div className="cover-fallback">{kilitli ? '🔒' : ''}</div>
                   )}
                   <div className="info">
-                    <b>{p.title || 'İsimsiz'}</b>
+                    <b>{p.title || ceviri('İsimsiz')}</b>
                     <small>
                       {kilitli ? (
                         <span className="kilit-yazi">{geriSayim(p.unlock_at!)}</span>
                       ) : (
                         <>
-                          {gercektenBitti(p) ? 'bitti · ' : ''}
-                          {p.piece_count} parça · {tarih(p.updated_at)}
+                          {gercektenBitti(p) ? ceviri('bitti') + ' · ' : ''}
+                          {ceviri('{sayi} parça', { sayi: p.piece_count })} ·{' '}
+                          {tarih(p.updated_at)}
                         </>
                       )}
                     </small>
@@ -572,7 +608,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   </div>
                   <button
                     className="del"
-                    title="Yeniden adlandır"
+                    title={ceviri('Yeniden adlandır')}
                     onClick={(e) => {
                       e.stopPropagation()
                       setAdlandirilan({ tur: 'uzak', p })
@@ -582,7 +618,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   </button>
                   <button
                     className="del"
-                    title="Sil"
+                    title={ceviri('Sil')}
                     disabled={siliniyor === p.id}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -603,20 +639,20 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         <section className="block">
           <div className="katlanir-satir">
             <h2 className="section-label">
-              Bu cihazda
+              {ceviri('Bu cihazda')}
               {auth.enabled && !auth.user && (
-                <em className="field-hint">giriş yaparsan kaybolmaz</em>
+                <em className="field-hint">{ceviri('giriş yaparsan kaybolmaz')}</em>
               )}
             </h2>
             {yalnizcaYerel.length > 1 && (
               <Select
                 kucuk
-                etiket="Sıralama"
+                etiket={ceviri('Sıralama')}
                 deger={siralama}
                 onDegis={setSiralama}
                 secenekler={(Object.keys(SIRALAMA_ADI) as Siralama[]).map((s) => ({
                   deger: s,
-                  etiket: SIRALAMA_ADI[s],
+                  etiket: ceviri(SIRALAMA_ADI[s]),
                 }))}
               />
             )}
@@ -642,21 +678,22 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   <img src={p.imageDataUrl} alt="" />
                 )}
                 <div className="info">
-                  <b>{p.title || 'İsimsiz'}</b>
+                  <b>{p.title || ceviri('İsimsiz')}</b>
                   <small>
                     {kilitli ? (
                       <span className="kilit-yazi">{geriSayim(p.unlockAt!)}</span>
                     ) : (
                       <>
-                        {p.completed ? 'bitti · ' : ''}
-                        {p.pieceCount} parça · {tarih(p.updatedAt)}
+                        {p.completed ? ceviri('bitti') + ' · ' : ''}
+                        {ceviri('{sayi} parça', { sayi: p.pieceCount })} ·{' '}
+                        {tarih(p.updatedAt)}
                       </>
                     )}
                   </small>
                 </div>
                 <button
                   className="del"
-                  title="Yeniden adlandır"
+                  title={ceviri('Yeniden adlandır')}
                   onClick={(e) => {
                     e.stopPropagation()
                     setAdlandirilan({ tur: 'yerel', p })
@@ -666,7 +703,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                 </button>
                 <button
                   className="del"
-                  title="Sil"
+                  title={ceviri('Sil')}
                   onClick={(e) => {
                     e.stopPropagation()
                     setSilinecek({ tur: 'yerel', p })
@@ -683,9 +720,9 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
 
       <section className="block">
         <h2 className="section-label">
-          Hazır olanlar
+          {ceviri('Hazır olanlar')}
           <em className="field-hint">
-            {kategori ? `${gorunenler.length} eser` : `${SAMPLES.length} eser`}
+            {ceviri('{sayi} eser', { sayi: kategori ? gorunenler.length : SAMPLES.length })}
           </em>
         </h2>
 
@@ -697,7 +734,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
               setHepsiniGoster(false)
             }}
           >
-            Hepsi
+            {ceviri('Hepsi')}
           </button>
           {KATEGORI_SIRASI.map((k) => (
             <button
@@ -708,7 +745,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                 setHepsiniGoster(false)
               }}
             >
-              {KATEGORI_ADI[k]}
+              {ceviri(KATEGORI_ADI[k])}
               <em className="chip-sayi">{kategoriSayisi(k)}</em>
             </button>
           ))}
@@ -721,11 +758,13 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
               className="sample"
               onClick={() => void pick(s)}
               disabled={busy}
-              title={s.artist ? `${s.title} — ${s.artist}` : s.title}
+              title={
+                s.artist ? `${ceviri(s.title)} — ${s.artist}` : ceviri(s.title)
+              }
             >
-              <img src={sampleThumbUrl(s)} alt={s.title} />
+              <img src={sampleThumbUrl(s)} alt={ceviri(s.title)} />
               <span className="sample-caption">
-                <b>{s.title}</b>
+                <b>{ceviri(s.title)}</b>
                 {s.artist && <small>{s.artist}</small>}
               </span>
             </button>
@@ -733,7 +772,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         </div>
         {!hepsiniGoster && gorunenler.length > 12 && (
           <button className="btn btn-secondary" onClick={() => setHepsiniGoster(true)}>
-            Tümünü göster ({gorunenler.length - 12} tane daha)
+            {ceviri('Tümünü göster ({sayi} tane daha)', { sayi: gorunenler.length - 12 })}
           </button>
         )}
       </section>

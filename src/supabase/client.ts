@@ -2,6 +2,7 @@
 // modunda çalışmaya devam eder — giriş ve ortak geçmiş özellikleri kapanır.
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { cevir, suankiDil } from '../dil'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -177,21 +178,22 @@ export const supabase: SupabaseClient | null = supabaseEnabled
  * kullanılıyor — ham İngilizce metin kullanıcıya gösterilmesin.
  */
 export function hataMetni(message: string): string {
+  // Bileşen değil, düz fonksiyon: dil <html lang>'ten okunuyor (bkz. dil.tsx)
+  const c = (t: string) => cevir(suankiDil(), t)
   const m = message.toLowerCase()
   if (m.includes('row-level security') || m.includes('violates'))
-    return 'Bu işlem için yetkin yok.'
+    return c('Bu işlem için yetkin yok.')
   if (m.includes('failed to fetch') || m.includes('networkerror'))
-    return 'Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.'
-  if (m.includes('invalid login credentials')) return 'E-posta veya şifre hatalı.'
+    return c('Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.')
+  if (m.includes('invalid login credentials')) return c('E-posta veya şifre hatalı.')
   if (m.includes('user already registered') || m.includes('already been registered'))
-    return 'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.'
-  if (m.includes('password should be at least'))
-    return 'Şifre en az 6 karakter olmalı.'
+    return c('Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.')
+  if (m.includes('password should be at least')) return c('Şifre en az 6 karakter olmalı.')
   if (m.includes('unable to validate email') || m.includes('invalid email'))
-    return 'Geçerli bir e-posta adresi girin.'
+    return c('Geçerli bir e-posta adresi girin.')
   if (m.includes('email not confirmed'))
-    return 'E-postanızı doğrulamanız gerekiyor. Gelen kutunuzu kontrol edin.'
+    return c('E-postanızı doğrulamanız gerekiyor. Gelen kutunuzu kontrol edin.')
   if (m.includes('rate limit') || m.includes('too many'))
-    return 'Çok fazla deneme yapıldı. Biraz bekleyip tekrar deneyin.'
+    return c('Çok fazla deneme yapıldı. Biraz bekleyip tekrar deneyin.')
   return message
 }

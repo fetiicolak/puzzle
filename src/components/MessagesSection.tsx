@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import MessageBox from './MessageBox'
 import { basHarfler } from '../ad'
+import { useDil } from '../dil'
 import { avatarUrlleri } from '../supabase/profile'
 import {
   arkadasliklariGetir,
@@ -11,16 +12,17 @@ import {
 } from '../supabase/friends'
 
 /** "14:32" bugünse, değilse "3 Ağu" */
-function zamanMetni(iso: string): string {
+function zamanMetni(iso: string, dil: string): string {
   const t = new Date(iso)
   const bugun = new Date()
+  const yerel = dil === 'en' ? 'en-GB' : 'tr-TR'
   const ayniGun =
     t.getDate() === bugun.getDate() &&
     t.getMonth() === bugun.getMonth() &&
     t.getFullYear() === bugun.getFullYear()
   return ayniGun
-    ? t.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-    : t.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+    ? t.toLocaleTimeString(yerel, { hour: '2-digit', minute: '2-digit' })
+    : t.toLocaleDateString(yerel, { day: 'numeric', month: 'short' })
 }
 
 /**
@@ -32,6 +34,7 @@ function zamanMetni(iso: string): string {
  * listeyi açmak gerekiyordu.
  */
 export default function MessagesSection() {
+  const { dil, ceviri } = useDil()
   const [liste, setListe] = useState<Sohbet[]>([])
   /** Henüz yazışmadığın arkadaşlar — "Yeni mesaj" altında çıkar */
   const [yazilmayanlar, setYazilmayanlar] = useState<Kisi[]>([])
@@ -99,7 +102,7 @@ export default function MessagesSection() {
         aria-expanded={acik}
       >
         <span className="katlanir-ok">▸</span>
-        Mesajlar
+        {ceviri('Mesajlar')}
         <em className="field-hint">{liste.length}</em>
         {toplamOkunmamis > 0 && <span className="badge">{toplamOkunmamis}</span>}
       </button>
@@ -117,7 +120,7 @@ export default function MessagesSection() {
       {acik && (
         <>
           {liste.length === 0 && (
-            <p className="hint-line">Henüz kimseyle yazışmadın.</p>
+            <p className="hint-line">{ceviri('Henüz kimseyle yazışmadın.')}</p>
           )}
 
           {liste.length > 0 && (
@@ -132,10 +135,10 @@ export default function MessagesSection() {
                   <div className="info">
                     <b>
                       <span className="ad-kisa">{s.kisi.ad}</span>
-                      <small className="sohbet-zaman">{zamanMetni(s.sonZaman)}</small>
+                      <small className="sohbet-zaman">{zamanMetni(s.sonZaman, dil)}</small>
                     </b>
                     <small className="sohbet-onizleme">
-                      {s.benMiYazdi && <span className="muted">Sen: </span>}
+                      {s.benMiYazdi && <span className="muted">{ceviri('Sen')}: </span>}
                       {s.sonMetin}
                     </small>
                   </div>
@@ -153,7 +156,7 @@ export default function MessagesSection() {
                 aria-expanded={yeniAcik}
               >
                 <span className="katlanir-ok">▸</span>
-                Yeni mesaj
+                {ceviri('Yeni mesaj')}
                 <em className="field-hint">{yazilmayanlar.length}</em>
               </button>
 
@@ -171,7 +174,9 @@ export default function MessagesSection() {
                           <span className="ad-kisa">{k.ad}</span>
                         </b>
                         <small className="sohbet-onizleme muted">
-                          {cevrimiciMi(k.sonGorulme) ? 'şu an sitede' : 'henüz yazışmadınız'}
+                          {cevrimiciMi(k.sonGorulme)
+                            ? ceviri('şu an sitede')
+                            : ceviri('henüz yazışmadınız')}
                         </small>
                       </div>
                     </button>

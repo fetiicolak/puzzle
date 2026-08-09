@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useDil } from '../dil'
 
 interface Props {
   /** Şu anki ad — alan bununla dolu açılır */
@@ -12,6 +13,7 @@ interface Props {
  * Tarayıcının kendi prompt kutusu yerine uygulamanın içinde açılır.
  */
 export default function RenameDialog({ mevcutAd, onKaydet, onIptal }: Props) {
+  const { ceviri } = useDil()
   const [ad, setAd] = useState(mevcutAd)
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [hata, setHata] = useState<string | null>(null)
@@ -42,7 +44,7 @@ export default function RenameDialog({ mevcutAd, onKaydet, onIptal }: Props) {
     try {
       await onKaydet(temiz)
     } catch (err) {
-      setHata(err instanceof Error ? err.message : 'Kaydedilemedi')
+      setHata(err instanceof Error ? err.message : ceviri('Kaydedilemedi'))
       setKaydediliyor(false)
     }
   }
@@ -50,14 +52,14 @@ export default function RenameDialog({ mevcutAd, onKaydet, onIptal }: Props) {
   return (
     <div className="modal-arka" onClick={onIptal}>
       <form className="dialog" onClick={(e) => e.stopPropagation()} onSubmit={gonder}>
-        <h3>Adı değiştir</h3>
+        <h3>{ceviri('Adı değiştir')}</h3>
 
         <input
           ref={inputRef}
           className="input"
           value={ad}
           maxLength={60}
-          placeholder="Puzzle adı"
+          placeholder={ceviri('Puzzle adı')}
           onChange={(e) => setAd(e.target.value)}
         />
 
@@ -65,10 +67,10 @@ export default function RenameDialog({ mevcutAd, onKaydet, onIptal }: Props) {
 
         <div className="dialog-butonlar">
           <button type="button" className="btn btn-ghost" onClick={onIptal}>
-            İptal
+            {ceviri('İptal')}
           </button>
           <button type="submit" className="btn btn-primary" disabled={!kaydedilebilir}>
-            {kaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}
+            {kaydediliyor ? ceviri('Kaydediliyor…') : ceviri('Kaydet')}
           </button>
         </div>
       </form>

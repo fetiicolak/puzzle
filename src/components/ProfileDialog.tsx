@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import Select from './Select'
 import { basHarfler } from '../ad'
+import { useDil } from '../dil'
 import {
   hesabiSil,
   avatarHazirla,
@@ -26,6 +27,7 @@ const SIMDIKI_YIL = new Date().getFullYear()
 
 /** Kendi profilini düzenleme penceresi */
 export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
+  const { ceviri } = useDil()
   const [profil, setProfil] = useState<Profil | null>(null)
   const [ad, setAd] = useState('')
   const [dogumYili, setDogumYili] = useState('')
@@ -76,7 +78,7 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
       setFotoSilinsin(false)
       setOnizleme(URL.createObjectURL(blob))
     } catch {
-      setHata('Bu görsel açılamadı, başka bir tane dene.')
+      setHata(ceviri('Bu görsel açılamadı, başka bir tane dene.'))
     }
   }
 
@@ -88,7 +90,7 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
 
   const kaydet = async () => {
     if (!yilGecerli) {
-      setHata(`Doğum yılı 1900 ile ${SIMDIKI_YIL} arasında olmalı.`)
+      setHata(ceviri('Doğum yılı 1900 ile {yil} arasında olmalı.', { yil: SIMDIKI_YIL }))
       return
     }
     setKaydediliyor(true)
@@ -111,7 +113,7 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
       onKaydedildi?.(temizAd)
       onKapat()
     } catch (e) {
-      setHata(e instanceof Error ? e.message : 'Kaydedilemedi')
+      setHata(e instanceof Error ? e.message : ceviri('Kaydedilemedi'))
       setKaydediliyor(false)
     }
   }
@@ -138,17 +140,17 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
   return (
     <div className="modal-arka" onClick={() => !kaydediliyor && onKapat()}>
       <div className="dialog dialog-genis" onClick={(e) => e.stopPropagation()}>
-        <h3>Profilim</h3>
+        <h3>{ceviri('Profilim')}</h3>
 
         {yukleniyor ? (
-          <p className="dialog-mesaj">Yükleniyor…</p>
+          <p className="dialog-mesaj">{ceviri('Yükleniyor…')}</p>
         ) : (
           <>
             <div className="profil-foto-satir">
               <button
                 className="avatar buyuk"
                 onClick={() => dosyaRef.current?.click()}
-                title="Fotoğraf seç"
+                title={ceviri('Fotoğraf seç')}
               >
                 {onizleme ? <img src={onizleme} alt="" /> : bas}
               </button>
@@ -157,7 +159,7 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
                   className="btn btn-secondary btn-sm"
                   onClick={() => dosyaRef.current?.click()}
                 >
-                  {onizleme ? 'Değiştir' : 'Fotoğraf seç'}
+                  {onizleme ? ceviri('Değiştir') : ceviri('Fotoğraf seç')}
                 </button>
                 {onizleme && (
                   <button
@@ -168,10 +170,12 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
                       setFotoSilinsin(true)
                     }}
                   >
-                    Kaldır
+                    {ceviri('Kaldır')}
                   </button>
                 )}
-                <small className="muted">Kare kırpılır, 256 piksele küçültülür.</small>
+                <small className="muted">
+                  {ceviri('Kare kırpılır, 256 piksele küçültülür.')}
+                </small>
               </div>
               <input
                 ref={dosyaRef}
@@ -187,21 +191,23 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
             </div>
 
             <label className="field">
-              <span className="field-label">Adın</span>
+              <span className="field-label">{ceviri('Adın')}</span>
               <input
                 className="input"
                 value={ad}
                 maxLength={40}
-                placeholder="Görünecek adın"
+                placeholder={ceviri('Görünecek adın')}
                 onChange={(e) => setAd(e.target.value)}
               />
             </label>
 
             <label className="field">
               <span className="field-label">
-                Doğum yılı
+                {ceviri('Doğum yılı')}
                 <em className="field-hint">
-                  {yasi !== null ? `${yasi} yaşındasın` : 'isteğe bağlı'}
+                  {yasi !== null
+                    ? ceviri('{yas} yaşındasın', { yas: yasi })
+                    : ceviri('isteğe bağlı')}
                 </em>
               </span>
               <input
@@ -210,7 +216,7 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
                 inputMode="numeric"
                 min={1900}
                 max={SIMDIKI_YIL}
-                placeholder="örn. 1998"
+                placeholder={ceviri('örn. 1998')}
                 value={dogumYili}
                 onChange={(e) => setDogumYili(e.target.value)}
               />
@@ -218,39 +224,41 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
 
             <label className="field">
               <span className="field-label">
-                Cinsiyet <em className="field-hint">isteğe bağlı</em>
+                {ceviri('Cinsiyet')} <em className="field-hint">{ceviri('isteğe bağlı')}</em>
               </span>
               <Select
-                etiket="Cinsiyet"
+                etiket={ceviri('Cinsiyet')}
                 deger={cinsiyet}
                 onDegis={(v) => setCinsiyet(v)}
                 secenekler={[
-                  { deger: '' as Cinsiyet | '', etiket: 'Seçilmedi' },
+                  { deger: '' as Cinsiyet | '', etiket: ceviri('Seçilmedi') },
                   ...(Object.keys(CINSIYET_ADI) as Cinsiyet[]).map((c) => ({
                     deger: c as Cinsiyet | '',
-                    etiket: CINSIYET_ADI[c],
+                    etiket: ceviri(CINSIYET_ADI[c]),
                   })),
                 ]}
               />
             </label>
 
             <small className="muted">
-              Bu bilgileri yalnızca birlikte puzzle çözdüğün ve arkadaş olduğun kişiler
-              görebilir.
+              {ceviri(
+                'Bu bilgileri yalnızca birlikte puzzle çözdüğün ve arkadaş olduğun kişiler görebilir.',
+              )}
             </small>
 
             <div className="tehlike-bolge">
-              <b>Hesabı sil</b>
+              <b>{ceviri('Hesabı sil')}</b>
               <small className="muted">
-                Tablolarını, fotoğraflarını, mesajlarını ve hesabını kalıcı olarak siler.
-                Geri alınamaz.
+                {ceviri(
+                  'Tablolarını, fotoğraflarını, mesajlarını ve hesabını kalıcı olarak siler. Geri alınamaz.',
+                )}
               </small>
               <button
                 className="btn btn-danger btn-sm"
                 disabled={kaydediliyor}
                 onClick={() => setSilmeOnayi(true)}
               >
-                Hesabımı sil
+                {ceviri('Hesabımı sil')}
               </button>
             </div>
           </>
@@ -260,14 +268,14 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
 
         <div className="dialog-butonlar">
           <button className="btn btn-ghost" disabled={kaydediliyor} onClick={onKapat}>
-            İptal
+            {ceviri('İptal')}
           </button>
           <button
             className="btn btn-primary"
             disabled={kaydediliyor || yukleniyor}
             onClick={() => void kaydet()}
           >
-            {kaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}
+            {kaydediliyor ? ceviri('Kaydediliyor…') : ceviri('Kaydet')}
           </button>
         </div>
       </div>

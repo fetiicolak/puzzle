@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useDil } from '../dil'
 import { useAuth } from '../supabase/auth'
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
  */
 export default function NewPasswordScreen({ onBitti, onVazgec }: Props) {
   const { sifreyiDegistir } = useAuth()
+  const { ceviri } = useDil()
   const [sifre, setSifre] = useState('')
   const [tekrar, setTekrar] = useState('')
   const [hata, setHata] = useState<string | null>(null)
@@ -42,9 +44,9 @@ export default function NewPasswordScreen({ onBitti, onVazgec }: Props) {
     <div className="screen screen-center">
       <header className="hero">
         <h1 className="title">
-          Yeni <span>şifre</span>
+          {ceviri('Yeni')} <span>{ceviri('şifre')}</span>
         </h1>
-        <p className="subtitle">Hesabın için yeni bir şifre belirle.</p>
+        <p className="subtitle">{ceviri('Hesabın için yeni bir şifre belirle.')}</p>
       </header>
 
       <form className="auth-form" onSubmit={gonder}>
@@ -52,7 +54,7 @@ export default function NewPasswordScreen({ onBitti, onVazgec }: Props) {
           className="input"
           type="password"
           autoComplete="new-password"
-          placeholder="Yeni şifre (en az 6 karakter)"
+          placeholder={ceviri('Yeni şifre (en az 6 karakter)')}
           value={sifre}
           minLength={6}
           required
@@ -63,22 +65,22 @@ export default function NewPasswordScreen({ onBitti, onVazgec }: Props) {
           className="input"
           type="password"
           autoComplete="new-password"
-          placeholder="Yeni şifre (tekrar)"
+          placeholder={ceviri('Yeni şifre (tekrar)')}
           value={tekrar}
           required
           onChange={(e) => setTekrar(e.target.value)}
         />
 
-        {uyusmuyor && <div className="form-error">Şifreler aynı değil.</div>}
+        {uyusmuyor && <div className="form-error">{ceviri('Şifreler aynı değil.')}</div>}
         {hata && <div className="form-error">{hata}</div>}
 
         <button className="btn btn-primary btn-lg" type="submit" disabled={bekle || !gecerli}>
-          {bekle ? 'Kaydediliyor…' : 'Şifreyi değiştir'}
+          {bekle ? ceviri('Kaydediliyor…') : ceviri('Şifreyi değiştir')}
         </button>
       </form>
 
       <button className="btn btn-ghost" onClick={onVazgec}>
-        Vazgeç
+        {ceviri('Vazgeç')}
       </button>
     </div>
   )

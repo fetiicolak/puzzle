@@ -7,6 +7,10 @@
 /** Galeri filtreleri. Sanat tarihi sınıfı değil, "ne görmek istiyorum" sorusu. */
 export type Kategori = 'turk' | 'portre' | 'sahne' | 'manzara' | 'doga' | 'hayvan' | 'desen'
 
+/**
+ * Kategori adları Türkçe tutuluyor; gösterilirken `ceviri()`'den geçiyor.
+ * Eser adları ve ressamlar çevrilmiyor — özel isim.
+ */
 export const KATEGORI_ADI: Record<Kategori, string> = {
   turk: 'Türk resmi',
   portre: 'Portreler',

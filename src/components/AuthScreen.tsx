@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import DilSecici from './DilSecici'
+import { useDil } from '../dil'
 import { beniHatirla, beniHatirlaAyarla, hatirlananEposta } from '../supabase/client'
 import { useAuth } from '../supabase/auth'
 
@@ -29,6 +31,7 @@ export default function AuthScreen({
   onMevcutlaDevam,
 }: Props) {
   const { signIn, signUp, sifreSifirla } = useAuth()
+  const { dil, ceviri } = useDil()
   const [mod, setMod] = useState<'giris' | 'kayit' | 'sifirla'>('giris')
   // "Beni hatırla" e-postayı hatırlar; şifre her girişte istenir
   const [email, setEmail] = useState(hatirlananEposta)
@@ -52,7 +55,9 @@ export default function AuthScreen({
         if (sonuc) setHata(sonuc)
         else {
           setBilgi(
-            'Sıfırlama bağlantısı e-postana gönderildi. Gelen kutunu (ve gereksiz klasörünü) kontrol et.',
+            ceviri(
+              'Sıfırlama bağlantısı e-postana gönderildi. Gelen kutunu (ve gereksiz klasörünü) kontrol et.',
+            ),
           )
         }
         return
@@ -62,7 +67,7 @@ export default function AuthScreen({
       if (sonuc) {
         setHata(sonuc)
       } else if (mod === 'kayit') {
-        setBilgi('Hesap açıldı. Şimdi giriş yapabilirsin.')
+        setBilgi(ceviri('Hesap açıldı. Şimdi giriş yapabilirsin.'))
         setMod('giris')
       } else {
         onBasarili?.()
@@ -83,13 +88,16 @@ export default function AuthScreen({
           )}
         </h1>
         <p className="subtitle">
-          {altYazi ?? 'Tabloların kaybolmasın, beraber çözdüklerin ikinizde de dursun.'}
+          {altYazi
+            ? ceviri(altYazi)
+            : ceviri('Tabloların kaybolmasın, beraber çözdüklerin ikinizde de dursun.')}
         </p>
+        <DilSecici />
       </header>
 
       {mevcutHesap && onMevcutlaDevam && (
         <button className="btn btn-secondary" onClick={onMevcutlaDevam}>
-          <b>{mevcutHesap}</b> olarak devam et
+          {ceviri('{ad} olarak devam et', { ad: mevcutHesap })}
         </button>
       )}
 
@@ -101,7 +109,7 @@ export default function AuthScreen({
             setHata(null)
           }}
         >
-          Giriş
+          {ceviri('Giriş')}
         </button>
         <button
           className={`tab ${mod === 'kayit' ? 'active' : ''}`}
@@ -110,7 +118,7 @@ export default function AuthScreen({
             setHata(null)
           }}
         >
-          Kayıt
+          {ceviri('Kayıt')}
         </button>
       </div>
 
@@ -118,7 +126,7 @@ export default function AuthScreen({
         {mod === 'kayit' && (
           <input
             className="input"
-            placeholder="Adın"
+            placeholder={ceviri('Adın')}
             value={ad}
             maxLength={40}
             required
@@ -129,7 +137,7 @@ export default function AuthScreen({
           className="input"
           type="email"
           autoComplete="email"
-          placeholder="E-posta"
+          placeholder={ceviri('E-posta')}
           value={email}
           required
           onChange={(e) => setEmail(e.target.value)}
@@ -139,7 +147,7 @@ export default function AuthScreen({
             className="input"
             type="password"
             autoComplete={mod === 'giris' ? 'current-password' : 'new-password'}
-            placeholder="Şifre"
+            placeholder={ceviri('Şifre')}
             value={sifre}
             minLength={6}
             required
@@ -149,7 +157,9 @@ export default function AuthScreen({
 
         {mod === 'sifirla' && (
           <small className="muted sifirla-not">
-            E-postanı yaz, sana yeni şifre belirleyebileceğin bir bağlantı gönderelim.
+            {ceviri(
+              'E-postanı yaz, sana yeni şifre belirleyebileceğin bir bağlantı gönderelim.',
+            )}
           </small>
         )}
 
@@ -163,7 +173,7 @@ export default function AuthScreen({
               setBilgi(null)
             }}
           >
-            Şifremi unuttum
+            {ceviri('Şifremi unuttum')}
           </button>
         )}
 
@@ -177,7 +187,7 @@ export default function AuthScreen({
               setBilgi(null)
             }}
           >
-            ← Girişe dön
+            ← {ceviri('Girişe dön')}
           </button>
         )}
 
@@ -191,8 +201,8 @@ export default function AuthScreen({
             }}
           />
           <span>
-            Beni hatırla
-            <em className="field-hint"> e-postan hazır gelsin</em>
+            {ceviri('Beni hatırla')}
+            <em className="field-hint"> {ceviri('e-postan hazır gelsin')}</em>
           </span>
         </label>
 
@@ -201,24 +211,50 @@ export default function AuthScreen({
 
         <button className="btn btn-primary btn-lg" type="submit" disabled={bekle}>
           {bekle
-            ? 'Bir saniye…'
+            ? ceviri('Bir saniye…')
             : mod === 'giris'
-              ? 'Giriş yap'
+              ? ceviri('Giriş yap')
               : mod === 'kayit'
-                ? 'Hesap aç'
-                : 'Sıfırlama bağlantısı gönder'}
+                ? ceviri('Hesap aç')
+                : ceviri('Sıfırlama bağlantısı gönder')}
         </button>
       </form>
 
       <button className="btn btn-ghost" onClick={onSkip}>
-        {atlaYazisi}
+        {ceviri(atlaYazisi)}
       </button>
 
+      {/*
+        Cümle iki dilde ayrı yazılıyor: Türkçede bağlantıdan sonra ek geliyor
+        ("Koşulları'nı"), İngilizcede gelmiyor. Tek şablonla ikisi de düzgün
+        çıkmıyor.
+      */}
       <small className="yasal-satir muted">
-        Devam ederek <a href="./kosullar.html" target="_blank" rel="noreferrer">Kullanım
-        Koşulları</a>'nı ve{' '}
-        <a href="./gizlilik.html" target="_blank" rel="noreferrer">Gizlilik
-        Politikası</a>'nı kabul etmiş olursun.
+        {dil === 'tr' ? (
+          <>
+            Devam ederek{' '}
+            <a href="./kosullar.html" target="_blank" rel="noreferrer">
+              Kullanım Koşulları
+            </a>
+            'nı ve{' '}
+            <a href="./gizlilik.html" target="_blank" rel="noreferrer">
+              Gizlilik Politikası
+            </a>
+            'nı kabul etmiş olursun.
+          </>
+        ) : (
+          <>
+            By continuing you agree to the{' '}
+            <a href="./kosullar.html" target="_blank" rel="noreferrer">
+              Terms of Use
+            </a>{' '}
+            and the{' '}
+            <a href="./gizlilik.html" target="_blank" rel="noreferrer">
+              Privacy Policy
+            </a>
+            .
+          </>
+        )}
       </small>
     </div>
   )
