@@ -9,6 +9,14 @@
 
 const SES_ANAHTARI = 'puzzle:ses'
 const MUZIK_ANAHTARI = 'puzzle:muzik'
+const EFEKT_SEVIYE_ANAHTARI = 'puzzle:ses-seviye'
+const MUZIK_SEVIYE_ANAHTARI = 'puzzle:muzik-seviye'
+
+/**
+ * Efekt yolunun tam açıkken kazancı. Seviye bunun üstüne çarpan olarak biniyor,
+ * yani seviye 1 iken ses eskisiyle birebir aynı.
+ */
+const EFEKT_TAVAN = 0.9
 
 let ctx: AudioContext | null = null
 let anaKazanc: GainNode | null = null
@@ -32,12 +40,45 @@ function ayarYaz(anahtar: string, deger: boolean): void {
   }
 }
 
+/** Kayıtlı ses seviyesi (0-1). Bozuk ya da eksik kayıtta tam açık. */
+function seviyeOku(anahtar: string): number {
+  try {
+    const ham = localStorage.getItem(anahtar)
+    if (ham === null) return 1
+    const s = Number(ham)
+    return Number.isFinite(s) ? Math.min(1, Math.max(0, s)) : 1
+  } catch {
+    return 1
+  }
+}
+
+function seviyeYaz(anahtar: string, deger: number): void {
+  try {
+    localStorage.setItem(anahtar, String(deger))
+  } catch {
+    // yoksay
+  }
+}
+
 export function sesAcikMi(): boolean {
   return ayarOku(SES_ANAHTARI)
 }
 
 export function muzikAcikMi(): boolean {
   return ayarOku(MUZIK_ANAHTARI) && sesAcikMi()
+}
+
+export function efektSeviyesi(): number {
+  return seviyeOku(EFEKT_SEVIYE_ANAHTARI)
+}
+
+export function muzikSeviyesi(): number {
+  return seviyeOku(MUZIK_SEVIYE_ANAHTARI)
+}
+
+/** Efekt yolunun o an olması gereken kazancı: kapalıysa 0, açıksa seviye kadar */
+function efektHedef(): number {
+  return sesAcikMi() ? EFEKT_TAVAN * efektSeviyesi() : 0
 }
 
 /** AudioContext'i kur (yalnızca kullanıcı etkileşiminden sonra çağrılmalı) */
@@ -52,7 +93,7 @@ function kur(): AudioContext | null {
     anaKazanc.connect(ctx.destination)
 
     efektKazanc = ctx.createGain()
-    efektKazanc.gain.value = sesAcikMi() ? 0.9 : 0
+    efektKazanc.gain.value = efektHedef()
     efektKazanc.connect(anaKazanc)
 
     muzikKazanc = ctx.createGain()
@@ -239,7 +280,7 @@ export async function muzigiBaslat(): Promise<boolean> {
   // yavaşça aç, kulağa aniden girmesin
   muzikKazanc.gain.cancelScheduledValues(c.currentTime)
   muzikKazanc.gain.setValueAtTime(0.0001, c.currentTime)
-  muzikKazanc.gain.linearRampToValueAtTime(1, c.currentTime + 2.5)
+  muzikKazanc.gain.linearRampToValueAtTime(muzikSeviyesi(), c.currentTime + 2.5)
   planla()
   zamanlayici = setInterval(planla, 800)
   ayarYaz(MUZIK_ANAHTARI, true)
@@ -271,9 +312,37 @@ export function sesiAyarla(acik: boolean): void {
   ayarYaz(SES_ANAHTARI, acik)
   const c = ctx
   if (c && efektKazanc) {
-    efektKazanc.gain.setTargetAtTime(acik ? 0.9 : 0, c.currentTime, 0.05)
+    efektKazanc.gain.setTargetAtTime(efektHedef(), c.currentTime, 0.05)
   }
   if (!acik) muzigiDurdur()
+}
+
+/**
+ * Efekt seviyesini ayarla (0-1).
+ *
+ * Kaydırıcı sürüklenirken saniyede onlarca kez çağrılıyor; bu yüzden
+ * setTargetAtTime ile yumuşatılıyor. Doğrudan değer ataması her adımda
+ * "çıt" sesi çıkarıyor.
+ */
+export function efektSeviyesiAyarla(seviye: number): void {
+  const s = Math.min(1, Math.max(0, seviye))
+  seviyeYaz(EFEKT_SEVIYE_ANAHTARI, s)
+  const c = ctx
+  if (c && efektKazanc) efektKazanc.gain.setTargetAtTime(efektHedef(), c.currentTime, 0.03)
+}
+
+/** Müzik seviyesini ayarla (0-1) */
+export function muzikSeviyesiAyarla(seviye: number): void {
+  const s = Math.min(1, Math.max(0, seviye))
+  seviyeYaz(MUZIK_SEVIYE_ANAHTARI, s)
+  const c = ctx
+  // Müzik çalmıyorken kazanç 0; buraya dokunursak durdurulmuş müzik
+  // yeniden duyulmaya başlar. Yeni seviye bir sonraki başlatmada uygulanır.
+  if (c && muzikKazanc && muzikCalisiyor) {
+    muzikKazanc.gain.cancelScheduledValues(c.currentTime)
+    muzikKazanc.gain.setValueAtTime(muzikKazanc.gain.value, c.currentTime)
+    muzikKazanc.gain.setTargetAtTime(s, c.currentTime, 0.05)
+  }
 }
 
 /** Oyundan çıkarken her şeyi kapat */

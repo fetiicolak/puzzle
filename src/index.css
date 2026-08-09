@@ -2160,6 +2160,62 @@ button {
 }
 
 /* çözerken orijinale bakma */
+/* ------------------------------------------------------------- ses ayarları */
+
+.ses-panel {
+  position: absolute;
+  top: calc(var(--ust-cubuk) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 320px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(26, 20, 38, 0.98);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 8;
+  animation: pop 0.2s ease;
+}
+/*
+  Taşındığı anda left/top satır içi stille veriliyor; ortalayan transform
+  kalırsa panel imlecin yarım boy soluna kayar.
+*/
+.ses-panel[style*='left'] {
+  transform: none;
+}
+.ses-satir {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 12px 14px 4px;
+}
+.ses-etiket {
+  color: var(--text);
+  font-size: 0.93rem;
+}
+.ses-yuzde {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.ses-kaydirici {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 2px 0 8px;
+  /* dokunmatikte kaydırıcıyı sürüklerken sayfa kaymasın */
+  touch-action: none;
+  accent-color: var(--accent);
+}
+.ses-kaydirici:disabled {
+  opacity: 0.4;
+}
+.ses-not {
+  padding: 0 14px 12px;
+  font-size: 0.82rem;
+}
+
 .peek {
   position: absolute;
   left: 14px;

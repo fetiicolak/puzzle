@@ -169,6 +169,15 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   Şifre sıfırlama jetonu bu yüzden elle okunuyor (`kurtarmaJetonu`).
 - **Ses dosyası yok, Web Audio ile üretiliyor** (`src/audio.ts`). Paket
   büyümüyor, telif yok, çevrimdışı çalışıyor.
+  - Efekt ve müzik ayrı kazanç yollarından geçiyor; seviye (0-1) bu yolların
+    üstüne **çarpan** olarak biniyor. Seviye 1 iken ses eski davranışla birebir
+    aynı — yeni ayar hiçbir şeyi sessizce değiştirmiyor.
+  - **Kazanca doğrudan değer atama.** Kaydırıcı sürüklenirken saniyede onlarca
+    kez çağrılıyor ve her adımda hoparlörde "çıt" oluyor; `setTargetAtTime`
+    ile yumuşat.
+  - **`muzikSeviyesiAyarla` müzik çalmıyorken kazanca dokunmuyor.** Dokunsa
+    durdurulmuş müzik yeniden duyulmaya başlar; yeni seviye bir sonraki
+    başlatmada uygulanıyor.
 - **Spotify embed kullanılmadı**: tam parça için dinleyicinin hesabını şart
   koşuyor, kesintisiz dönmüyor, ses seviyesi dışarıdan ayarlanamıyor.
 - **Örnek eserler kamu malı** (sahibi 70+ yıl önce vefat etmiş) veya CC0.
@@ -187,6 +196,20 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   yoksa canlıda boş kalır.
 - `main`'e push → Actions → GitHub Pages. `gh run watch <id> --exit-status`
   ile bitmesini bekle, sonra canlı paketi indirip değerlerin girdiğini doğrula.
+- **Dağıtım takılırsa hangi işin asılı olduğuna bak: `gh run view <id>`.**
+  İş akışı iki işten oluşuyor ve ikisi çok farklı şeyler söylüyor:
+  - `build` de bekliyorsa → runner sıkıntısı ya da kota; bizi ilgilendirir.
+  - `build` 20 saniyede bitip `deploy` asılı kaldıysa → **sorun bizde değil**,
+    GitHub'ın Pages yayınlama adımındadır. Derleme ve testler zaten geçmiştir.
+    Çare: `gh workflow run "Deploy to GitHub Pages" --ref main`. 2026-08-09'da
+    art arda iki çalıştırma 36 ve 19 dakika asılı kaldı, elle tetiklenen
+    üçüncüsü 30 saniyede bitti. Onay kapısı ya da GitHub arızası yoktu
+    (`gh api .../pending_deployments` boş, durum sayfası temiz) — boşuna orada
+    arama.
+  - Bu arada canlı site bozulmuyor, bir önceki sürümü sunmaya devam ediyor.
+- **`concurrency: cancel-in-progress: true` var**: yeni bir push, devam eden
+  dağıtımı iptal ediyor. Bir çalıştırmanın "cancelled" görünmesi hata değil,
+  ardından push yaptığın anlamına gelir.
 - Kullanıcının Supabase panelinden yapması gerekenler (kod işi değil):
   SMTP sağlayıcısı, e-posta doğrulama, izinli yönlendirme adresleri.
 - **Şifremi unuttum akışı kod tarafında tam** (2026-08-06 doğrulandı: `tsc -b`
@@ -227,6 +250,10 @@ denenmedi. Parantez içi, denemek için gereken şey.
 - [ ] `hafifMod`'un doğru cihazlarda açılması. Ölçüt `hardwareConcurrency` ve
       `deviceMemory`; ikisi de kaba ipuçları, gerçek telefonlarda ne dediği
       bilinmiyor. Konsoldan `__puzzle.board.hafifMod` ile bakılır.
+- [ ] Ses kaydırıcılarının parmakla sürüklenmesi. Kazanç değerleri ölçülerek
+      doğrulandı (%40 → 0.36, %25 → 0.25, %0 → tam sessiz) ama kimse kulakla
+      dinlemedi ve dokunmatikte `input[type=range]` sürüklenmesi denenmedi.
+      (2026-08-09)
 
 *İki hesap gerekiyor*
 - [ ] A5 uçtan uca test: hız sınırı, engelleme, şikayet, alıcının mesaj silmesi

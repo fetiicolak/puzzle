@@ -22,6 +22,7 @@ import ConfirmDialog from './ConfirmDialog'
 import FriendsPanel from './FriendsPanel'
 import Linkli from './Linkli'
 import RoomPanel, { type BagliKisi } from './RoomPanel'
+import SesAyarlari from './SesAyarlari'
 import {
   birlesme,
   kutlama,
@@ -241,6 +242,29 @@ export default function GameScreen({ config, onExit }: Props) {
   /** Ses efektleri ve arka plan müziği */
   const [sesler, setSesler] = useState(sesAcikMi)
   const [muzik, setMuzik] = useState(false)
+  const [sesPanel, setSesPanel] = useState(false)
+
+  // Aynı iki eylem hem üst çubuktan hem ses ayarları penceresinden çağrılıyor
+  const sesleriDegistir = () => {
+    const yeni = !sesler
+    sesiAyarla(yeni)
+    setSesler(yeni)
+    if (!yeni) setMuzik(false)
+  }
+  const muzigiDegistir = () => {
+    if (muzik) {
+      muzigiDurdur()
+      setMuzik(false)
+      return
+    }
+    // Tarayıcı sesi ancak kullanıcı dokunduktan sonra açtırır; bu tıklama
+    // o izni veriyor.
+    if (!sesler) {
+      sesiAyarla(true)
+      setSesler(true)
+    }
+    void muzigiBaslat().then((oldu) => setMuzik(oldu))
+  }
   /** Bitiş ekranından açılan hatıra kartı */
   const [sertifika, setSertifika] = useState(false)
   /** Şu an bağlı olanlar: peer kimliği -> ad + hesap kimliği */
@@ -1223,35 +1247,17 @@ export default function GameScreen({ config, onExit }: Props) {
           </button>
           <button
             className={`icon-btn ${sesler ? 'on' : ''}`}
-            onClick={() => {
-              const yeni = !sesler
-              sesiAyarla(yeni)
-              setSesler(yeni)
-              if (!yeni) setMuzik(false)
-            }}
+            onClick={sesleriDegistir}
             title={sesler ? ceviri('Ses efektlerini kapat') : ceviri('Ses efektlerini aç')}
           >
             {sesler ? '🔊' : '🔈'}
           </button>
           <button
-            className={`icon-btn ${muzik ? 'on' : ''}`}
-            onClick={() => {
-              if (muzik) {
-                muzigiDurdur()
-                setMuzik(false)
-              } else {
-                // Tarayıcı sesi ancak kullanıcı dokunduktan sonra açtırır;
-                // bu tıklama o izni veriyor.
-                if (!sesler) {
-                  sesiAyarla(true)
-                  setSesler(true)
-                }
-                void muzigiBaslat().then((oldu) => setMuzik(oldu))
-              }
-            }}
-            title={muzik ? ceviri('Müziği kapat') : ceviri('Sakin arka plan müziği')}
+            className={`icon-btn ${sesPanel ? 'on' : ''}`}
+            onClick={() => setSesPanel((v) => !v)}
+            title={ceviri('Ses ayarları')}
           >
-            ♪
+            🎚
           </button>
           <button
             className={`icon-btn ${ghost ? 'on' : ''}`}
@@ -1299,6 +1305,16 @@ export default function GameScreen({ config, onExit }: Props) {
       </div>
 
       <canvas ref={canvasRef} className="game-canvas" />
+
+      {sesPanel && (
+        <SesAyarlari
+          sesler={sesler}
+          muzik={muzik}
+          onSesler={sesleriDegistir}
+          onMuzik={muzigiDegistir}
+          onKapat={() => setSesPanel(false)}
+        />
+      )}
 
       {peek && refs.current.imageDataUrl && (
         <OrijinalPanel

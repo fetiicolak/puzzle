@@ -112,6 +112,16 @@ export const SOZLUK: Record<string, string> = {
   'Mikrofonu aç': 'Unmute microphone',
   'Görüşmeyi bitir': 'End call',
 
+  // ---------------------------------------------------------- ses ayarları
+  Ses: 'Sound',
+  'Ses ayarları': 'Sound settings',
+  'Ses efektleri': 'Sound effects',
+  Müzik: 'Music',
+  'Ses kapalı. Efektleri duymak için 🔊 düğmesini aç.':
+    'Sound is off. Turn on 🔊 to hear the effects.',
+  'Müzik açık ama sesi tamamen kısık.': 'Music is on but turned all the way down.',
+  'Müzik ve efektlerin sesini ayarla': 'Set the music and effect volume',
+
   // ------------------------------------------------- taşınabilir yüzen paneller
   'Yerine döndür': 'Move back',
   Orijinal: 'Original',
