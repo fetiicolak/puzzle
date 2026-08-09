@@ -342,6 +342,74 @@ export async function mesajGonder(kisiId: string, metin: string): Promise<void> 
   }
 }
 
+/** Mesajlar bölümündeki tek bir yazışma satırı */
+export interface Sohbet {
+  kisi: Kisi
+  /** Son mesajın metni — listede önizleme olarak görünür */
+  sonMetin: string
+  sonZaman: string
+  /** Son sözü ben mi söyledim (önizlemede "Sen:" yazılsın diye) */
+  benMiYazdi: boolean
+  okunmamis: number
+}
+
+/**
+ * Yazışmalar, en son konuşulandan eskiye.
+ *
+ * Tek sorguyla çekilip istemcide gruplanıyor: Postgres'te kişi başına son
+ * satırı almak için pencere fonksiyonu gerekir, o da ayrı bir görünüm ya da
+ * fonksiyon demek. Sınır (400) iki kişilik gerçek kullanımın çok üstünde;
+ * dolarsa yalnızca çok eski yazışmalar listeden düşer, mesajlar durur.
+ */
+export async function sohbetler(): Promise<Sohbet[]> {
+  if (!supabase) return []
+  const { data: oturum } = await supabase.auth.getUser()
+  const ben = oturum.user?.id
+  if (!ben) return []
+
+  const { data, error } = await supabase
+    .from('messages')
+    .select('sender,receiver,body,created_at,read_at')
+    .or(`sender.eq.${ben},receiver.eq.${ben}`)
+    .order('created_at', { ascending: false })
+    .limit(400)
+  if (error) return []
+
+  interface Satir {
+    sender: string
+    receiver: string
+    body: string
+    created_at: string
+    read_at: string | null
+  }
+
+  const kisiBasina = new Map<string, Sohbet>()
+  for (const m of (data ?? []) as Satir[]) {
+    const karsiId = m.sender === ben ? m.receiver : m.sender
+    let sohbet = kisiBasina.get(karsiId)
+    if (!sohbet) {
+      // Sıralama yeniden eskiye: kişiyi ilk gördüğümüz satır son mesajıdır
+      sohbet = {
+        kisi: { id: karsiId, ad: 'İsimsiz', avatarPath: null },
+        sonMetin: m.body,
+        sonZaman: m.created_at,
+        benMiYazdi: m.sender === ben,
+        okunmamis: 0,
+      }
+      kisiBasina.set(karsiId, sohbet)
+    }
+    if (m.receiver === ben && !m.read_at) sohbet.okunmamis += 1
+  }
+  if (kisiBasina.size === 0) return []
+
+  const adlar = await adlariGetir([...kisiBasina.keys()])
+  for (const [id, sohbet] of kisiBasina) {
+    const p = adlar.get(id)
+    if (p) sohbet.kisi = { id, ad: p.ad, avatarPath: p.avatarPath, sonGorulme: p.sonGorulme }
+  }
+  return [...kisiBasina.values()]
+}
+
 /** Gelen mesajları okundu işaretle */
 export async function okunduIsaretle(kisiId: string): Promise<void> {
   if (!supabase) return

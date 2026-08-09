@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
-import MessageBox from './MessageBox'
 import { basHarfler } from '../ad'
 import { hataMetni } from '../supabase/client'
 import { avatarUrlleri } from '../supabase/profile'
@@ -13,7 +12,6 @@ import {
   cevrimiciMi,
   engellenenler,
   engeliKaldir,
-  okunmamisSayilari,
   type Arkadaslik,
   type Kisi,
 } from '../supabase/friends'
@@ -23,8 +21,6 @@ export default function FriendsSection() {
   const [oneriler, setOneriler] = useState<Kisi[]>([])
   const [yukleniyor, setYukleniyor] = useState(true)
   const [islemdeki, setIslemdeki] = useState<string | null>(null)
-  const [okunmamis, setOkunmamis] = useState<Map<string, number>>(new Map())
-  const [acikSohbet, setAcikSohbet] = useState<Kisi | null>(null)
   /** Arkadaşlıktan çıkarılmak üzere onay bekleyen kişi */
   const [cikarilacak, setCikarilacak] = useState<Arkadaslik | null>(null)
   /** Başlığa tıklanınca liste açılır; sayfa uzamasın diye kapalı başlar */
@@ -39,7 +35,6 @@ export default function FriendsSection() {
     // zaten arkadaş olduğun ya da istek gidip gelen kişileri önerme
     const oneri = await birlikteOynananlar(liste.map((a) => a.kisi.id))
     setOneriler(oneri)
-    setOkunmamis(await okunmamisSayilari())
     setEngelliler(await engellenenler())
     setAvatarlar(
       await avatarUrlleri([
@@ -139,16 +134,6 @@ export default function FriendsSection() {
         {gelenler.length > 0 && <span className="badge">{gelenler.length}</span>}
       </button>
 
-      {acikSohbet && (
-        <MessageBox
-          kisi={acikSohbet}
-          onKapat={() => {
-            setAcikSohbet(null)
-            void tazele()
-          }}
-        />
-      )}
-
       {cikarilacak && (
         <ConfirmDialog
           baslik="Arkadaşlıktan çıkar"
@@ -203,15 +188,6 @@ export default function FriendsSection() {
                 <b>{a.kisi.ad}</b>
                 <small>{cevrimiciMi(a.kisi.sonGorulme) ? 'şu an sitede' : 'çevrimdışı'}</small>
               </div>
-              <button
-                className="btn btn-sm btn-secondary"
-                onClick={() => setAcikSohbet(a.kisi)}
-              >
-                Mesaj
-                {(okunmamis.get(a.kisi.id) ?? 0) > 0 && (
-                  <span className="badge">{okunmamis.get(a.kisi.id)}</span>
-                )}
-              </button>
               <button
                 className="del"
                 title="Arkadaşlıktan çıkar"

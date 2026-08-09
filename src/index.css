@@ -1119,6 +1119,73 @@ button {
 .section-katlanir.acik .katlanir-ok {
   transform: rotate(90deg);
 }
+/* bölüm içindeki ikinci seviye başlık ("Yeni mesaj") */
+.section-katlanir.ince {
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  padding: 8px 2px 4px;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------------- mesaj listesi */
+
+/*
+  Yazışma satırı: tamamı tek bir düğme, çünkü satırın herhangi bir yerine
+  tıklayınca sohbet açılmalı. Arkadaş satırında ayrı eylemler olduğu için
+  orada düğme satırın tamamı değil.
+*/
+.sohbet-satir {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.sohbet-satir:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+.sohbet-satir .info {
+  flex: 1;
+  min-width: 0;
+}
+.sohbet-satir .info b {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.sohbet-zaman {
+  margin-left: auto;
+  flex: none;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+/* önizleme tek satır: uzun mesaj listeyi şişirmesin */
+.sohbet-onizleme {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+/* okunmamış varsa ad ve önizleme öne çıksın */
+.sohbet-satir.okunmamis .info b {
+  font-weight: 800;
+}
+.sohbet-satir.okunmamis .sohbet-onizleme {
+  color: var(--text);
+}
 
 /* katlanır başlık + yanındaki sıralama seçimi aynı satırda */
 .katlanir-satir {

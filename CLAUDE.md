@@ -129,6 +129,8 @@ Bittikçe buradan sil. Sıra kabaca öncelik sırası.
       (iki hesap gerekiyor)
 - [ ] Oyun içi arkadaş paneli (🤝): "şu an sitede" ışığı, mesaj kutusu ve
       "Davet et" ile giden davet mesajı (iki hesap gerekiyor)
+- [ ] Ana ekrandaki Mesajlar bölümü: önizleme, okunmamış rozeti ve sıralama
+      (iki hesap gerekiyor)
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import FriendsSection from './FriendsSection'
+import MessagesSection from './MessagesSection'
 import ProfileDialog from './ProfileDialog'
 import RenameDialog from './RenameDialog'
 import Select from './Select'
@@ -487,6 +488,8 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       )}
 
       {auth.user && <FriendsSection />}
+
+      {auth.user && <MessagesSection />}
 
       {auth.user && (uzak.length > 0 || uzakYukleniyor) && (
         <section className="block">
