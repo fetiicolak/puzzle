@@ -6,15 +6,20 @@ import {
   muzikSeviyesi,
   muzikSeviyesiAyarla,
 } from '../audio'
+import { PARCALAR } from '../muzik'
 import PanelBaslik from './PanelBaslik'
+import Select from './Select'
 import { useSurukle } from './surukle'
 
 interface Props {
   /** Ses efektleri açık mı (üst çubuktaki 🔊 ile ortak durum) */
   sesler: boolean
   muzik: boolean
+  /** Seçili müzik parçasının kimliği */
+  parca: string
   onSesler: () => void
   onMuzik: () => void
+  onParca: (id: string) => void
   onKapat: () => void
 }
 
@@ -27,7 +32,15 @@ interface Props {
  * Seviye localStorage'da; audio.ts kaydırıcı hareket ettikçe kazancı
  * yumuşatarak izliyor, böylece sürüklerken sonucu anında duyuyorsun.
  */
-export default function SesAyarlari({ sesler, muzik, onSesler, onMuzik, onKapat }: Props) {
+export default function SesAyarlari({
+  sesler,
+  muzik,
+  parca,
+  onSesler,
+  onMuzik,
+  onParca,
+  onKapat,
+}: Props) {
   const { ceviri } = useDil()
   const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLElement>('ses')
   const [efekt, setEfekt] = useState(() => Math.round(efektSeviyesi() * 100))
@@ -99,6 +112,21 @@ export default function SesAyarlari({ sesler, muzik, onSesler, onMuzik, onKapat 
             muzikSeviyesiAyarla(v / 100)
           }}
         />
+        {/*
+          Liste müzik kapalıyken de açık: parça seçmek müziği başlatıyor.
+          Kullanıcı bir parça seçtiğinde çalmasını bekliyor.
+        */}
+        <div className="ses-parca">
+          <Select
+            deger={parca}
+            secenekler={PARCALAR.map((p) => ({
+              deger: p.id,
+              etiket: `${p.simge}  ${ceviri(p.ad)}`,
+            }))}
+            onDegis={onParca}
+            etiket={ceviri('Müzik parçası')}
+          />
+        </div>
       </div>
 
       {!sesler && (

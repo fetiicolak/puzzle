@@ -195,6 +195,23 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   Şifre sıfırlama jetonu bu yüzden elle okunuyor (`kurtarmaJetonu`).
 - **Ses dosyası yok, Web Audio ile üretiliyor** (`src/audio.ts`). Paket
   büyümüyor, telif yok, çevrimdışı çalışıyor.
+  - **Tarif `src/muzik.ts`'te, çalma `audio.ts`'te.** `muzik.ts` saf: parça
+    tablosu + `notalariPlanla(parca, tohum, adim)`. Web Audio'ya hiç
+    dokunmadığı için testte doğrudan çalışıyor (jsdom'da `AudioContext` yok).
+    **Yeni parça eklemek `PARCALAR` tablosuna bir satır** — `audio.ts`'e
+    dokunmak gerekmiyor.
+  - **Odaya ses değil tarif gönderiliyor**: `{ t: 'muzik', p, seed }` ~30 bayt,
+    iki taraf da notaları kendisi üretiyor. Tohum `mulberry32`'ye gidiyor,
+    aynı tohum her cihazda aynı ezgiyi veriyor. Adım tohuma karıştırılıyor
+    (`tohum + adim * 0x9e3779b1`), yoksa ardışık adımlar birbirine benziyor.
+  - **Gelen `muzik` mesajı yalnızca seçimi değiştirir, ses açmaz.** Müziği
+    kapatmış ya da kısmış kişiye odadan ses açtırmak yanlış; seçim hatırlanıp
+    o kişi müziği açtığında çalıyor. `parcaSec` çalmıyorken kazanca dokunmuyor.
+  - Parça değişimi yumuşak geçişle: ramp aşağı → `kaynaklariSustur()` → ramp
+    yukarı. Susturma olmazsa eski parçanın ileriye planlanmış notaları
+    yenisinin üstüne biniyor.
+  - `durdur(ayariYaz)` ayrı: parça değiştirirken ayara `false` yazılmamalı,
+    yoksa "müzik kapalı" diye kaydedilip bir daha açılmıyor.
   - Efekt ve müzik ayrı kazanç yollarından geçiyor; seviye (0-1) bu yolların
     üstüne **çarpan** olarak biniyor. Seviye 1 iken ses eski davranışla birebir
     aynı — yeni ayar hiçbir şeyi sessizce değiştirmiyor.
@@ -204,8 +221,20 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   - **`muzikSeviyesiAyarla` müzik çalmıyorken kazanca dokunmuyor.** Dokunsa
     durdurulmuş müzik yeniden duyulmaya başlar; yeni seviye bir sonraki
     başlatmada uygulanıyor.
-- **Spotify embed kullanılmadı**: tam parça için dinleyicinin hesabını şart
-  koşuyor, kesintisiz dönmüyor, ses seviyesi dışarıdan ayarlanamıyor.
+- **Spotify hiçbir biçimde kullanılamıyor — API anahtarı bunu çözmüyor.**
+  Bir daha araştırılmasın diye gerekçeler:
+  - Web API **ses akışı vermiyor**; yalnızca üst veri (ad, sanatçı, kapak).
+  - Web Playback SDK tam parça çalıyor ama **her dinleyicide ayrı Premium
+    hesabı ve OAuth girişi** şart. Anahtar uygulamayı tanıtıyor, dinleyicinin
+    aboneliğinin yerine geçmiyor.
+  - Geliştirici sözleşmesi **ortak/eşzamanlı dinlemeyi** ve içeriğin başka
+    medyayla senkronlanmasını yasaklıyor. "Odada aynı şarkı" tam olarak bu;
+    25 kullanıcıyı aşmak için gereken kota incelemesinden geçmesi beklenmez.
+  - 30 saniyelik `preview_url` yeni uygulamalarda boş dönüyor (Kasım 2024).
+  - Embed (iframe): tam parça için yine hesap şart, kesintisiz dönmüyor, ses
+    seviyesi dışarıdan ayarlanamıyor.
+  - YouTube da çözüm değil: ToS yalnızca-ses ve arka plan kullanımını
+    yasaklıyor. Telif çizgisi eserlerde ne ise müzikte de o.
 - **Örnek eserler kamu malı** (sahibi 70+ yıl önce vefat etmiş) veya CC0.
   Telifli eser eklenmez — Picasso bu yüzden reddedildi.
 - **"Şu an sitede" tek sütunla çözülüyor** (`profiles.last_seen`, `nabizAt`).
@@ -291,6 +320,11 @@ denenmedi. Parantez içi, denemek için gereken şey.
       doğrulandı (%40 → 0.36, %25 → 0.25, %0 → tam sessiz) ama kimse kulakla
       dinlemedi ve dokunmatikte `input[type=range]` sürüklenmesi denenmedi.
       (2026-08-09)
+- [ ] **Müzik parçaları kulakla dinlenmedi.** Notalar, akorlar, geçiş rampası
+      ve tohum eşleşmesi ölçüldü; ama `gece` gerçekten sakin mi, `kutu` müzik
+      kutusu gibi mi, `yagmur` yağmura benziyor mu bilinmiyor — beyaz gürültü
+      + lowpass 1400 Hz kâğıt üstünde doğru, kulakta ne olduğu ayrı.
+      Beğenilmezse `PARCALAR` tablosundaki sayılar değişir. (2026-08-10)
 
 *İki hesap gerekiyor*
 - [ ] A5 uçtan uca test: hız sınırı, engelleme, şikayet, alıcının mesaj silmesi

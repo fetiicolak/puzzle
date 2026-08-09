@@ -101,6 +101,38 @@ describe('dogrula — yetki', () => {
     expect(hostta({ t: 'tray', seed: 5 })).not.toBeNull()
     expect(hostta({ t: 'shuffle', seed: 5 })).not.toBeNull()
   })
+
+  it('müzik seçimi misafirden de kabul edilir', () => {
+    // Karar: parçayı odadaki herkes değiştirebilir
+    expect(HOST_YETKILI.has('muzik')).toBe(false)
+    expect(hostta({ t: 'muzik', p: 'gece', seed: 7 })).not.toBeNull()
+    expect(misafirYansitilmis({ t: 'muzik', p: 'gece', seed: 7 })).not.toBeNull()
+  })
+})
+
+describe('dogrula — müzik seçimi', () => {
+  it('geçerli mesajı kabul eder', () => {
+    expect(misafirDogrudan({ t: 'muzik', p: 'yagmur', seed: 0 })).not.toBeNull()
+    expect(misafirDogrudan({ t: 'muzik', p: 'kutu', seed: 0xffffffff })).not.toBeNull()
+  })
+
+  it('bozuk tohumu reddeder', () => {
+    for (const seed of [NaN, Infinity, -1, 1.5, 0x100000000, '3', null]) {
+      expect(misafirDogrudan({ t: 'muzik', p: 'gece', seed })).toBeNull()
+    }
+  })
+
+  it('uzun ya da metin olmayan parça kimliğini reddeder', () => {
+    expect(misafirDogrudan({ t: 'muzik', p: 'x'.repeat(25), seed: 1 })).toBeNull()
+    expect(misafirDogrudan({ t: 'muzik', p: 42, seed: 1 })).toBeNull()
+    expect(misafirDogrudan({ t: 'muzik', seed: 1 })).toBeNull()
+  })
+
+  it('bilinmeyen ama biçimi düzgün kimliği geçirir', () => {
+    // Listeyi protokol bilmiyor; karşılığı olmayan kimlik muzik.ts'te
+    // varsayılana düşüyor, burada reddedilmiyor.
+    expect(misafirDogrudan({ t: 'muzik', p: 'boyle-parca-yok', seed: 1 })).not.toBeNull()
+  })
 })
 
 describe('dogrula — biçim', () => {

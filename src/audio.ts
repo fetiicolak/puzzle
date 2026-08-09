@@ -7,10 +7,13 @@
 // Tarayıcılar kullanıcı bir şeye dokunmadan ses açtırmaz; bu yüzden
 // AudioContext ilk etkileşimde kuruluyor ve gerekirse resume ediliyor.
 
+import { VARSAYILAN_PARCA, notalariPlanla, parcaBul, type Nota } from './muzik'
+
 const SES_ANAHTARI = 'puzzle:ses'
 const MUZIK_ANAHTARI = 'puzzle:muzik'
 const EFEKT_SEVIYE_ANAHTARI = 'puzzle:ses-seviye'
 const MUZIK_SEVIYE_ANAHTARI = 'puzzle:muzik-seviye'
+const MUZIK_PARCA_ANAHTARI = 'puzzle:muzik-parca'
 
 /**
  * Efekt yolunun tam açıkken kazancı. Seviye bunun üstüne çarpan olarak biniyor,
@@ -55,6 +58,22 @@ function seviyeOku(anahtar: string): number {
 function seviyeYaz(anahtar: string, deger: number): void {
   try {
     localStorage.setItem(anahtar, String(deger))
+  } catch {
+    // yoksay
+  }
+}
+
+function metinOku(anahtar: string, varsayilan: string): string {
+  try {
+    return localStorage.getItem(anahtar) ?? varsayilan
+  } catch {
+    return varsayilan
+  }
+}
+
+function metinYaz(anahtar: string, deger: string): void {
+  try {
+    localStorage.setItem(anahtar, deger)
   } catch {
     // yoksay
   }
@@ -188,69 +207,109 @@ let muzikCalisiyor = false
 let zamanlayici: ReturnType<typeof setInterval> | null = null
 let sonrakiAdim = 0
 let adimSayaci = 0
-
+/** O an seçili parça (bkz. muzik.ts) */
+let seciliParca = parcaBul(metinOku(MUZIK_PARCA_ANAHTARI, VARSAYILAN_PARCA)).id
 /**
- * Sakin bir akor döngüsü: Am - F - C - G.
- * Her akor iki oktavda birkaç nota; üstüne ara sıra tek bir çan sesi.
- * Ritim yok — bilerek: tempo, parça ararken rahatsız ediyor.
+ * Çalan varyasyonun tohumu — odadaki iki taraf aynısını kullanır.
+ * Açılışta üretiliyor ki her oturum aynı ezgiyi tekrarlamasın.
  */
-const AKORLAR = [
-  [220.0, 261.63, 329.63], // Am
-  [174.61, 220.0, 261.63], // F
-  [130.81, 196.0, 261.63], // C
-  [196.0, 246.94, 293.66], // G
-]
+let tohum = 0
+/**
+ * Planlanmış ses kaynakları. Parça değiştirirken eskiyi susturmak için
+ * tutuluyor; yoksa yeni parça açılırken eskisinin son notaları üstüne biniyor.
+ */
+let aktifKaynaklar: AudioScheduledSourceNode[] = []
+/** Gürültü tamponu bir kez üretilip yeniden kullanılıyor */
+let gurultuTamponu: AudioBuffer | null = null
 
-/** Çan için pentatonik notalar — hangisi çalarsa çalsın uyumlu durur */
-const CAN_NOTALARI = [523.25, 587.33, 659.25, 783.99, 880.0]
-
-function pad(frekanslar: number[], baslangic: number, sure: number): void {
-  const c = ctx
-  if (!c || !muzikKazanc) return
-  for (const f of frekanslar) {
-    const osc = c.createOscillator()
-    const kzn = c.createGain()
-    const filtre = c.createBiquadFilter()
-
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(f, baslangic)
-    // hafif detune: tek osilatör fazla "dijital" duruyor
-    osc.detune.setValueAtTime((Math.random() - 0.5) * 8, baslangic)
-
-    filtre.type = 'lowpass'
-    filtre.frequency.setValueAtTime(900, baslangic)
-
-    kzn.gain.setValueAtTime(0.0001, baslangic)
-    kzn.gain.exponentialRampToValueAtTime(0.055, baslangic + sure * 0.35)
-    kzn.gain.exponentialRampToValueAtTime(0.0001, baslangic + sure)
-
-    osc.connect(filtre)
-    filtre.connect(kzn)
-    kzn.connect(muzikKazanc)
-    osc.start(baslangic)
-    osc.stop(baslangic + sure + 0.1)
+function yeniTohum(): number {
+  try {
+    const a = new Uint32Array(1)
+    crypto.getRandomValues(a)
+    return a[0] || 1
+  } catch {
+    return Math.floor(Math.random() * 0xffffffff) || 1
   }
 }
 
-function can(baslangic: number): void {
-  const c = ctx
-  if (!c || !muzikKazanc) return
-  const f = CAN_NOTALARI[Math.floor(Math.random() * CAN_NOTALARI.length)]
-  const osc = c.createOscillator()
-  const kzn = c.createGain()
-  osc.type = 'sine'
-  osc.frequency.setValueAtTime(f, baslangic)
-  kzn.gain.setValueAtTime(0.0001, baslangic)
-  kzn.gain.exponentialRampToValueAtTime(0.045, baslangic + 0.02)
-  kzn.gain.exponentialRampToValueAtTime(0.0001, baslangic + 2.2)
-  osc.connect(kzn)
-  kzn.connect(muzikKazanc)
-  osc.start(baslangic)
-  osc.stop(baslangic + 2.4)
+tohum = yeniTohum()
+
+function beyazGurultu(c: AudioContext): AudioBuffer {
+  if (gurultuTamponu) return gurultuTamponu
+  const uzunluk = Math.floor(c.sampleRate * 2)
+  const tampon = c.createBuffer(1, uzunluk, c.sampleRate)
+  const veri = tampon.getChannelData(0)
+  for (let i = 0; i < uzunluk; i++) veri[i] = Math.random() * 2 - 1
+  gurultuTamponu = tampon
+  return tampon
 }
 
-/** Her akor bu kadar sürer */
-const AKOR_SURESI = 6
+/** Tek bir planlanmış notayı çal */
+function notaCal(n: Nota, adimBasi: number): void {
+  const c = ctx
+  if (!c || !muzikKazanc) return
+  const t = adimBasi + n.gecikme
+  const kzn = c.createGain()
+  const filtre = c.createBiquadFilter()
+  filtre.type = 'lowpass'
+  filtre.frequency.setValueAtTime(n.filtre, t)
+
+  let kaynak: AudioScheduledSourceNode
+  if (n.gurultu) {
+    const src = c.createBufferSource()
+    src.buffer = beyazGurultu(c)
+    src.loop = true
+    kaynak = src
+  } else {
+    const osc = c.createOscillator()
+    osc.type = n.tip
+    osc.frequency.setValueAtTime(n.frekans, t)
+    osc.detune.setValueAtTime(n.detune, t)
+    kaynak = osc
+  }
+
+  // Zarf elle çiziliyor: aniden başlayıp biten ses hoparlörde "çıt" diye
+  // patlıyor. exponentialRamp sıfıra inemiyor, 0.0001 kullanılıyor.
+  kzn.gain.setValueAtTime(0.0001, t)
+  if (n.zarf === 'pad') {
+    kzn.gain.exponentialRampToValueAtTime(n.ses, t + n.sure * 0.35)
+    kzn.gain.exponentialRampToValueAtTime(0.0001, t + n.sure)
+  } else if (n.zarf === 'can') {
+    kzn.gain.exponentialRampToValueAtTime(n.ses, t + 0.02)
+    kzn.gain.exponentialRampToValueAtTime(0.0001, t + n.sure)
+  } else {
+    // düz: açılıp sabit kalıyor, sonunda kapanıyor
+    kzn.gain.linearRampToValueAtTime(n.ses, t + 0.6)
+    kzn.gain.setValueAtTime(n.ses, t + Math.max(0.7, n.sure - 0.6))
+    kzn.gain.linearRampToValueAtTime(0.0001, t + n.sure)
+  }
+
+  kaynak.connect(filtre)
+  filtre.connect(kzn)
+  kzn.connect(muzikKazanc)
+  kaynak.start(t)
+  kaynak.stop(t + n.sure + 0.15)
+
+  aktifKaynaklar.push(kaynak)
+  kaynak.onended = () => {
+    const i = aktifKaynaklar.indexOf(kaynak)
+    if (i >= 0) aktifKaynaklar.splice(i, 1)
+  }
+}
+
+/** Planlanmış her şeyi sustur (parça değişiminde) */
+function kaynaklariSustur(): void {
+  const c = ctx
+  if (!c) return
+  for (const k of aktifKaynaklar) {
+    try {
+      k.stop(c.currentTime)
+    } catch {
+      // zaten durmuşsa sorun değil
+    }
+  }
+  aktifKaynaklar = []
+}
 
 /**
  * İleriye dönük planlayıcı.
@@ -260,14 +319,21 @@ const AKOR_SURESI = 6
 function planla(): void {
   const c = ctx
   if (!c) return
+  const parca = parcaBul(seciliParca)
   while (sonrakiAdim < c.currentTime + 2) {
-    const akor = AKORLAR[adimSayaci % AKORLAR.length]
-    pad(akor, sonrakiAdim, AKOR_SURESI)
-    // her akorda %60 ihtimalle bir çan, akorun ortalarında
-    if (Math.random() < 0.6) can(sonrakiAdim + 1.5 + Math.random() * 2.5)
-    sonrakiAdim += AKOR_SURESI
+    for (const n of notalariPlanla(parca, tohum, adimSayaci)) notaCal(n, sonrakiAdim)
+    sonrakiAdim += parca.akorSuresi
     adimSayaci++
   }
+}
+
+/** Planlamayı sıfırdan başlat (parça değişince de kullanılıyor) */
+function calmayaBasla(c: AudioContext): void {
+  sonrakiAdim = c.currentTime + 0.1
+  adimSayaci = 0
+  planla()
+  if (zamanlayici) clearInterval(zamanlayici)
+  zamanlayici = setInterval(planla, 800)
 }
 
 export async function muzigiBaslat(): Promise<boolean> {
@@ -275,19 +341,20 @@ export async function muzigiBaslat(): Promise<boolean> {
   if (!c || !muzikKazanc) return false
   if (muzikCalisiyor) return true
   muzikCalisiyor = true
-  sonrakiAdim = c.currentTime + 0.1
-  adimSayaci = 0
   // yavaşça aç, kulağa aniden girmesin
   muzikKazanc.gain.cancelScheduledValues(c.currentTime)
   muzikKazanc.gain.setValueAtTime(0.0001, c.currentTime)
   muzikKazanc.gain.linearRampToValueAtTime(muzikSeviyesi(), c.currentTime + 2.5)
-  planla()
-  zamanlayici = setInterval(planla, 800)
+  calmayaBasla(c)
   ayarYaz(MUZIK_ANAHTARI, true)
   return true
 }
 
-export function muzigiDurdur(): void {
+/**
+ * @param ayariYaz Kullanıcı gerçekten kapattıysa true. Parça değiştirirken
+ *   false — yoksa "müzik kapalı" diye kaydedilip bir daha açılmıyor.
+ */
+function durdur(ayariYaz: boolean): void {
   const c = ctx
   if (zamanlayici) {
     clearInterval(zamanlayici)
@@ -300,7 +367,62 @@ export function muzigiDurdur(): void {
     muzikKazanc.gain.setValueAtTime(muzikKazanc.gain.value, c.currentTime)
     muzikKazanc.gain.linearRampToValueAtTime(0.0001, c.currentTime + 1.2)
   }
-  ayarYaz(MUZIK_ANAHTARI, false)
+  if (ayariYaz) ayarYaz(MUZIK_ANAHTARI, false)
+}
+
+export function muzigiDurdur(): void {
+  durdur(true)
+}
+
+/** Kayıtlı parça seçimi */
+export function muzikParcasi(): string {
+  return parcaBul(metinOku(MUZIK_PARCA_ANAHTARI, VARSAYILAN_PARCA)).id
+}
+
+/**
+ * Parçayı değiştir.
+ *
+ * Müzik çalıyorsa yumuşak geçişle yeni parçaya döner; çalmıyorsa yalnızca
+ * hatırlar — kazanca dokunmaz. Odadan gelen seçim kimsenin sesini açmasın
+ * diye bu ayrım şart.
+ *
+ * @param disTohum Odadan geldiyse karşı tarafın tohumu; yoksa yenisi üretilir.
+ * @returns Geçerli olan tohum — odaya gönderilecek değer budur.
+ */
+export function parcaSec(id: string, disTohum?: number): number {
+  const parca = parcaBul(id)
+  // Tohum yalnızca odadan gelirse değişiyor; yerel seçimde eskisi korunuyor.
+  // Her seçimde yenilenseydi aynı parçayı yeniden seçmek ezgiyi de değiştirirdi.
+  const yeniT = disTohum !== undefined ? disTohum >>> 0 : tohum
+  const degisti = parca.id !== seciliParca || yeniT !== tohum
+  seciliParca = parca.id
+  metinYaz(MUZIK_PARCA_ANAHTARI, parca.id)
+  tohum = yeniT
+  if (!degisti) return tohum
+
+  const c = ctx
+  if (muzikCalisiyor && c && muzikKazanc) {
+    // Eskiyi söndür, sustur, yeniyi aç. Kazanca doğrudan değer atanmıyor —
+    // atanırsa hoparlörde "çıt" oluyor.
+    const simdi = c.currentTime
+    muzikKazanc.gain.cancelScheduledValues(simdi)
+    muzikKazanc.gain.setValueAtTime(muzikKazanc.gain.value, simdi)
+    muzikKazanc.gain.linearRampToValueAtTime(0.0001, simdi + 0.5)
+    if (zamanlayici) {
+      clearInterval(zamanlayici)
+      zamanlayici = null
+    }
+    window.setTimeout(() => {
+      const c2 = ctx
+      if (!c2 || !muzikKazanc || !muzikCalisiyor) return
+      kaynaklariSustur()
+      muzikKazanc.gain.cancelScheduledValues(c2.currentTime)
+      muzikKazanc.gain.setValueAtTime(0.0001, c2.currentTime)
+      muzikKazanc.gain.linearRampToValueAtTime(muzikSeviyesi(), c2.currentTime + 1)
+      calmayaBasla(c2)
+    }, 520)
+  }
+  return tohum
 }
 
 export function muzikCaliyorMu(): boolean {

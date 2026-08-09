@@ -147,6 +147,21 @@ export interface TrayMsg {
   seed: number
 }
 
+/**
+ * Odanın arka plan müziği seçildi.
+ *
+ * Ses aktarılmıyor, tarifi aktarılıyor: parça kimliği + varyasyon tohumu.
+ * İki taraf da notaları kendisi üretiyor (bkz. muzik.ts), yani bu mesaj
+ * ~30 bayt. Alan taraf yalnızca seçimi değiştirir — sesi açmaz.
+ */
+export interface MuzikMsg {
+  t: 'muzik'
+  /** parça kimliği; bilinmeyen değer karşı tarafta varsayılana düşer */
+  p: string
+  /** varyasyon tohumu — iki taraf aynı ezgiyi üretsin */
+  seed: number
+}
+
 export type Msg = (
   | MetaMsg
   | ImgChunkMsg
@@ -162,6 +177,7 @@ export type Msg = (
   | RotateMsg
   | TrayMsg
   | ShuffleMsg
+  | MuzikMsg
   | HelloMsg
   | KickMsg
   | ByeMsg
@@ -200,8 +216,9 @@ export const MAX_IMG_CHUNKS = 1024
  * kimin odada kalacağını belirler. Herkesten kabul edilirse odadaki herhangi
  * biri tahtayı değiştirebilir ya da başkasını atabilir.
  *
- * tray/shuffle bilerek listede değil: onlar iş birliğine dayalı düğmeler,
- * misafirin de kullanabilmesi gerekiyor.
+ * tray/shuffle/muzik bilerek listede değil: onlar iş birliğine dayalı
+ * düğmeler, misafirin de kullanabilmesi gerekiyor. Müzikte kötüye kullanımın
+ * bedeli de düşük — herkesin kendi aç/kapat ve seviye ayarı üstte kalıyor.
  */
 export const HOST_YETKILI: ReadonlySet<string> = new Set([
   'meta',
@@ -296,6 +313,13 @@ export function dogrula(veri: unknown, hostMu: boolean, dogrudan: boolean): Msg 
       case 'tray':
       case 'shuffle':
         return tamSayiMi(m.seed, 0, 0xffffffff)
+      /*
+        Parça listesi muzik.ts'te; protocol.ts saf kalsın diye burada
+        yalnızca biçim doğrulanıyor. Bilinmeyen kimliği parcaBul()
+        varsayılana düşürüyor.
+      */
+      case 'muzik':
+        return metinMi(m.p, 24) && tamSayiMi(m.seed, 0, 0xffffffff)
       case 'chat':
         return metinMi(m.ad, 40) && metinMi(m.metin, 1000) && sayiMi(m.ts, 0, 1e15)
       case 'hello':

@@ -120,7 +120,14 @@ export const SOZLUK: Record<string, string> = {
   'Ses kapalı. Efektleri duymak için 🔊 düğmesini aç.':
     'Sound is off. Turn on 🔊 to hear the effects.',
   'Müzik açık ama sesi tamamen kısık.': 'Music is on but turned all the way down.',
-  'Müzik ve efektlerin sesini ayarla': 'Set the music and effect volume',
+  'Müzik parçasını seç, sesini ayarla': 'Pick the music, set the volume',
+  'Müzik parçası': 'Music track',
+  'Sakin piyano': 'Calm piano',
+  Gece: 'Night',
+  'Müzik kutusu': 'Music box',
+  Yağmur: 'Rain',
+  'Müzik: {parca}': 'Music: {parca}',
+  '{ad} müziği değiştirdi: {parca}': '{ad} changed the music: {parca}',
 
   // ------------------------------------------------- taşınabilir yüzen paneller
   'Yerine döndür': 'Move back',

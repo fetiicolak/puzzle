@@ -1872,6 +1872,13 @@ button {
   color: var(--muted);
   padding: 0 4px;
 }
+/* kimseye ait olmayan bilgi satırı (ör. müzik değişti) — balonsuz */
+.chat-sistem {
+  font-size: 0.74rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 2px 8px;
+}
 .chat-balon {
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -2281,6 +2288,11 @@ button {
 .ses-not {
   padding: 0 14px 12px;
   font-size: 0.82rem;
+}
+/* parça listesi iki sütunun altına, tam genişlikte */
+.ses-parca {
+  grid-column: 1 / -1;
+  margin: 2px 0 10px;
 }
 
 .peek {

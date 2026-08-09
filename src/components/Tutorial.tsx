@@ -76,7 +76,7 @@ function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim
       { simge: '🔀', ad: 'Parçaları yeniden karıştır' },
       { simge: '⬚', ad: 'Sadece kenar parçalarını öne çıkar' },
       { simge: '🔊', ad: 'Ses efektlerini aç / kapat' },
-      { simge: '🎚', ad: 'Müzik ve efektlerin sesini ayarla' },
+      { simge: '🎚', ad: 'Müzik parçasını seç, sesini ayarla' },
       { simge: '⊞', ad: 'Izgarayı göster / gizle' },
       { simge: '🖼', ad: 'Orijinal görsele bak' },
       { simge: '⤢', ad: 'Hepsini ekrana sığdır' },

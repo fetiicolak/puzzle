@@ -29,11 +29,14 @@ import {
   muzigiBaslat,
   muzigiDurdur,
   muzikAcikMi,
+  muzikParcasi,
+  parcaSec,
   sesAcikMi,
   sesiAyarla,
   sesiKapat,
   tik,
 } from '../audio'
+import { parcaBul } from '../muzik'
 import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
 import PanelBaslik from './PanelBaslik'
@@ -113,6 +116,8 @@ export interface ChatSatiri {
   metin: string
   ts: number
   benMi: boolean
+  /** Kimseye ait olmayan bilgi satırı (ör. müzik değişti) */
+  sistem?: boolean
 }
 
 interface Props {
@@ -244,6 +249,8 @@ export default function GameScreen({ config, onExit }: Props) {
   const [sesler, setSesler] = useState(sesAcikMi)
   const [muzik, setMuzik] = useState(false)
   const [sesPanel, setSesPanel] = useState(false)
+  /** Seçili müzik parçası; oda üyeleriyle ortak */
+  const [parca, setParca] = useState(muzikParcasi)
 
   // Aynı iki eylem hem üst çubuktan hem ses ayarları penceresinden çağrılıyor
   const sesleriDegistir = () => {
@@ -266,10 +273,40 @@ export default function GameScreen({ config, onExit }: Props) {
     }
     void muzigiBaslat().then((oldu) => setMuzik(oldu))
   }
+
+  /** Sohbete kimseye ait olmayan bir satır düşür */
+  const sistemSatiri = (metin: string) => {
+    setChat((l) => [...l.slice(-99), { ad: '', metin, ts: Date.now(), benMi: false, sistem: true }])
+  }
+
+  /**
+   * Müzik parçasını değiştir ve odaya duyur.
+   *
+   * Ses aktarılmıyor, tarifi aktarılıyor: parça kimliği + tohum. Karşı taraf
+   * aynı notaları kendisi üretiyor.
+   */
+  const parcayiDegistir = (id: string) => {
+    const tohum = parcaSec(id)
+    setParca(muzikParcasi())
+    refs.current.room?.send({ t: 'muzik', p: id, seed: tohum })
+    sistemSatiri(c('Müzik: {parca}', { parca: c(parcaBul(id).ad) }))
+    // Parça seçen kullanıcı çalmasını bekler; tıklama tarayıcının istediği
+    // kullanıcı hareketini de sağlıyor.
+    if (!muzik) muzigiDegistir()
+  }
+
   /** Bitiş ekranından açılan hatıra kartı */
   const [sertifika, setSertifika] = useState(false)
   /** Şu an bağlı olanlar: peer kimliği -> ad + hesap kimliği */
   const [bagliOlanlar, setBagliOlanlar] = useState<Map<string, BagliKisi>>(new Map())
+  /*
+    handleMsg oda kurulurken bir kez yakalanıyor (roomEvents), yani içinden
+    okunan state ilk render'da donuyor. Ad gerektiğinde bu aynadan bakılıyor.
+  */
+  const bagliOlanlarRef = useRef(bagliOlanlar)
+  useEffect(() => {
+    bagliOlanlarRef.current = bagliOlanlar
+  }, [bagliOlanlar])
   const [chatAcik, setChatAcik] = useState(false)
   const [chat, setChat] = useState<ChatSatiri[]>([])
   const [okunmamis, setOkunmamis] = useState(0)
@@ -586,6 +623,22 @@ export default function GameScreen({ config, onExit }: Props) {
         if (!r.game) break
         shufflePieces(r.game, msg.seed)
         afterStateChange({ completed: false })
+        break
+      }
+      case 'muzik': {
+        /*
+          Yalnızca seçim değişiyor — ses açılmıyor. Müziği kapatmış ya da
+          sesini kısmış kişiye odadan ses açtırmak yanlış olurdu; seçim
+          hatırlanıyor, o kişi müziği açtığında bu parça çalıyor.
+        */
+        parcaSec(msg.p, msg.seed)
+        setParca(muzikParcasi())
+        // handleMsg oda kurulurken yakalanıyor; state'i doğrudan okuyamaz
+        const kim = bagliOlanlarRef.current.get(from)?.ad
+        const ad = c(parcaBul(msg.p).ad)
+        sistemSatiri(
+          kim ? c('{ad} müziği değiştirdi: {parca}', { ad: kim, parca: ad }) : c('Müzik: {parca}', { parca: ad }),
+        )
         break
       }
       case 'chat': {
@@ -1311,8 +1364,10 @@ export default function GameScreen({ config, onExit }: Props) {
         <SesAyarlari
           sesler={sesler}
           muzik={muzik}
+          parca={parca}
           onSesler={sesleriDegistir}
           onMuzik={muzigiDegistir}
+          onParca={parcayiDegistir}
           onKapat={() => setSesPanel(false)}
         />
       )}
@@ -1593,14 +1648,20 @@ function ChatPanel({
             {bagli ? ceviri('Henüz mesaj yok.') : ceviri('Karşı taraf bağlanınca yazabilirsin.')}
           </p>
         )}
-        {satirlar.map((s, i) => (
-          <div key={i} className={`chat-satir ${s.benMi ? 'ben' : ''}`}>
-            {!s.benMi && <small className="chat-ad">{s.ad}</small>}
-            <span className="chat-balon">
-              <Linkli metin={s.metin} />
-            </span>
-          </div>
-        ))}
+        {satirlar.map((s, i) =>
+          s.sistem ? (
+            <p key={i} className="chat-sistem">
+              {s.metin}
+            </p>
+          ) : (
+            <div key={i} className={`chat-satir ${s.benMi ? 'ben' : ''}`}>
+              {!s.benMi && <small className="chat-ad">{s.ad}</small>}
+              <span className="chat-balon">
+                <Linkli metin={s.metin} />
+              </span>
+            </div>
+          ),
+        )}
         <div ref={sonRef} />
       </div>
 
