@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDil } from '../dil'
+import { useSurukle } from './surukle'
 
 interface Props {
   yerel: MediaStream | null
@@ -126,8 +127,16 @@ export default function VideoPanel({
   onKapat,
 }: Props) {
   const { ceviri } = useDil()
+  // Görüşme penceresi her yerinden tutulup taşınabiliyor (düğmeler ve video
+  // öğeleri hariç) — telefonlardaki küçük görüşme penceresi gibi.
+  const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLElement>('video')
   return (
-    <aside className={`video-panel ${sadeceSes ? 'sesli' : ''}`}>
+    <aside
+      ref={kokRef}
+      style={stil}
+      className={`video-panel panel-tutamac ${sadeceSes ? 'sesli' : ''}`}
+      {...tutamac}
+    >
       <div className="video-grid">
         {[...uzaklar.entries()].map(([id, akis]) => (
           <div key={id} className="video-kutu">
@@ -178,6 +187,11 @@ export default function VideoPanel({
         <button className="icon-btn" onClick={onKapat} title={ceviri('Görüşmeyi bitir')}>
           ✕
         </button>
+        {tasindi && (
+          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+            ↺
+          </button>
+        )}
       </div>
     </aside>
   )

@@ -3,6 +3,7 @@ import ConfirmDialog from './ConfirmDialog'
 import { basHarfler } from '../ad'
 import { useDil } from '../dil'
 import { avatarUrlleri } from '../supabase/profile'
+import { useSurukle } from './surukle'
 import { odaKatilimcilari, oyuncuCikar, yetkiAyarla, type OdaKisisi } from '../supabase/room'
 
 export interface BagliKisi {
@@ -98,12 +99,18 @@ export default function RoomPanel({
   const listeDisi = bagliOlanlar.filter((b) => !b.uid || !kayitliIdler.has(b.uid))
   const bagliUidler = new Set(bagliOlanlar.map((b) => b.uid).filter(Boolean) as string[])
   const [cikarilacakMisafir, setCikarilacakMisafir] = useState<BagliKisi | null>(null)
+  const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLElement>('oda')
 
   return (
-    <aside className="oda-panel">
-      <header className="chat-head">
+    <aside ref={kokRef} style={stil} className="oda-panel">
+      <header className="chat-head panel-tutamac" {...tutamac}>
         <b>{ceviri('Odadakiler')}</b>
         <span className="spacer" />
+        {tasindi && (
+          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+            ↺
+          </button>
+        )}
         <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
           ✕
         </button>

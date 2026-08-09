@@ -35,6 +35,7 @@ import {
 } from '../audio'
 import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
+import { useSurukle } from './surukle'
 import {
   baglantiTesti,
   relayKullanilabilir,
@@ -186,6 +187,27 @@ export default function GameScreen({ config, onExit }: Props) {
   const [statusDetail, setStatusDetail] = useState('')
   const [playerCount, setPlayerCount] = useState(1)
   const [roomCode, setRoomCode] = useState(config.roomCode ?? '')
+  /**
+   * Üst çubuğun gerçek yüksekliği --ust-cubuk değişkenine yazılıyor.
+   *
+   * Yüzen paneller "üst çubuğun altına" konumlanıyor ama çubuğun boyu sabit
+   * değil: düğmeler dar ekranda ikinci satıra sarıyor. Sabit 64px varsayınca
+   * sol üstteki panel sarkan düğmelerin üstüne biniyordu.
+   */
+  const oyunKokRef = useRef<HTMLDivElement>(null)
+  const ustCubukRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const cubuk = ustCubukRef.current
+    const kok = oyunKokRef.current
+    if (!cubuk || !kok) return
+    const olc = () =>
+      kok.style.setProperty('--ust-cubuk', `${Math.round(cubuk.getBoundingClientRect().height)}px`)
+    olc()
+    const ro = new ResizeObserver(olc)
+    ro.observe(cubuk)
+    return () => ro.disconnect()
+  }, [])
+
   /** Orijinal görseli köşede göster */
   const [peek, setPeek] = useState(false)
   const [edgeOnly, setEdgeOnly] = useState(false)
@@ -478,26 +500,27 @@ export default function GameScreen({ config, onExit }: Props) {
         break
       }
       case 'grab': {
-        r.board?.lockedGroups.set(msg.g, from)
-        r.board?.invalidate()
+        r.board?.kilitle(msg.g, from)
         break
       }
       case 'release': {
-        r.board?.lockedGroups.delete(msg.g)
-        r.board?.invalidate()
+        r.board?.kilidiAc(msg.g)
         break
       }
       case 'move': {
         if (!r.game) break
-        r.board?.lockedGroups.set(msg.g, from)
+        // Saniyede ~20 kez geliyor. kilitle() grubu üst katmana taşıdığı için
+        // sonraki hareketler yalnızca o katmanı yeniliyor; duran parçalar
+        // yeniden çizilmiyor.
+        r.board?.kilitle(msg.g, from)
         setGroupPos(r.game, msg.g, msg.anchor, msg.x, msg.y)
-        r.board?.invalidate()
+        r.board?.grupTasindi()
         break
       }
       case 'drop': {
         if (!r.game) break
         setGroupPos(r.game, msg.g, msg.anchor, msg.x, msg.y)
-        r.board?.lockedGroups.delete(msg.g)
+        r.board?.kilidiAc(msg.g)
         const res = dropGroup(r.game, msg.g)
         afterStateChange(res)
         break
@@ -510,7 +533,8 @@ export default function GameScreen({ config, onExit }: Props) {
             at: Date.now(),
             ad: msg.ad,
           })
-          r.board.invalidate()
+          // parçalara dokunulmadı: statik katman olduğu gibi kalsın
+          r.board.imlecDegisti()
         }
         break
       }
@@ -1064,8 +1088,8 @@ export default function GameScreen({ config, onExit }: Props) {
   }
 
   return (
-    <div className="game-root">
-      <div className="game-topbar">
+    <div className="game-root" ref={oyunKokRef}>
+      <div className="game-topbar" ref={ustCubukRef}>
         <button className="icon-btn" onClick={onExit} title={ceviri('Çık')}>
           ←
         </button>
@@ -1277,13 +1301,11 @@ export default function GameScreen({ config, onExit }: Props) {
       <canvas ref={canvasRef} className="game-canvas" />
 
       {peek && refs.current.imageDataUrl && (
-        <button
-          className={`peek ${chatAcik ? 'kaydir' : ''}`}
-          onClick={() => setPeek(false)}
-          title="Kapat"
-        >
-          <img src={refs.current.imageDataUrl} alt="Orijinal" />
-        </button>
+        <OrijinalPanel
+          gorsel={refs.current.imageDataUrl}
+          chatAcik={chatAcik}
+          onKapat={() => setPeek(false)}
+        />
       )}
 
       {(yerelAkis || uzakAkislar.size > 0) && (
@@ -1452,6 +1474,48 @@ export default function GameScreen({ config, onExit }: Props) {
   )
 }
 
+/**
+ * Orijinal görselin köşedeki önizlemesi.
+ *
+ * Eskiden görselin kendisi bir düğmeydi ve tıklayınca kapanıyordu; şimdi
+ * taşınabilir olduğu için tıklama ile sürükleme birbirine karışıyordu.
+ * Kapatma ayrı bir düğmeye alındı.
+ */
+function OrijinalPanel({
+  gorsel,
+  chatAcik,
+  onKapat,
+}: {
+  gorsel: string
+  chatAcik: boolean
+  onKapat: () => void
+}) {
+  const { ceviri } = useDil()
+  const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLDivElement>('orijinal')
+  return (
+    <div
+      ref={kokRef}
+      style={stil}
+      // kaydir yalnızca dar ekranda iş görüyor: geniş ekranda sohbet sağ
+      // altta, önizleme sol altta duruyor ve çakışmıyorlar
+      className={`peek panel-tutamac ${chatAcik && !tasindi ? 'kaydir' : ''}`}
+      {...tutamac}
+    >
+      <img src={gorsel} alt={ceviri('Orijinal')} draggable={false} />
+      <div className="peek-araclar">
+        {tasindi && (
+          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+            ↺
+          </button>
+        )}
+        <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
+          ✕
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const TEPKILER = ['👍', '😄', '❤️', '🤔', '🎉', '😭']
 
 function ChatPanel({
@@ -1471,15 +1535,22 @@ function ChatPanel({
 }) {
   const { ceviri } = useDil()
   const sonRef = useRef<HTMLDivElement>(null)
+  const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLElement>('sohbet')
   useEffect(() => {
     sonRef.current?.scrollIntoView({ block: 'end' })
   }, [satirlar.length])
 
   return (
-    <aside className="chat">
-      <header className="chat-head">
+    <aside ref={kokRef} style={stil} className="chat">
+      <header className="chat-head panel-tutamac" {...tutamac}>
         <b>{ceviri('Sohbet')}</b>
-        <button className="icon-btn" onClick={onKapat} title="Kapat">
+        <span className="spacer" />
+        {tasindi && (
+          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+            ↺
+          </button>
+        )}
+        <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
           ✕
         </button>
       </header>

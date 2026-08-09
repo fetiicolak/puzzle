@@ -99,6 +99,14 @@ function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim
     })
   }
 
+  // Panellerin taşınabildiği başka türlü anlaşılmıyor
+  adimlar.push({
+    simge: '🪟',
+    baslik: 'Pencereleri istediğin yere koy',
+    metin:
+      'Kameralar, sohbet ve orijinal görsel taşınabilir: başlığından tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner.',
+  })
+
   return adimlar
 }
 

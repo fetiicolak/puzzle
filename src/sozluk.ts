@@ -112,6 +112,13 @@ export const SOZLUK: Record<string, string> = {
   'Mikrofonu aç': 'Unmute microphone',
   'Görüşmeyi bitir': 'End call',
 
+  // ------------------------------------------------- taşınabilir yüzen paneller
+  'Yerine döndür': 'Move back',
+  Orijinal: 'Original',
+  'Pencereleri istediğin yere koy': 'Put the windows where you like',
+  'Kameralar, sohbet ve orijinal görsel taşınabilir: başlığından tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner.':
+    'The cameras, the chat and the original picture can be moved: grab one by its header and drag it anywhere. Where you leave it is remembered, and ↺ sends it back.',
+
   // ------------------------------------------------------------ tanıtım turu
   'Parçayı sürükle': 'Drag a piece',
   'Bir parçaya parmağını koyup sürükle. Doğru yerine yaklaştığında kendiliğinden oturur.':

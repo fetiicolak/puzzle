@@ -9,6 +9,7 @@ import {
   moveGroup,
   rotateVec,
   type GameState,
+  type PieceState,
 } from './state'
 
 export interface BoardCallbacks {
@@ -49,6 +50,27 @@ interface PointerInfo {
   y: number
 }
 
+/** Ekranda görünen dünya dikdörtgeni (kırpma için) */
+interface GorunurAlan {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+/**
+ * Cihazın zayıf olduğuna dair işaretler.
+ *
+ * Kesin bir ölçü yok; tarayıcının verdiği iki ipucuna bakıyoruz. `deviceMemory`
+ * yalnızca Chrome ailesinde var ve 0.25/0.5/1/2/4/8 diye yuvarlanıyor — orta
+ * segment telefonlar 4 diyor. Bilinmiyorsa güçlü varsayılır: yanlış tarafa
+ * düşersek görüntü kalitesini boş yere düşürmüş oluruz.
+ */
+function zayifCihazMi(): boolean {
+  const nav = navigator as Navigator & { deviceMemory?: number }
+  return (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4
+}
+
 export class PuzzleBoard {
   private canvas: HTMLCanvasElement
   private ctx: CanvasRenderingContext2D
@@ -69,11 +91,41 @@ export class PuzzleBoard {
   private panning = false
   private lastPinchDist = 0
   private raf = 0
+  /** Bu karede ekrana bir şey basılmalı */
   private dirty = true
+
+  // ---- katmanlı çizim ----
+  //
+  // Hareket etmeyen her şey (zemin, ızgara, duran parçalar) ayrı bir tuvale
+  // bir kez çizilip kare kare oradan kopyalanıyor. Yalnızca sürüklenen /
+  // karşı tarafın tuttuğu gruplar ile imleçler her karede yeniden çiziliyor.
+  //
+  // Sebep: imleç mesajı saniyede ~9-16, hareket mesajı ~20 kez geliyordu ve
+  // her biri 300 parçanın tamamını yeniden çizdiriyordu. Zayıf cihazda oyun
+  // bu yüzden takılıyordu.
+
+  /** Hareket etmeyen her şeyin durduğu tuval */
+  private katman: HTMLCanvasElement
+  private kctx: CanvasRenderingContext2D
+  /** Statik katman eskidi, yeniden çizilmeli */
+  private statikKirli = true
+  /** Cihaz sinyallerine göre kısılmış piksel oranı */
+  private dpr = 1
+  private zayif = false
+  /** Pahalı efektler (bulanık gölge) kapalı */
+  private hafifMod = false
 
   /** Diğer katılımcıların imleçleri: kimlik -> konum */
   remoteCursors = new Map<string, RemoteCursor>()
-  /** Başkasının tuttuğu gruplar: grup -> katılımcı kimliği */
+  /**
+   * Başkasının tuttuğu gruplar: grup -> katılımcı kimliği.
+   *
+   * **Dışarıdan doğrudan değiştirme** — `kilitle()` / `kilidiAc()` kullan.
+   * Kilitli gruplar statik katmandan çıkarılıp üst katmana taşındığı için,
+   * haritayı sessizce değiştirmek parçanın iki katmanda birden (eski ve yeni
+   * konumunda) görünmesine yol açar. Toplu temizlik yapıyorsan sonunda
+   * `invalidate()` çağır.
+   */
   lockedGroups = new Map<number, string>()
   /** Önizleme (hayalet görsel) açık mı */
   showGhost = true
@@ -89,10 +141,18 @@ export class PuzzleBoard {
     callbacks: BoardCallbacks = {},
   ) {
     this.canvas = canvas
-    this.ctx = canvas.getContext('2d')!
+    // alpha: false — tuvalin tamamı her karede zeminle doluyor. Saydamlık
+    // olmadığını söylemek tarayıcıyı sayfa ile harmanlama işinden kurtarıyor.
+    this.ctx = canvas.getContext('2d', { alpha: false })!
     this.state = state
     this.bitmaps = bitmaps
     this.callbacks = callbacks
+    this.zayif = zayifCihazMi()
+    // Çok parçalı puzzle güçlü cihazı da zorluyor; efektler orada da kısılır
+    // ama görüntü keskinliği (dpr) yalnızca cihaz zayıfsa düşürülür.
+    this.hafifMod = this.zayif || state.pieces.length >= 200
+    this.katman = document.createElement('canvas')
+    this.kctx = this.katman.getContext('2d', { alpha: false })!
     for (const p of state.pieces) this.paths[p.id] = piecePath(state.cut, p.row, p.col)
     this.attach()
     this.fitView()
@@ -105,7 +165,36 @@ export class PuzzleBoard {
     for (const fn of this.detachFns) fn()
   }
 
+  /** Her şey değişti: statik katman da yeniden çizilecek */
   invalidate(): void {
+    this.statikKirli = true
+    this.dirty = true
+  }
+
+  /** Yalnızca imleçler değişti — parçalara dokunulmadı, statik katman durur */
+  imlecDegisti(): void {
+    this.dirty = true
+  }
+
+  /** Hâlihazırda hareket eden bir grubun konumu değişti — statik katman durur */
+  grupTasindi(): void {
+    this.dirty = true
+  }
+
+  /** Bir grubu karşı taraf tuttu: statik katmandan çıkar, üste al */
+  kilitle(grup: number, kim: string): void {
+    if (this.lockedGroups.get(grup) !== kim) {
+      this.lockedGroups.set(grup, kim)
+      // Tutulan parça üstte görünsün; yerel tutuşta da böyle yapılıyor.
+      bringToTop(this.state, grup)
+      this.statikKirli = true
+    }
+    this.dirty = true
+  }
+
+  /** Karşı taraf grubu bıraktı: statik katmana geri döner */
+  kilidiAc(grup: number): void {
+    if (this.lockedGroups.delete(grup)) this.statikKirli = true
     this.dirty = true
   }
 
@@ -145,7 +234,7 @@ export class PuzzleBoard {
     this.scale = Math.max(0.02, Math.min(scaleX, scaleY))
     this.tx = rect.width / 2 - ((minX + maxX) / 2) * this.scale
     this.ty = rect.height / 2 - ((minY + maxY) / 2) * this.scale
-    this.dirty = true
+    this.invalidate()
   }
 
   screenToWorld(sx: number, sy: number): [number, number] {
@@ -195,12 +284,23 @@ export class PuzzleBoard {
     this.resize()
   }
 
+  /**
+   * Tuval çözünürlüğünü ekrana göre ayarla.
+   *
+   * Piksel oranına tavan konuyor: 3x bir telefonda tam çözünürlük, kapatılan
+   * her karede iki katından fazla piksel demek. 2 (zayıf cihazda 1.5) ile
+   * fotoğraf gözle ayırt edilecek kadar bozulmuyor, iş yükü yarıya iniyor.
+   */
   private resize(): void {
     const rect = this.canvas.getBoundingClientRect()
-    const dpr = window.devicePixelRatio || 1
-    this.canvas.width = Math.max(1, Math.round(rect.width * dpr))
-    this.canvas.height = Math.max(1, Math.round(rect.height * dpr))
-    this.dirty = true
+    this.dpr = Math.min(window.devicePixelRatio || 1, this.zayif ? 1.5 : 2)
+    const w = Math.max(1, Math.round(rect.width * this.dpr))
+    const h = Math.max(1, Math.round(rect.height * this.dpr))
+    this.canvas.width = w
+    this.canvas.height = h
+    this.katman.width = w
+    this.katman.height = h
+    this.invalidate()
   }
 
   private local(e: PointerEvent | WheelEvent): [number, number] {
@@ -235,7 +335,8 @@ export class PuzzleBoard {
       this.dragGroup = groupId
       this.dragAnchor = hit
       bringToTop(this.state, groupId)
-      this.dirty = true
+      // grup statik katmandan çıkıp üst katmana geçiyor
+      this.invalidate()
       // dokunmatikte sağ tık yok: yerinde uzun basma parçayı koparır
       if (e.pointerType === 'touch') this.startLongPress(hit, sx, sy)
     } else {
@@ -310,11 +411,12 @@ export class PuzzleBoard {
       moveGroup(this.state, this.dragGroup, dx / this.scale, dy / this.scale)
       const anchor = this.state.pieces[this.dragAnchor]
       this.callbacks.onMove?.(this.dragGroup, this.dragAnchor, anchor.x, anchor.y)
-      this.dirty = true
+      this.grupTasindi()
     } else if (this.panning) {
       this.tx += dx
       this.ty += dy
-      this.dirty = true
+      // görünüm kaydı: statik katman da yeniden çizilmeli
+      this.invalidate()
     }
   }
 
@@ -331,7 +433,8 @@ export class PuzzleBoard {
     this.dragGroup = null
     if (g !== null) {
       this.callbacks.onDrop?.(g)
-      this.dirty = true
+      // grup üst katmandan statik katmana dönüyor
+      this.invalidate()
     }
   }
 
@@ -353,7 +456,7 @@ export class PuzzleBoard {
     this.tx = sx - (sx - this.tx) * f
     this.ty = sy - (sy - this.ty) * f
     this.scale = newScale
-    this.dirty = true
+    this.invalidate()
   }
 
   /** En üstteki parçayı bul (zOrder tersinden) */
@@ -398,13 +501,90 @@ export class PuzzleBoard {
     this.render()
   }
 
-  private render(): void {
-    const { ctx, canvas, state } = this
-    const dpr = window.devicePixelRatio || 1
+  /** Hâlen hareket eden gruplar: kendi sürüklediğimiz + karşı tarafın tuttukları */
+  private hareketliGruplar(): Set<number> {
+    const kume = new Set<number>(this.lockedGroups.keys())
+    if (this.dragGroup !== null) kume.add(this.dragGroup)
+    return kume
+  }
+
+  /**
+   * Ekranın kapsadığı dünya dikdörtgeni.
+   *
+   * Pay, parçanın hücresinin dışına taşabileceği en büyük mesafe: tab çıkıntısı
+   * artı, döndürülmüş parçanın merkezi etrafında süpürdüğü yarıçap. Cömert
+   * tutuluyor — kenardaki bir parçanın yanlışlıkla elenmesi görünür bir hata,
+   * fazladan birkaç parça çizmek değil.
+   */
+  private gorunurAlan(vw: number, vh: number): GorunurAlan {
+    const { cut } = this.state
+    const pay = pieceMargin(cut) + Math.max(cut.cellW, cut.cellH)
+    return {
+      x0: -this.tx / this.scale - pay,
+      y0: -this.ty / this.scale - pay,
+      x1: (vw - this.tx) / this.scale + pay,
+      y1: (vh - this.ty) / this.scale + pay,
+    }
+  }
+
+  /**
+   * Tek bir parçayı çizer. Ekran dışındaysa hiç çizilmez — yakınlaşmışken
+   * parçaların çoğu görünmüyor, hepsini çizmek boşa iş.
+   */
+  private parcaCiz(
+    ctx: CanvasRenderingContext2D,
+    p: PieceState,
+    sahip: string | null,
+    alan: GorunurAlan,
+    grupYerinde: boolean,
+  ): void {
+    const { cut } = this.state
+    if (
+      p.x > alan.x1 || p.x + cut.cellW < alan.x0 ||
+      p.y > alan.y1 || p.y + cut.cellH < alan.y0
+    ) return
+
+    const bm = this.bitmaps[p.row][p.col]
+    // kenar filtresi açıkken iç parçalar soluklaşır
+    const solgun = this.edgeOnly && !isEdgePiece(this.state, p) && !grupYerinde
     ctx.save()
-    ctx.scale(dpr, dpr)
-    const vw = canvas.width / dpr
-    const vh = canvas.height / dpr
+    if (solgun) ctx.globalAlpha = 0.16
+    if (sahip && !this.hafifMod) {
+      ctx.shadowColor = peerColor(sahip)
+      ctx.shadowBlur = 12 / this.scale
+    }
+    if (p.rot) {
+      // parça kendi merkezi etrafında döner
+      const cx = p.x + cut.cellW / 2
+      const cy = p.y + cut.cellH / 2
+      ctx.translate(cx, cy)
+      ctx.rotate((p.rot * Math.PI) / 2)
+      ctx.translate(-cx, -cy)
+    }
+    ctx.drawImage(bm.canvas, p.x + bm.offsetX, p.y + bm.offsetY)
+    if (sahip && this.hafifMod) {
+      // Bulanık gölge her karede yeniden hesaplanıyor ve zayıf cihazda en
+      // pahalı işlerden biri. Yerine parçanın kendi konturu sahibinin
+      // rengiyle çiziliyor — aynı bilgi, tek geçiş.
+      // Path'ler kesim koordinatında; parçanın bulunduğu yere kaydırılıyor.
+      ctx.translate(p.x - p.col * cut.cellW, p.y - p.row * cut.cellH)
+      ctx.strokeStyle = peerColor(sahip)
+      ctx.lineWidth = 3 / this.scale
+      ctx.stroke(this.paths[p.id])
+    }
+    ctx.restore()
+  }
+
+  /** Zemin, çerçeve, ızgara ve duran parçalar — yalnızca değiştiğinde çizilir */
+  private statikCiz(hareketli: Set<number>): void {
+    const ctx = this.kctx
+    const { state } = this
+    const vw = this.katman.width / this.dpr
+    const vh = this.katman.height / this.dpr
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.save()
+    ctx.scale(this.dpr, this.dpr)
 
     // arka plan
     ctx.fillStyle = '#1a1426'
@@ -457,34 +637,53 @@ export class PuzzleBoard {
       }
     }
 
-    // parçalar (zOrder alttan üste)
+    // duran parçalar (zOrder alttan üste)
+    const alan = this.gorunurAlan(vw, vh)
     for (const gid of state.zOrder) {
+      if (hareketli.has(gid)) continue
       const ids = state.groups.get(gid)
       if (!ids) continue
-      // parçayı tutan kişinin rengiyle çevrele
-      const sahip = this.lockedGroups.get(gid)
-      for (const id of ids) {
-        const p = state.pieces[id]
-        const bm = this.bitmaps[p.row][p.col]
-        // kenar filtresi açıkken iç parçalar soluklaşır
-        const solgun = this.edgeOnly && !isEdgePiece(state, p) && !isGroupPlaced(state, gid)
-        ctx.save()
-        if (solgun) ctx.globalAlpha = 0.16
-        if (sahip) {
-          ctx.shadowColor = peerColor(sahip)
-          ctx.shadowBlur = 12 / this.scale
-        }
-        if (p.rot) {
-          // parça kendi merkezi etrafında döner
-          const cx = p.x + cut.cellW / 2
-          const cy = p.y + cut.cellH / 2
-          ctx.translate(cx, cy)
-          ctx.rotate((p.rot * Math.PI) / 2)
-          ctx.translate(-cx, -cy)
-        }
-        ctx.drawImage(bm.canvas, p.x + bm.offsetX, p.y + bm.offsetY)
-        ctx.restore()
-      }
+      // grup başına bir kez: parça sayısı arttıkça bu kontrol de birikiyordu
+      const yerinde = this.edgeOnly && isGroupPlaced(state, gid)
+      for (const id of ids) this.parcaCiz(ctx, state.pieces[id], null, alan, yerinde)
+    }
+
+    ctx.restore()
+  }
+
+  /**
+   * Ekrana basılan kare: statik katmanı kopyala, üstüne hareket edenleri ve
+   * imleçleri çiz.
+   */
+  private render(): void {
+    const { ctx, canvas, state } = this
+    const hareketli = this.hareketliGruplar()
+    if (this.statikKirli) {
+      this.statikKirli = false
+      this.statikCiz(hareketli)
+    }
+
+    const vw = canvas.width / this.dpr
+    const vh = canvas.height / this.dpr
+    // katman aygıt pikselinde ve tuvalle aynı boyutta: birebir kopyalanır
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.drawImage(this.katman, 0, 0)
+
+    ctx.save()
+    ctx.scale(this.dpr, this.dpr)
+    ctx.translate(this.tx, this.ty)
+    ctx.scale(this.scale, this.scale)
+
+    // hareket eden gruplar — her zaman duranların üstünde
+    const alan = this.gorunurAlan(vw, vh)
+    for (const gid of state.zOrder) {
+      if (!hareketli.has(gid)) continue
+      const ids = state.groups.get(gid)
+      if (!ids) continue
+      // parçayı tutan kişinin rengiyle çevrele (kendi tuttuğumuzda renk yok)
+      const sahip = this.lockedGroups.get(gid) ?? null
+      const yerinde = this.edgeOnly && isGroupPlaced(state, gid)
+      for (const id of ids) this.parcaCiz(ctx, state.pieces[id], sahip, alan, yerinde)
     }
 
     // Diğer katılımcıların imleçleri. Bağlantı sürdüğü sürece görünür

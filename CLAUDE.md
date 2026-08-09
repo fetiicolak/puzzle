@@ -60,6 +60,62 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
 - Açılır liste için `Select` bileşeni kullanılır. Tarayıcının kendi `<select>`
   menüsü sayfanın koyu temasını almıyor, Windows'ta okunmuyordu.
 - Yeni ekranlarda 320 / 390 / 768 genişliklerini kontrol et.
+- **Tuvalin üstünde duran panellere `backdrop-filter` koyma.** Zeminleri zaten
+  ~%97 opak, bulanıklık görünmüyor; buna karşılık altındaki tuval her karede
+  değiştiği için tarayıcı bulanıklığı boyuna yeniden hesaplıyor. Görüşme açıkken
+  takılmanın sebeplerinden biriydi. Akıştaki (`.game-topbar`) elemanlarda sorun
+  yok — arkalarında hareketli bir şey olmuyor.
+
+### Oyun ekranındaki yüzen paneller
+
+- **Yeni yüzen panel eklersen `useSurukle` ile taşınabilir yap** (`surukle.ts`).
+  Aynı anda açık panel sayısı 0-4 arasında değişiyor, boyları içeriğe göre
+  büyüyor; hiçbir sabit yerleşim bütün birleşimlerde çakışmasız kalmıyor.
+  Daha önce tek bir çakışmaya CSS yaması yazılmıştı (`.peek.kaydir`), o da
+  yenisini doğurmuştu.
+- **Varsayılan yerler dört köşeye dağıtılmış**: sol üst odadakiler · sağ üst
+  kameralar · sol alt orijinal · sağ alt sohbet. Yeni panel eklerken bu
+  dağılımı boz(may)acak bir yer seç ve dört panel birden açıkken ölç.
+- **Panel yeri açılışta değil, kullanıcı taşıyınca belirlenir.** Taşınana kadar
+  satır içi stil verilmiyor; duyarlı CSS kuralları böylece çalışmaya devam
+  ediyor. Taşındığı an `left/top`'a geçiliyor ve `puzzle:panel:<ad>` altında
+  saklanıyor — panel kapatılıp açılınca aynı yerde geliyor.
+- **Panelleri `top: 64px` gibi sabit değerle konumlandırma.** Üst çubuk dar
+  ekranda ikinci satıra sarıyor (tablette 99px oluyor). Gerçek boyu GameScreen
+  bir `ResizeObserver` ile `--ust-cubuk` değişkenine yazıyor; `top:
+  calc(var(--ust-cubuk) + 8px)` kullan.
+- **Sağ üst + sağ alt panellerin yükseklik toplamı ekranı taşmamalı.**
+  `.video-panel` 45vh, `.chat` 55vh ile sınırlı; kamera sayısı artınca panel
+  uzayıp sohbetin üstüne biniyordu.
+- Tutamağa `touch-action: none` gerekiyor, yoksa dokunmatikte tarayıcı hareketi
+  kaydırma sanıp `pointermove`'ları kesiyor. Sürükleme düğme/kutu üstünden
+  başlamaz (`closest('button, input, …')`).
+
+## Çizim başarımı
+
+Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
+
+- **Tuval iki katmanlı** (`board.ts`). Duran her şey ayrı bir tuvale çizilip
+  kare kare oradan kopyalanıyor; yalnızca hareket eden gruplar ve imleçler
+  üstte yeniden çiziliyor. Öncesinde imleç mesajı (sn'de ~9-16) ve hareket
+  mesajı (~20) 500 parçanın tamamını yeniden çizdiriyordu.
+- **Doğru geçersiz kılmayı seç**, yoksa kazanç yok olur ya da hayalet çıkar:
+  `invalidate()` her şey · `grupTasindi()` hareket hâlindeki grubun konumu ·
+  `imlecDegisti()` yalnızca imleç. Görünüm (pan/zoom/sığdır) değiştiyse hep
+  `invalidate()`.
+- **`lockedGroups`'u dışarıdan değiştirme** — `kilitle()` / `kilidiAc()` kullan.
+  Kilitli grup statik katmandan çıkarıldığı için, haritayı sessizce değiştirmek
+  parçayı iki katmanda birden (eski ve yeni konumunda) gösterir.
+- **Ekran dışındaki parça çizilmez.** Kırpma payı cömert: tab çıkıntısı +
+  `max(cellW, cellH)`. Döndürülmüş parça hücresinin dışına taşıyor, dar pay
+  kenardaki parçayı yok ediyor.
+- **Piksel oranına tavan var**: 2, zayıf cihazda 1.5. 3x bir telefonda tam
+  çözünürlük iki katından fazla piksel demek, fotoğrafta farkı görünmüyor.
+- **`hafifMod`** (zayıf cihaz ya da 200+ parça) bulanık gölgeyi kapatıp
+  yerine parçanın konturunu çiziyor. `shadowBlur` her karede yeniden
+  hesaplanıyor ve canvas'ta en pahalı işlerden biri.
+- Ölçmeden "iyileştirdim" deme. Konsoldan: `__puzzle.board` üzerinde
+  `statikKirli` kurup `render()` süresini karşılaştır (dev derlemede açık).
 
 ## Sunucu ve güvenlik
 

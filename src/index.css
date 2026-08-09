@@ -1375,10 +1375,16 @@ button {
 
 /* ---------------------------------------------------- oda paneli */
 
+/*
+  Yüzen panellerin varsayılan yerleri dört ayrı köşeye dağıtıldı:
+  sol üst odadakiler · sağ üst kameralar · sol alt orijinal · sağ alt sohbet.
+  Hepsi tutulup taşınabiliyor (bkz. surukle.ts); buradakiler yalnızca
+  kullanıcı taşımadığı sürece geçerli.
+*/
 .oda-panel {
   position: absolute;
-  top: 64px;
-  right: 12px;
+  top: calc(var(--ust-cubuk) + 8px);
+  left: 12px;
   width: min(90vw, 320px);
   max-height: min(70vh, 520px);
   display: flex;
@@ -1608,16 +1614,28 @@ button {
 
 .video-panel {
   position: absolute;
-  top: 64px;
+  top: calc(var(--ust-cubuk) + 8px);
   right: 12px;
   width: min(80vw, 230px);
+  /*
+    Yükseklik tavanı: kameralar sağ üstte, sohbet sağ altta. Katılımcı
+    sayısıyla panel uzayınca ikisi çakışıyordu (tablette en belirgin).
+    45vh + 55vh + üst çubuk + boşluklar ekrana sığıyor; fazlası kayarak
+    görünüyor.
+  */
+  max-height: calc(45vh - 45px);
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  background: rgba(26, 20, 38, 0.96);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  /*
+    Burada backdrop-filter yok. Zemin zaten %96 opak, bulanıklık neredeyse
+    görünmüyordu; buna karşılık panelin arkasındaki tuval her karede
+    yeniden çizildiği ve içindeki video sürekli kare bastığı için tarayıcı
+    bulanıklığı boyuna yeniden hesaplıyordu. Zayıf cihazda görüşme açıkken
+    takılmanın kaynaklarından biri buydu.
+  */
+  background: rgba(26, 20, 38, 0.98);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
@@ -1628,6 +1646,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
 }
 .video-kutu {
   position: relative;
@@ -1713,7 +1733,7 @@ button {
 @media (max-width: 700px) {
   .video-panel {
     width: 38vw;
-    top: 56px;
+    top: calc(var(--ust-cubuk) + 4px);
     right: 8px;
   }
 }
@@ -1725,12 +1745,12 @@ button {
   right: 12px;
   bottom: 12px;
   width: min(88vw, 320px);
-  max-height: min(62vh, 460px);
+  /* kameralarla toplamı ekranı taşmasın — bkz. .video-panel */
+  max-height: min(calc(55vh - 45px), 460px);
   display: flex;
   flex-direction: column;
-  background: rgba(26, 20, 38, 0.97);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  /* Oyun sürerken açık kalan bir panel; backdrop-filter için bkz. .video-panel */
+  background: rgba(26, 20, 38, 0.98);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -1742,8 +1762,27 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 4px;
   padding: 10px 10px 10px 14px;
   border-bottom: 1px solid var(--line);
+}
+.chat-head .spacer {
+  flex: 1;
+}
+
+/*
+  Panellerin tutulup taşınabilen kısmı. touch-action: none olmadan dokunmatikte
+  tarayıcı hareketi kaydırma sanıp pointermove'ları kesiyor.
+*/
+.panel-tutamac {
+  cursor: move;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* düğmeler tutamağın içinde de olsa kendi imleçlerini korusun */
+.panel-tutamac button {
+  cursor: pointer;
 }
 .chat-body {
   flex: 1;
@@ -2011,6 +2050,8 @@ button {
 /* ---------------------------------------------------- oyun ekranı */
 
 .game-root {
+  /* GameScreen üst çubuğun gerçek boyunu buraya yazıyor (sarınca değişiyor) */
+  --ust-cubuk: 56px;
   position: fixed;
   inset: 0;
   display: flex;
@@ -2121,7 +2162,7 @@ button {
 /* çözerken orijinale bakma */
 .peek {
   position: absolute;
-  right: 14px;
+  left: 14px;
   bottom: 14px;
   width: min(30vw, 230px);
   padding: 0;
@@ -2136,23 +2177,35 @@ button {
 .peek img {
   width: 100%;
   display: block;
+  /* tarayıcının kendi görsel sürüklemesi panelin sürüklenmesini bozuyor */
+  -webkit-user-drag: none;
+  user-select: none;
 }
-/* Sohbet açıkken önizleme onun soluna kayar; ikisi sağ altta çakışıyordu. */
-.peek.kaydir {
-  right: calc(min(88vw, 320px) + 22px);
+.peek-araclar {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+}
+.peek-araclar .icon-btn {
+  background: rgba(18, 14, 26, 0.82);
 }
 @media (max-width: 700px) {
-  /* dar ekranda yan yana sığmaz: önizleme sohbetin üstüne çıkar */
+  /*
+    Dar ekranda sohbet neredeyse tam genişlikte; sol alt köşe de onun altında
+    kalıyor. Önizleme bu durumda sohbetin üstüne çıkar. Kullanıcı paneli
+    kendisi taşıdıysa bu kural uygulanmaz (kaydir sınıfı verilmiyor).
+  */
   .peek.kaydir {
-    right: 12px;
-    bottom: calc(min(62vh, 460px) + 20px);
+    bottom: calc(min(calc(55vh - 45px), 460px) + 20px);
     width: 34vw;
   }
 }
 
 .game-banner {
   position: absolute;
-  top: 68px;
+  top: calc(var(--ust-cubuk) + 12px);
   left: 50%;
   transform: translateX(-50%);
   background: rgba(26, 20, 38, 0.96);
