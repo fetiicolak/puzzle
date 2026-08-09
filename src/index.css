@@ -2247,6 +2247,45 @@ button {
 .peek-araclar .icon-btn {
   background: rgba(18, 14, 26, 0.82);
 }
+/*
+  Sağ alt köşeden çekerek büyütme tutamağı. Panelin tamamı taşıma tutamağı
+  olduğu için buradaki pointerdown yayılmayı durduruyor (bkz. useBoyut).
+*/
+.boy-tutamac {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  height: 24px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: rgba(18, 14, 26, 0.82);
+  border-top-left-radius: 8px;
+}
+.boy-tutamac::before,
+.boy-tutamac::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.72);
+  border-right: 2px solid rgba(255, 255, 255, 0.72);
+}
+.boy-tutamac::before {
+  width: 12px;
+  height: 12px;
+}
+.boy-tutamac::after {
+  width: 6px;
+  height: 6px;
+}
+/* parmakla tutulabilecek kadar büyük olsun */
+@media (pointer: coarse) {
+  .boy-tutamac {
+    width: 34px;
+    height: 34px;
+  }
+}
 @media (max-width: 700px) {
   /*
     Dar ekranda sohbet neredeyse tam genişlikte; sol alt köşe de onun altında

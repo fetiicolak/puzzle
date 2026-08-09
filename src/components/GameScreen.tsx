@@ -36,7 +36,7 @@ import {
 } from '../audio'
 import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
-import { useSurukle } from './surukle'
+import { useBoyut, useSurukle } from './surukle'
 import {
   baglantiTesti,
   relayKullanilabilir,
@@ -1508,10 +1508,19 @@ function OrijinalPanel({
 }) {
   const { ceviri } = useDil()
   const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLDivElement>('orijinal')
+  const { genislik, boyTutamac, boyVar, boySifirla } = useBoyut('orijinal', kokRef)
+
+  // ↺ hem yeri hem boyu varsayılana döndürsün: kullanıcı için tek bir "eski
+  // hâline dön" var, ikisi ayrı düğme olsa panelde yer de kalmıyor.
+  const hepsiniSifirla = () => {
+    sifirla()
+    boySifirla()
+  }
+
   return (
     <div
       ref={kokRef}
-      style={stil}
+      style={genislik ? { ...stil, width: genislik } : stil}
       // kaydir yalnızca dar ekranda iş görüyor: geniş ekranda sohbet sağ
       // altta, önizleme sol altta duruyor ve çakışmıyorlar
       className={`peek panel-tutamac ${chatAcik && !tasindi ? 'kaydir' : ''}`}
@@ -1519,8 +1528,8 @@ function OrijinalPanel({
     >
       <img src={gorsel} alt={ceviri('Orijinal')} draggable={false} />
       <div className="peek-araclar">
-        {tasindi && (
-          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+        {(tasindi || boyVar) && (
+          <button className="icon-btn" onClick={hepsiniSifirla} title={ceviri('Yerine döndür')}>
             ↺
           </button>
         )}
@@ -1528,6 +1537,7 @@ function OrijinalPanel({
           ✕
         </button>
       </div>
+      <div className="boy-tutamac" title={ceviri('Köşeden çekerek büyült')} {...boyTutamac} />
     </div>
   )
 }

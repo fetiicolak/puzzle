@@ -104,7 +104,7 @@ function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim
     simge: '🪟',
     baslik: 'Pencereleri istediğin yere koy',
     metin:
-      'Kameralar, sohbet ve orijinal görsel taşınabilir: başlığından tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner.',
+      'Kameralar, sohbet ve orijinal görsel taşınabilir: başlığından tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner. Orijinal görseli sağ alt köşesinden çekerek büyütebilirsin.',
   })
 
   return adimlar

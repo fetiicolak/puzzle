@@ -90,6 +90,20 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
 - Tutamağa `touch-action: none` gerekiyor, yoksa dokunmatikte tarayıcı hareketi
   kaydırma sanıp `pointermove`'ları kesiyor. Sürükleme düğme/kutu üstünden
   başlamaz (`closest('button, input, …')`).
+- **Boyu değişebilen panelde `useBoyut`** (`surukle.ts`) kullanılır; şimdilik
+  yalnızca orijinal görselde var. Yalnızca **genişlik** saklanıyor, yükseklik
+  en-boy oranından geliyor; oran sürükleme başlarken panelden ölçülüyor, yani
+  hangi fotoğraf olduğunu bilmek gerekmiyor.
+  - Tutamak `pointerdown`'da `stopPropagation()` çağırıyor. Panelin tamamı
+    taşıma tutamağı olduğu için bu olmazsa köşeden çekmek paneli taşıyor.
+  - Üst sınır iki yandan geliyor: pencere genişliği ve **oranla genişliğe
+    çevrilmiş yükseklik**. İkincisi olmazsa yatay ekranda panel üst çubuğun
+    altına giriyor.
+  - Saklanan genişlik açılışta ve `resize`'da yeniden sınırlanıyor — küçük
+    ekranda açılan büyük panel taşmasın. Depoya yalnızca `pointerup`'ta
+    yazılıyor.
+  - ↺ hem yeri hem boyu sıfırlıyor; kullanıcı için tek bir "eski hâline dön"
+    var, iki ayrı düğmeye panelde yer de yok.
 
 ## Çizim başarımı
 
@@ -244,9 +258,11 @@ denenmedi. Parantez içi, denemek için gereken şey.
 - [ ] Odadan çıkınca kameranın gerçekten bırakılması — cihazın ışığı sönüyor
       mu? Tarayıcı paneli `getUserMedia`'yı engellediği için tuvalden üretilen
       sahte akışla denendi, gerçek kamerayla denenmedi. (2026-08-06)
-- [ ] Panellerin parmakla sürüklenmesi. Sentetik `pointerType: 'touch'`
-      olaylarıyla çalışıyor; gerçek dokunmatikte `touch-action: none` yeterli
-      mi, sürükleme sayfayı kaydırıyor mu görülmedi. (2026-08-09)
+- [ ] Panellerin parmakla sürüklenmesi ve orijinal görselin köşeden
+      büyütülmesi. Sentetik `pointerType: 'touch'` olaylarıyla çalışıyor;
+      gerçek dokunmatikte `touch-action: none` yeterli mi, sürükleme sayfayı
+      kaydırıyor mu görülmedi. Köşe tutamağı dokunmatikte 34 px (fare 24 px) —
+      parmakla tutulabiliyor mu ölçülmedi. (2026-08-09)
 - [ ] `hafifMod`'un doğru cihazlarda açılması. Ölçüt `hardwareConcurrency` ve
       `deviceMemory`; ikisi de kaba ipuçları, gerçek telefonlarda ne dediği
       bilinmiyor. Konsoldan `__puzzle.board.hafifMod` ile bakılır.

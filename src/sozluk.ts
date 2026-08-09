@@ -126,8 +126,9 @@ export const SOZLUK: Record<string, string> = {
   'Yerine döndür': 'Move back',
   Orijinal: 'Original',
   'Pencereleri istediğin yere koy': 'Put the windows where you like',
-  'Kameralar, sohbet ve orijinal görsel taşınabilir: başlığından tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner.':
-    'The cameras, the chat and the original picture can be moved: grab one by its header and drag it anywhere. Where you leave it is remembered, and ↺ sends it back.',
+  'Kameralar, sohbet ve orijinal görsel taşınabilir: başlığından tutup istediğin yere sürükle. Bıraktığın yer akılda kalır, ↺ ile eski yerine döner. Orijinal görseli sağ alt köşesinden çekerek büyütebilirsin.':
+    'The cameras, the chat and the original picture can be moved: grab one by its header and drag it anywhere. Where you leave it is remembered, and ↺ sends it back. You can enlarge the original picture by pulling its bottom-right corner.',
+  'Köşeden çekerek büyült': 'Drag the corner to resize',
 
   // ------------------------------------------------------------ tanıtım turu
   'Parçayı sürükle': 'Drag a piece',
