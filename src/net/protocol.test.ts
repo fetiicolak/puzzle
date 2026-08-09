@@ -86,6 +86,14 @@ describe('dogrula — yetki', () => {
     }
   })
 
+  it('ayrılma bildirimi her yönden kabul edilir', () => {
+    // Herkes yalnızca kendi ayrılışını bildirir; host yetkili değil
+    expect(HOST_YETKILI.has('bye')).toBe(false)
+    expect(misafirDogrudan({ t: 'bye' })).not.toBeNull()
+    expect(misafirYansitilmis({ t: 'bye' })).not.toBeNull()
+    expect(hostta({ t: 'bye' })).not.toBeNull()
+  })
+
   it('tepsi ve karıştır misafirden de kabul edilir', () => {
     // İş birliğine dayalı düğmeler; bilerek host yetkili değiller
     expect(HOST_YETKILI.has('tray')).toBe(false)

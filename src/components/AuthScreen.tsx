@@ -245,11 +245,11 @@ export default function AuthScreen({
         ) : (
           <>
             By continuing you agree to the{' '}
-            <a href="./kosullar.html" target="_blank" rel="noreferrer">
+            <a href="./terms.html" target="_blank" rel="noreferrer">
               Terms of Use
             </a>{' '}
             and the{' '}
-            <a href="./gizlilik.html" target="_blank" rel="noreferrer">
+            <a href="./privacy.html" target="_blank" rel="noreferrer">
               Privacy Policy
             </a>
             .

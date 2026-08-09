@@ -25,6 +25,9 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   içindeki yasal satır.
 - Supabase'in ham hata metinleri `hataMetni()` (`src/supabase/client.ts`)
   içinden geçirilir.
+- **Hukuki sayfalar dört dosya:** `gizlilik.html`/`kosullar.html` (TR) ve
+  `privacy.html`/`terms.html` (EN). Biri değişirse karşılığını da güncelle;
+  `AuthScreen`'deki bağlantılar dile göre ayrılıyor.
 
 ## Araç tuzakları
 
@@ -88,6 +91,17 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   (`{ ...msg, from: id }`) misafir onu taklit edemez. `meta`/`img`/`state`/
   `full`/`kick` yalnızca doğrudan host'tan kabul edilir.
 - `tray`/`shuffle` bilerek herkeste — iş birliğine dayalı düğmeler.
+- **PeerJS'in `close` olayı güvenilir değil.** Ayrılan taraf kapanmadan önce
+  `bye` gönderir; host bunu yansıtır, böylece diğer misafirler de listeden
+  düşürür. Ölü bağlantı taraması (`oluleriTemizle`, 5 sn) yedek yol olarak
+  duruyor ama tek başına yavaş ve yalnızca host'ta çalışıyor.
+- **Odaya sonradan giren, önce gelenleri görmüyordu.** Host her katılımcının
+  son `hello`'sunu `sonHello`'da tutar ve yeni gelene topluca iletir; `from`
+  damgasını host bastığı için misafir bunu taklit edemez.
+- **Kamera/mikrofon oyundan çıkınca bırakılır.** `yayiniDurdur()` izleri
+  `stop()` eder; `GameScreen` temizliğinde ayrıca `yerelAkisRef` üzerinden
+  durdurulur (oda hiç kurulmadıysa `room.close()` çalışmaz). Yalnızca çağrıyı
+  kapatmak kamerayı bırakmıyor, cihazın ışığı yanmaya devam ediyordu.
 - Yeni mesaj tipi eklersen `dogrula`'ya alan doğrulaması ve gerekiyorsa
   `HOST_YETKILI` kaydını eklemeyi unutma; testi `protocol.test.ts`'e yaz.
 
@@ -143,12 +157,6 @@ Bittikçe buradan sil. Sıra kabaca öncelik sırası.
       "Davet et" ile giden davet mesajı (iki hesap gerekiyor)
 - [ ] Ana ekrandaki Mesajlar bölümü: önizleme, okunmamış rozeti ve sıralama
       (iki hesap gerekiyor)
-
-**İngilizce çeviri**
-Arayüzün tamamı çevrildi (~340 kalem). Kalan tek yer:
-- [ ] `public/gizlilik.html` ve `public/kosullar.html` — İngilizce sürüm yok;
-      hukuki metin olduğu için çeviri kullanıcı onayıyla yapılacak. İngilizce
-      seçiliyken bu iki sayfa hâlâ Türkçe açılıyor.
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)

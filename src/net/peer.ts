@@ -210,6 +210,15 @@ export class Room {
   private draining = false
   /** Host: bağlantı kimliği -> kişi kimliği (hesap ya da misafir cihazı) */
   private kimlikler = new Map<string, string>()
+
+  /**
+   * Host: her katılımcının son tanıtımı (hello).
+   *
+   * Odaya sonradan giren, kendisinden önce gelenleri hiç görmüyordu: tanıtım
+   * yalnızca bağlanma anında gidiyor, o sırada yeni kişi odada değil. Host
+   * merkezde olduğu için biriktirip yeni gelene topluca iletiyor.
+   */
+  private sonHello = new Map<string, Msg>()
   /**
    * Host: odadan çıkarılan kişilerin kimlikleri.
    *
@@ -347,6 +356,7 @@ export class Room {
       if (!oldu) continue
       this.conns.delete(id)
       this.kimlikler.delete(id)
+      this.sonHello.delete(id)
       try {
         c.close()
       } catch {
@@ -370,6 +380,7 @@ export class Room {
       const eski = this.conns.get(digerId)
       this.kimlikler.delete(digerId)
       this.conns.delete(digerId)
+      this.sonHello.delete(digerId)
       try {
         eski?.close()
       } catch {
@@ -508,6 +519,18 @@ export class Room {
           return
         }
         this.kimlikKaydet(id, kimlik)
+
+        // Odada zaten bulunanları yeni gelene tanıt. from damgası host
+        // tarafından basıldığı için misafir bunları taklit edemez.
+        for (const [digerId, hello] of this.sonHello) {
+          if (digerId === id) continue
+          try {
+            conn.send({ ...hello, from: digerId } as Msg)
+          } catch {
+            // kanal kapanmış olabilir; sonraki tanıtımda düzelir
+          }
+        }
+        this.sonHello.set(id, msg as Msg)
       }
       // Host merkezdir: gelen mesajı diğer katılımcılara aynen ilet
       if (this.isHost) {
@@ -519,6 +542,29 @@ export class Room {
         }
         void this.drain()
       }
+
+      /*
+        Ayrılma bildirimi. Yansıtmadan sonra işleniyor ki diğer misafirler de
+        haberdar olsun. Host'ta bağlantı da hemen düşürülüyor; beş saniyelik
+        ölü bağlantı taramasını beklemek odayı gereksiz yere dolu gösteriyor.
+      */
+      if (msg.t === 'bye') {
+        const ayrilan = msg.from ?? id
+        if (this.isHost && !msg.from) {
+          this.conns.delete(id)
+          this.kimlikler.delete(id)
+          this.sonHello.delete(id)
+          try {
+            conn.close()
+          } catch {
+            // zaten kapanmış olabilir
+          }
+          this.emitHostStatus()
+        }
+        this.events.onPeerLeft?.(ayrilan)
+        return
+      }
+
       this.events.onMessage(msg as Msg, msg.from ?? id)
     })
 
@@ -526,6 +572,7 @@ export class Room {
       if (this.closed || this.conns.get(id) !== conn) return
       this.conns.delete(id)
       this.kimlikler.delete(id)
+      this.sonHello.delete(id)
       if (this.isHost) {
         this.events.onPeerLeft?.(id)
         this.emitHostStatus()
@@ -571,6 +618,7 @@ export class Room {
       setTimeout(() => {
         this.kimlikler.delete(id)
         this.conns.delete(id)
+        this.sonHello.delete(id)
         try {
           conn?.close()
         } catch {
@@ -755,11 +803,18 @@ export class Room {
     }
   }
 
-  /** Kamerayı kapat, açık çağrıları sonlandır */
+  /**
+   * Kamerayı kapat, açık çağrıları sonlandır.
+   *
+   * İzler de durduruluyor: yalnızca çağrıyı kapatmak kamerayı bırakmıyor,
+   * cihazın ışığı yanmaya devam ediyordu. Çağıranlar (görüşmeyi bitir, oda
+   * kapanışı) her durumda yayının bitmesini istiyor.
+   */
   yayiniDurdur(): void {
     const hepsi = [...this.mediaBaglantilari.values()]
     this.mediaBaglantilari.clear()
     for (const m of hepsi) m.cagri.close()
+    this.yerelAkis?.getTracks().forEach((iz) => iz.stop())
     this.yerelAkis = null
   }
 
@@ -768,12 +823,25 @@ export class Room {
   }
 
   close(): void {
+    // Ayrıldığımızı kapanmadan önce haber ver. PeerJS'in 'close' olayı
+    // güvenilir gelmiyor; bu olmadan odadakiler bizi hâlâ odada görüyor.
+    // Kuyruğu beklemeden doğrudan gönderiliyor: birazdan kapanıyoruz.
+    for (const c of this.conns.values()) {
+      if (!c.open) continue
+      try {
+        c.send({ t: 'bye' } as Msg)
+      } catch {
+        // kanal çoktan kapanmış olabilir
+      }
+    }
+
     this.closed = true
     this.yayiniDurdur()
     if (this.retryTimer) clearTimeout(this.retryTimer)
     if (this.connectTimer) clearTimeout(this.connectTimer)
     if (this.nabizTimer) clearInterval(this.nabizTimer)
     this.kimlikler.clear()
+    this.sonHello.clear()
     this.queue.length = 0
     for (const c of this.conns.values()) c.close()
     this.conns.clear()

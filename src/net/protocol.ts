@@ -118,6 +118,20 @@ export interface KickMsg {
   uid: string
 }
 
+/**
+ * Odadan ayrılıyorum.
+ *
+ * Kapanmadan hemen önce gönderilir. PeerJS'in 'close' olayı güvenilir
+ * değil (bkz. peer.ts -> oluleriTemizle); ayrılan taraf kendini haber
+ * vermezse odadakiler onu 5 saniyeye kadar hâlâ odada görüyor, misafirler
+ * ise hiç görmüyor çünkü kopmayı yalnızca host fark ediyor.
+ *
+ * Host yansıtır: from damgasıyla diğer misafirler de listeden düşürür.
+ */
+export interface ByeMsg {
+  t: 'bye'
+}
+
 /** Grubu çeyrek tur döndür */
 export interface RotateMsg {
   t: 'rot'
@@ -150,6 +164,7 @@ export type Msg = (
   | ShuffleMsg
   | HelloMsg
   | KickMsg
+  | ByeMsg
 ) & {
   /** Host yansıtırken kaynağı işaretler; doğrudan gelen mesajlarda boştur */
   from?: string
@@ -292,6 +307,8 @@ export function dogrula(veri: unknown, hostMu: boolean, dogrudan: boolean): Msg 
       case 'kick':
         return metinMi(m.uid, 64)
       case 'full':
+      // Ek alanı yok; herkes gönderebilir (yalnızca kendi ayrılışını bildirir)
+      case 'bye':
         return true
       default:
         return false

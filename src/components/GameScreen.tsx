@@ -191,6 +191,15 @@ export default function GameScreen({ config, onExit }: Props) {
   const [edgeOnly, setEdgeOnly] = useState(false)
   const [araclarAcik, setAraclarAcik] = useState(false)
   const [yerelAkis, setYerelAkis] = useState<MediaStream | null>(null)
+  /**
+   * Kamera/mikrofon akışının ref kopyası.
+   *
+   * Temizlik effect'i boş bağımlılıkla kurulduğu için state'in ilk (null)
+   * değerini görüyor; odadan çıkınca kamera açık kalıyordu. Ref her zaman
+   * güncel akışı tutar.
+   */
+  const yerelAkisRef = useRef<MediaStream | null>(null)
+  yerelAkisRef.current = yerelAkis
   const [uzakAkislar, setUzakAkislar] = useState<Map<string, MediaStream>>(new Map())
   const [kameraAcik, setKameraAcik] = useState(true)
   const [sesAcik, setSesAcik] = useState(true)
@@ -833,6 +842,9 @@ export default function GameScreen({ config, onExit }: Props) {
       document.removeEventListener('visibilitychange', onVisibility)
       save(true)
       sesiKapat()
+      // Kamera/mikrofon her durumda bırakılsın: oda hiç kurulmadıysa
+      // room.close() çalışmaz ve cihazın ışığı yanmaya devam eder.
+      yerelAkisRef.current?.getTracks().forEach((iz) => iz.stop())
       r.board?.destroy()
       r.room?.close()
       r.board = null
