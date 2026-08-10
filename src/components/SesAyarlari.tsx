@@ -91,7 +91,7 @@ export default function SesAyarlari({
         <button
           className={`icon-btn ${muzik ? 'on' : ''}`}
           onClick={onMuzik}
-          title={muzik ? ceviri('Müziği kapat') : ceviri('Sakin arka plan müziği')}
+          title={muzik ? ceviri('Müziği kapat') : ceviri('Müziği aç')}
         >
           ♪
         </button>

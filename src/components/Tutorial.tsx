@@ -9,6 +9,8 @@ interface Props {
   odada: boolean
   /** Hesapla mı oynanıyor — misafirde arkadaş düğmesi hiç yok */
   hesapVar: boolean
+  /** Üst çubukta "Davet" düğmesi var mı — misafirde yok */
+  davetVar: boolean
   onKapat: () => void
 }
 
@@ -25,7 +27,21 @@ function dokunmatikMi(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 }
 
-function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim[] {
+/**
+ * İkincil araçların "⋯" arkasına saklandığı dar ekranda mıyız.
+ * Eşik `index.css`'teki `@media (max-width: 420px)` ile aynı olmalı; orada
+ * `.tool-group` gizlenip `.tool-more` görünür oluyor.
+ */
+function darEkranMi(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(max-width: 420px)').matches
+}
+
+function adimlariKur(
+  rotation: boolean,
+  odada: boolean,
+  hesapVar: boolean,
+  davetVar: boolean,
+): Adim[] {
   const dokunmatik = dokunmatikMi()
   const adimlar: Adim[] = [
     {
@@ -72,15 +88,30 @@ function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim
     baslik: 'Üstteki araçlar',
     metin: 'Takıldığında işini kolaylaştıracak düğmeler:',
     araclar: [
+      // Dar ekranda ilk altısı ekranda değil, "⋯" düğmesinin altında. Onu
+      // söylemezsek tur olmayan düğmeleri anlatmış oluyor.
+      ...(darEkranMi()
+        ? [{ simge: '⋯', ad: 'Araçlar üst çubuğa sığmadı — hepsi bunun altında' }]
+        : []),
       { simge: '⫴', ad: 'Yerleşmemiş parçaları yanlara diz' },
       { simge: '🔀', ad: 'Parçaları yeniden karıştır' },
       { simge: '⬚', ad: 'Sadece kenar parçalarını öne çıkar' },
-      { simge: '🔊', ad: 'Ses efektlerini aç / kapat' },
+      // Bu düğme efektlerle birlikte müziği de kapatıyor: ana şalter
+      { simge: '🔊', ad: 'Bütün sesi aç / kapat' },
       { simge: '🎚', ad: 'Müzik parçasını seç, sesini ayarla' },
       { simge: '⊞', ad: 'Izgarayı göster / gizle' },
       { simge: '🖼', ad: 'Orijinal görsele bak' },
       { simge: '⤢', ad: 'Hepsini ekrana sığdır' },
     ],
+  })
+
+  // Parçanın odada ortak, sesin kişisel olması kendiliğinden anlaşılmıyor
+  adimlar.push({
+    simge: '🎵',
+    baslik: 'Müzik',
+    metin: odada
+      ? 'Beş parça var: sakin piyano, gece, müzik kutusu, yağmur ve beyaz gürültü. 🎚 penceresinden seç; seçtiğin parça odadaki herkeste çalmaya başlar. Sesi kısmak ya da tamamen kapatmak yalnızca seni ilgilendirir — kimse sana ses açtıramaz.'
+      : 'Beş parça var: sakin piyano, gece, müzik kutusu, yağmur ve beyaz gürültü. 🎚 penceresinden seç, aynı yerden sesini ayarla. Müzik kapalıyken bir parça seçmek onu açar. Birlikte oynarken seçtiğin parça odadaki herkeste çalar.',
   })
 
   if (odada) {
@@ -96,6 +127,15 @@ function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim
         { simge: '📹', ad: 'Görüntülü konuş' },
         { simge: '🎙', ad: 'Yalnızca sesli konuş' },
       ],
+    })
+  } else if (davetVar) {
+    // Odadayken 👥 adımı çıkıyor, burada o çıkmıyor — tur uzamıyor
+    adimlar.push({
+      simge: '📨',
+      baslik: 'Birlikte oynamak istersen',
+      metin: dokunmatik
+        ? 'Üstteki Davet düğmesi bir bağlantı üretir. Bağlantıyı gönderdiğin kişi dokununca aynı tahtanın başına gelir; parçalar iki tarafta da aynı anda yerine oturur.'
+        : 'Üstteki Davet düğmesi bir bağlantı üretir. Bağlantıyı gönderdiğin kişi tıklayınca aynı tahtanın başına gelir; parçalar iki tarafta da aynı anda yerine oturur.',
     })
   }
 
@@ -119,12 +159,12 @@ function adimlariKur(rotation: boolean, odada: boolean, hesapVar: boolean): Adim
  * birlikte oynama adımı hiç görünmez. Dokunmatik cihazda sağ tık yerine
  * basılı tutma anlatılır.
  */
-export default function Tutorial({ rotation, odada, hesapVar, onKapat }: Props) {
+export default function Tutorial({ rotation, odada, hesapVar, davetVar, onKapat }: Props) {
   // Adımlar Türkçe kuruluyor, çeviri çizim sırasında yapılıyor
   const { ceviri } = useDil()
   const adimlar = useMemo(
-    () => adimlariKur(rotation, odada, hesapVar),
-    [rotation, odada, hesapVar],
+    () => adimlariKur(rotation, odada, hesapVar, davetVar),
+    [rotation, odada, hesapVar, davetVar],
   )
   const [i, setI] = useState(0)
   const adim = adimlar[i]
@@ -182,7 +222,7 @@ export default function Tutorial({ rotation, odada, hesapVar, onKapat }: Props) 
             </button>
           )}
           <button className="btn btn-primary" onClick={ileri}>
-            {sonMu ? ceviri('Başla') : ceviri('Atla')}
+            {sonMu ? ceviri('Başla') : ceviri('İleri')}
           </button>
         </div>
       </div>

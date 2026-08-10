@@ -167,14 +167,25 @@ export const SOZLUK: Record<string, string> = {
     'Zoom with the mouse wheel, and drag from an empty spot to move the board.',
   'Üstteki araçlar': 'The tools up top',
   'Takıldığında işini kolaylaştıracak düğmeler:': 'Buttons that help when you get stuck:',
+  'Araçlar üst çubuğa sığmadı — hepsi bunun altında':
+    'The tools did not fit in the top bar — they are all under this one',
   'Yerleşmemiş parçaları yanlara diz': 'Line up loose pieces along the sides',
   'Parçaları yeniden karıştır': 'Shuffle the pieces again',
   'Sadece kenar parçalarını öne çıkar': 'Highlight edge pieces only',
-  'Ses efektlerini aç / kapat': 'Turn sound effects on / off',
-  'Arka plan müziğini aç / kapat': 'Turn background music on / off',
+  'Bütün sesi aç / kapat': 'Turn all sound on / off',
   'Izgarayı göster / gizle': 'Show / hide the grid',
   'Orijinal görsele bak': 'Look at the original picture',
   'Hepsini ekrana sığdır': 'Fit everything on screen',
+  // tur başlığı "Müzik" — anahtarı yukarıda, ses paneli satırıyla ortak
+  'Beş parça var: sakin piyano, gece, müzik kutusu, yağmur ve beyaz gürültü. 🎚 penceresinden seç; seçtiğin parça odadaki herkeste çalmaya başlar. Sesi kısmak ya da tamamen kapatmak yalnızca seni ilgilendirir — kimse sana ses açtıramaz.':
+    'There are five tracks: calm piano, night, music box, rain and white noise. Pick one from the 🎚 window and everyone in the room starts hearing it. Turning it down or off is yours alone — nobody can make sound play on your device.',
+  'Beş parça var: sakin piyano, gece, müzik kutusu, yağmur ve beyaz gürültü. 🎚 penceresinden seç, aynı yerden sesini ayarla. Müzik kapalıyken bir parça seçmek onu açar. Birlikte oynarken seçtiğin parça odadaki herkeste çalar.':
+    'There are five tracks: calm piano, night, music box, rain and white noise. Pick one from the 🎚 window and set the volume in the same place. Picking a track while the music is off turns it on. When you play together, the track you pick plays for everyone in the room.',
+  'Birlikte oynamak istersen': 'If you want to play together',
+  'Üstteki Davet düğmesi bir bağlantı üretir. Bağlantıyı gönderdiğin kişi dokununca aynı tahtanın başına gelir; parçalar iki tarafta da aynı anda yerine oturur.':
+    'The Invite button up top makes a link. Whoever you send it to lands on this very board when they tap it, and pieces snap into place on both sides at once.',
+  'Üstteki Davet düğmesi bir bağlantı üretir. Bağlantıyı gönderdiğin kişi tıklayınca aynı tahtanın başına gelir; parçalar iki tarafta da aynı anda yerine oturur.':
+    'The Invite button up top makes a link. Whoever you send it to lands on this very board when they click it, and pieces snap into place on both sides at once.',
   'Birlikte oynarken': 'When playing together',
   'Karşı tarafın imleci tahtada görünür; tuttuğu parça renkli çerçeveyle işaretlenir.':
     "You can see the other player's cursor on the board, and the piece they are holding gets a coloured outline.",
@@ -184,7 +195,7 @@ export const SOZLUK: Record<string, string> = {
   'Görüntülü konuş': 'Video call',
   'Yalnızca sesli konuş': 'Audio-only call',
   'Hepsini atla': 'Skip all',
-  Atla: 'Skip',
+  İleri: 'Next',
   Başla: 'Start',
 
   // ------------------------------------------------------------ oda paneli
@@ -428,7 +439,7 @@ export const SOZLUK: Record<string, string> = {
   'Ses efektlerini kapat': 'Turn sound effects off',
   'Ses efektlerini aç': 'Turn sound effects on',
   'Müziği kapat': 'Turn the music off',
-  'Sakin arka plan müziği': 'Calm background music',
+  'Müziği aç': 'Turn the music on',
   'Diğer araçlar': 'More tools',
   'Orijinali göster': 'Show the original',
   'Hepsini göster': 'Show everything',

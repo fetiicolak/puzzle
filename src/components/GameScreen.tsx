@@ -1409,6 +1409,7 @@ export default function GameScreen({ config, onExit }: Props) {
           rotation={refs.current.rotation}
           odada={roomStatus !== 'idle'}
           hesapVar={!!hesap}
+          davetVar={config.mode !== 'guest'}
           onKapat={() => setTanitim(false)}
         />
       )}

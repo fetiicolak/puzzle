@@ -53,7 +53,14 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   iç boşluğu var, `94vw` onu taşırıp pencereyi kenara yapıştırıyor.
 - **Üst çubuğa düğme eklersen `Tutorial.tsx`'in araç listesine de ekle.**
   Liste elle yazılıyor, kendiliğinden güncellenmiyor; koşullu görünen bir
-  düğme turda da aynı koşulla görünmeli (örn. `hesapVar`).
+  düğme turda da aynı koşulla görünmeli (örn. `hesapVar`, `davetVar`).
+  - Yalnızca **belli ekran genişliğinde** görünen düğme turda da aynı eşikle
+    listelenir. `⋯` 420 px altında çıkıyor (`index.css`), tur da `darEkranMi()`
+    ile aynı eşiğe bakıyor. Yoksa telefonda ekranda olmayan altı düğme
+    anlatılıyor.
+  - **Davranış değişince de turu güncelle**, yalnızca düğme eklenince değil.
+    Müzik odada ortaklaştı ama tur bunu bir tur boyunca hiç söylemedi; `🔊`
+    ana şaltere dönüştüğü hâlde turda "ses efektleri" yazmaya devam etti.
 - **Kullanıcı metnindeki adresler `Linkli` ile basılır.** Ham metin basmak,
   paylaşılan oda linkini kopyala-yapıştır işine çeviriyor. Ayrıştırıcı yalnızca
   http/https tanır (`javascript:` bağlantıya dönüşmemeli) ve testi var.
