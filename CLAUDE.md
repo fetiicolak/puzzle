@@ -279,10 +279,20 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   yuvarlak ya da kesik köşe veriyor.
 - **Maskable ikon dairesine sığ.** Android `purpose: "maskable"` ikonu 80%
   çapında bir daireye kırpıyor; 100x100 tuvalde çizim merkezden 40 birimden
-  uzağa taşmamalı. Bugünkü çizim 38,2'de.
+  uzağa taşmamalı. Bugünkü çizim 32,2'de.
+- **`icon.svg` XML olarak ayrıştırılıyor: yorumun içinde iki tire yan yana
+  gelemez.** Yorumdaki `npx --yes ...` yüzünden dosya aylarca ayrıştırılamadı;
+  tarayıcı hata vermiyor, favicon'u sessizce göstermiyor. Dosyayı doğrudan
+  `localhost:5173/icon.svg` adresinde açıp bayrağı gör — hata sayfası çıkarsa
+  ayrıştırılamıyordur.
 - **Ortalamayı gözle değil ölçerek doğrula.** Eski ikon 512'lik karede 51
   piksel aşağı kaymıştı (üstte 112, altta 61 boşluk) ve kimse fark etmemişti.
-  Tuvale çizip zemin renginden farklı piksellerin sınır kutusuna bak.
+  Tuvale çizip zemin renginden farklı piksellerin sınır kutusuna bak; yuvarlak
+  köşeli dosyalarda **saydam pikselleri de ele** (`alpha < 200` atlanmazsa
+  sınır kutusu karonun kendisi çıkıyor, ölçüm hep "ortalı" diyor).
+- **Ay-yıldızın ölçüleri birbirine bağlı.** Üç çemberin yarıçapı ve merkezleri
+  tek bir ölçekten (`G`) türetiliyor; biri elle yuvarlanırsa hem bayrak oranı
+  hem ortalama bozulur. Değiştireceksen üçünü birden yeniden hesapla.
 - **`sw.js`: kabuk dosyası aynı adla değişirse `CACHE` sürümünü artır.**
   `activate` yalnızca *farklı* anahtarlı önbellekleri siliyor; artırmazsan
   kurulu uygulama eski dosyayı vermeye devam ediyor. Yeni bir kabuk dosyası

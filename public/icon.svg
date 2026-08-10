@@ -1,49 +1,72 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Birlikte Puzzle">
   <!--
-    Birbirine geçmiş iki parça: uygulamanın adı "Birlikte" ama ikon tek parça
-    gösteriyordu. Renkler oyunun kendi oyuncu paletinden geliyor
-    (board.ts -> peerColor): #e85d75 ve #56ccf2. İkon artık "iki kişi, tek
-    yapboz" diyor.
+    Birbirine geçmiş iki parça; birleşince Türk bayrağı. Parçaların geometrisi
+    (aşağıdaki iki `d`) değişmedi, değişen renk ve üstüne gelen ay-yıldız.
 
-    Merkezleme: çizim kutusu x 24-76, y 24-76 — tam kare ve iki eksende de
-    merkezi 50. Eski ikon aşağı kaymıştı (üstte 110, altta 57 piksel boşluk
-    vardı). Çıkıntılar üstte-solda / altta-sağda, oyuklar iki dış kenarda:
-    denge kendiliğinden çıkıyor, elle itelemek gerekmiyor.
+    Merkezleme: çizim kutusu x 24-76, y 24-76 — tam kare, iki eksende de
+    merkezi 50. Çıkıntılar üstte-solda / altta-sağda; 180 derece dönme
+    simetrisi merkezi kendiliğinden koruyor. Beyaz motif bu kutunun içinde
+    kalıyor, sınırı büyütmüyor.
 
-    Yarıçap 40'ı geçmiyor (kontur payıyla 38,2). Android "maskable" ikonu
-    daireye kırpıyor; taşan köşe kesilirdi.
+    Ay-yıldız Türk Bayrağı Kanunu'nun oranlarında, ölçek G = 46 ile
+    (gövde 52x38 olduğu için G bayrağın eni değil; oranlar korunuyor, motif
+    biraz iri tutuldu — 32 pikselde ay ancak böyle seçiliyor):
+      dış çember  r = G/4 = 11,5     iç çember r = G/5 = 9,2
+      yıldız      r = G/6 = 7,667    iç çemberin merkezi dıştakinin 0,0625G sağında
+      yıldızın bir ucu aya bakıyor
+    Sayılar buradan çıktı; motifin sınır kutusu x 30,13-69,87, ortası tam 50.
+    Birini elle yuvarlarsan hem bayrak oranı hem ortalama bozulur; ölçüleri
+    değiştireceksen üçünü birden yeniden hesapla.
 
-    Koyu kontur zeminle aynı renk: dış hatta görünmüyor, ortadaki dikişte iki
-    parçayı ayırıyor. 16 pikselde bile iki ayrı renk okunuyor.
+    Ay sol parçada, yıldız sağ parçada: parçalar ayrılınca bayrak da ikiye
+    ayrılıyor. Dikiş beyazın *altında* çiziliyor, yoksa tırnağın konturu
+    yıldızın sol ucunu kesiyor.
+
+    Dikiş yalnızca iki parçanın arasına çiziliyor, dış hatta kontur yok:
+    kırmızı zaten koyu zeminden ayrılıyor, kontur köşeleri törpülemekten
+    başka iş yapmıyordu.
+
+    Kırmızı #e30a17 (bayrak kırmızısı) çevresinde çok hafif degrade. Degrade
+    `userSpaceOnUse`: iki parça aynı ışığı alıyor, yoksa dikişin iki yanında
+    iki ayrı kırmızı görünüyor.
+
+    Yarıçap 40'ı geçmiyor (en uzak nokta merkeze 32,2). Android "maskable"
+    ikonu daireye kırpıyor; taşan köşe kesilirdi.
 
     PNG'ler bu dosyadan üretiliyor (bağımlılık eklemeden, npx ile):
       # yuvarlak köşeli: icon-192.png, icon-512.png
       # kare (rx="22" silinerek): icon-512-maskable.png ve apple-touch-icon*
-      npx --yes sharp-cli -i <boyutu yazılmış kopya>.svg -o cikti.png -f png
+      npx -y sharp-cli -i <boyutu yazılmış kopya>.svg -o cikti.png -f png
     Boyut, kopyada <svg width="N" height="N"> olarak veriliyor; sharp yoksa
     100x100 rasterleyip büyütüyor ve kenarlar bulanıyor.
+    (`-y` bilerek kısa yazıldı: XML yorumunun içinde iki tire yan yana
+    gelemiyor, uzun hâli bu dosyayı ayrıştırılamaz kılıyor. Öyleydi de:
+    tarayıcı icon.svg'yi hiç çizemiyordu, favicon sessizce düşüyordu.)
 
     Yuvarlatmayı yalnızca SVG ve icon-*.png taşır. apple-touch-icon ve
     maskable kare olmalı: iOS ve Android kendi maskesini uyguluyor, önden
     yuvarlatılmış ikon orada çift yuvarlak / kesik köşe oluyor.
   -->
   <defs>
-    <linearGradient id="sol" x1="0" y1="0" x2="0.9" y2="1">
-      <stop offset="0" stop-color="#ff8fa4" />
-      <stop offset="1" stop-color="#d6415f" />
-    </linearGradient>
-    <linearGradient id="sag" x1="0.1" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8ce3fb" />
-      <stop offset="1" stop-color="#2f9dd4" />
+    <linearGradient id="bayrak" gradientUnits="userSpaceOnUse" x1="24" y1="24" x2="76" y2="76">
+      <stop offset="0" stop-color="#f4232f" />
+      <stop offset="1" stop-color="#c00713" />
     </linearGradient>
   </defs>
 
   <rect width="100" height="100" rx="22" fill="#1a1423" />
 
-  <g stroke="#1a1423" stroke-width="2" stroke-linejoin="round">
-    <!-- sol parça: üstte tırnak, sağında dikiş tırnağı -->
-    <path d="M24 31 H30 A7 7 0 0 1 44 31 H50 V43 A7 7 0 0 1 50 57 V69 H24 Z" fill="url(#sol)" />
-    <!-- sağ parça: sol kenarındaki oyuk sol parçanın tırnağını alıyor -->
-    <path d="M50 31 H76 V69 H70 A7 7 0 0 1 56 69 H50 V57 A7 7 0 0 0 50 43 Z" fill="url(#sag)" />
+  <!-- sol parça (üstte tırnak, sağında dikiş tırnağı) ve sağ parça -->
+  <g fill="url(#bayrak)">
+    <path d="M24 31 H30 A7 7 0 0 1 44 31 H50 V43 A7 7 0 0 1 50 57 V69 H24 Z" />
+    <path d="M50 31 H76 V69 H70 A7 7 0 0 1 56 69 H50 V57 A7 7 0 0 0 50 43 Z" />
   </g>
+
+  <!-- iki parçanın arasındaki kesik -->
+  <path d="M50 31 V43 A7 7 0 0 1 50 57 V69" fill="none" stroke="#1a1423" stroke-width="1.8" />
+
+  <!-- ay: dış çemberden iç çemberin kesildiği hilal -->
+  <path fill="#fff" d="M51.346 43.850 A11.5 11.5 0 1 0 51.346 56.150 A9.2 9.2 0 1 1 51.346 43.850 Z" />
+  <!-- yıldız: bir ucu aya bakıyor -->
+  <polygon fill="#fff" points="56.00,50.00 61.30,48.28 61.30,42.71 64.58,47.21 69.87,45.49 66.60,50.00 69.87,54.51 64.58,52.79 61.30,57.29 61.30,51.72" />
 </svg>
