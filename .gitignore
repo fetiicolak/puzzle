@@ -6,3 +6,6 @@ dist
 
 # Yerel ayarlar; ornegi .env.example'da
 .env
+
+# Serena arac onbellegi - projeye ait degil
+.serena/
