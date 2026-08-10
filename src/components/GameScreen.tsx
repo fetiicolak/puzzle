@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { PuzzleBoard } from '../engine/board'
 import { generateCut, renderPieceBitmaps } from '../engine/cutter'
 import {
@@ -17,7 +17,10 @@ import {
   type GameState,
   type StateSnapshot,
 } from '../engine/state'
-import Certificate from './Certificate'
+// Sertifika yalnızca puzzle bitince açılıyor ve içinde kendi tuval çizimi
+// (yazı tipi ölçümü, desen, indirme) var. Ayrı pakette duruyor: oyuna
+// başlarken indirilmesi için sebep yok.
+const Certificate = lazy(() => import('./Certificate'))
 import ConfirmDialog from './ConfirmDialog'
 import FriendsPanel from './FriendsPanel'
 import Linkli from './Linkli'
@@ -394,6 +397,15 @@ export default function GameScreen({ config, onExit }: Props) {
   surpriseRef.current = surprise
   const titleRef = useRef(title)
   titleRef.current = title
+
+  /*
+    Otomatik kayıt sayacı `save`'i çağırıyor ama onu bağımlılığa ekleyemiyoruz:
+    `save` her render yeniden tanımlanıyor, eklenirse setInterval her renderda
+    sıfırlanır ve 15 saniyelik kayıt hiç gelmez. En güncel hâli burada tutulup
+    sayaçtan ref üzerinden çağrılıyor.
+  */
+  const saveRef = useRef(save)
+  saveRef.current = save
 
   // ---- motor kurulumu ----
   const build = async (imageDataUrl: string, pieceCount: number, seed: number) => {
@@ -983,7 +995,7 @@ export default function GameScreen({ config, onExit }: Props) {
       r.elapsed += 1
       setElapsed(r.elapsed)
       // Parça oynatılmadan geçen uzun sürelerde de ilerleme kaybolmasın
-      if (r.elapsed % 15 === 0) save()
+      if (r.elapsed % 15 === 0) saveRef.current()
     }, 1000)
     return () => clearInterval(id)
   }, [phase])
@@ -1168,7 +1180,12 @@ export default function GameScreen({ config, onExit }: Props) {
   return (
     <div className="game-root" ref={oyunKokRef}>
       <div className="game-topbar" ref={ustCubukRef}>
-        <button className="icon-btn" onClick={onExit} title={ceviri('Çık')}>
+        <button
+          className="icon-btn"
+          onClick={onExit}
+          aria-label={ceviri('Çık')}
+          title={ceviri('Çık')}
+        >
           ←
         </button>
         {title && (
@@ -1222,6 +1239,7 @@ export default function GameScreen({ config, onExit }: Props) {
               setOdaPanel((v) => !v)
               setArkadasPanel(false)
             }}
+            aria-label={ceviri('Odadakiler')}
             title={ceviri('Odadakiler')}
           >
             👥
@@ -1235,6 +1253,7 @@ export default function GameScreen({ config, onExit }: Props) {
               setArkadasPanel((v) => !v)
               setOdaPanel(false)
             }}
+            aria-label={ceviri('Arkadaşlar — mesaj gönder, odaya davet et')}
             title={ceviri('Arkadaşlar — mesaj gönder, odaya davet et')}
           >
             🤝
@@ -1246,6 +1265,9 @@ export default function GameScreen({ config, onExit }: Props) {
             disabled={gorusmeBekliyor}
             onClick={() =>
               yerelAkis && !sadeceSes ? gorusmeBitir() : void gorusmeBaslat(false)
+            }
+            aria-label={
+              yerelAkis && !sadeceSes ? ceviri('Görüşmeyi bitir') : ceviri('Görüntülü konuş')
             }
             title={
               yerelAkis && !sadeceSes ? ceviri('Görüşmeyi bitir') : ceviri('Görüntülü konuş')
@@ -1259,6 +1281,7 @@ export default function GameScreen({ config, onExit }: Props) {
             className={`icon-btn ${sadeceSes ? 'on' : ''}`}
             disabled={gorusmeBekliyor}
             onClick={() => (sadeceSes ? gorusmeBitir() : void gorusmeBaslat(true))}
+            aria-label={sadeceSes ? ceviri('Görüşmeyi bitir') : ceviri('Yalnızca sesli konuş')}
             title={sadeceSes ? ceviri('Görüşmeyi bitir') : ceviri('Yalnızca sesli konuş')}
           >
             🎙
@@ -1271,6 +1294,7 @@ export default function GameScreen({ config, onExit }: Props) {
               setChatAcik((v) => !v)
               setOkunmamis(0)
             }}
+            aria-label={ceviri('Sohbet')}
             title={ceviri('Sohbet')}
           >
             💬
@@ -1279,10 +1303,20 @@ export default function GameScreen({ config, onExit }: Props) {
         )}
         {/* İkincil araçlar: dar ekranda "⋯" ile açılır, geniş ekranda hep görünür */}
         <div className={`tool-group ${araclarAcik ? 'acik' : ''}`}>
-          <button className="icon-btn" onClick={tepsiyeDiz} title={ceviri('Parçaları yanlara diz')}>
+          <button
+            className="icon-btn"
+            onClick={tepsiyeDiz}
+            aria-label={ceviri('Parçaları yanlara diz')}
+            title={ceviri('Parçaları yanlara diz')}
+          >
             ⫴
           </button>
-          <button className="icon-btn" onClick={karistir} title={ceviri('Karıştır')}>
+          <button
+            className="icon-btn"
+            onClick={karistir}
+            aria-label={ceviri('Karıştır')}
+            title={ceviri('Karıştır')}
+          >
             🔀
           </button>
           <button
@@ -1295,6 +1329,7 @@ export default function GameScreen({ config, onExit }: Props) {
                 b.invalidate()
               }
             }}
+            aria-label={ceviri('Sadece kenarlar')}
             title={ceviri('Sadece kenarlar')}
           >
             ⬚
@@ -1302,6 +1337,7 @@ export default function GameScreen({ config, onExit }: Props) {
           <button
             className={`icon-btn ${sesler ? 'on' : ''}`}
             onClick={sesleriDegistir}
+            aria-label={sesler ? ceviri('Ses efektlerini kapat') : ceviri('Ses efektlerini aç')}
             title={sesler ? ceviri('Ses efektlerini kapat') : ceviri('Ses efektlerini aç')}
           >
             {sesler ? '🔊' : '🔈'}
@@ -1309,6 +1345,7 @@ export default function GameScreen({ config, onExit }: Props) {
           <button
             className={`icon-btn ${sesPanel ? 'on' : ''}`}
             onClick={() => setSesPanel((v) => !v)}
+            aria-label={ceviri('Ses ayarları')}
             title={ceviri('Ses ayarları')}
           >
             🎚
@@ -1323,6 +1360,7 @@ export default function GameScreen({ config, onExit }: Props) {
                 b.invalidate()
               }
             }}
+            aria-label={ceviri('Izgara')}
             title={ceviri('Izgara')}
           >
             ⊞
@@ -1331,6 +1369,7 @@ export default function GameScreen({ config, onExit }: Props) {
         <button
           className={`icon-btn tool-more ${araclarAcik ? 'on' : ''}`}
           onClick={() => setAraclarAcik((v) => !v)}
+          aria-label={ceviri('Diğer araçlar')}
           title={ceviri('Diğer araçlar')}
         >
           ⋯
@@ -1338,6 +1377,7 @@ export default function GameScreen({ config, onExit }: Props) {
         <button
           className={`icon-btn ${peek ? 'on' : ''}`}
           onClick={() => setPeek((v) => !v)}
+          aria-label={ceviri('Orijinali göster')}
           title={ceviri('Orijinali göster')}
         >
           🖼
@@ -1345,6 +1385,7 @@ export default function GameScreen({ config, onExit }: Props) {
         <button
           className="icon-btn"
           onClick={() => refs.current.board?.fitView()}
+          aria-label={ceviri('Hepsini göster')}
           title={ceviri('Hepsini göster')}
         >
           ⤢
@@ -1352,6 +1393,7 @@ export default function GameScreen({ config, onExit }: Props) {
         <button
           className={`icon-btn ${tanitim ? 'on' : ''}`}
           onClick={() => setTanitim(true)}
+          aria-label={ceviri('Nasıl oynanır')}
           title={ceviri('Nasıl oynanır')}
         >
           ?
@@ -1532,16 +1574,18 @@ export default function GameScreen({ config, onExit }: Props) {
       )}
 
       {sertifika && (
-        <Certificate
-          baslik={title}
-          ressam={artist}
-          // Odadaki herkes + ben; misafirlerin kendi verdiği adlar da dahil
-          kisiler={[benimAdim, ...[...bagliOlanlar.values()].map((k) => k.ad)]}
-          saniye={elapsed}
-          parca={refs.current.game?.pieces.length ?? refs.current.pieceCount}
-          gorsel={refs.current.imageDataUrl}
-          onKapat={() => setSertifika(false)}
-        />
+        <Suspense fallback={null}>
+          <Certificate
+            baslik={title}
+            ressam={artist}
+            // Odadaki herkes + ben; misafirlerin kendi verdiği adlar da dahil
+            kisiler={[benimAdim, ...[...bagliOlanlar.values()].map((k) => k.ad)]}
+            saniye={elapsed}
+            parca={refs.current.game?.pieces.length ?? refs.current.pieceCount}
+            gorsel={refs.current.imageDataUrl}
+            onKapat={() => setSertifika(false)}
+          />
+        </Suspense>
       )}
     </div>
   )
@@ -1586,11 +1630,21 @@ function OrijinalPanel({
     >
       <PanelBaslik baslik={ceviri('Orijinal')} tutamac={tutamac}>
         {(tasindi || yakin) && (
-          <button className="icon-btn" onClick={hepsiniSifirla} title={ceviri('Yerine döndür')}>
+          <button
+            className="icon-btn"
+            onClick={hepsiniSifirla}
+            aria-label={ceviri('Yerine döndür')}
+            title={ceviri('Yerine döndür')}
+          >
             ↺
           </button>
         )}
-        <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
+        <button
+          className="icon-btn"
+          onClick={onKapat}
+          aria-label={ceviri('Kapat')}
+          title={ceviri('Kapat')}
+        >
           ✕
         </button>
       </PanelBaslik>
@@ -1634,11 +1688,21 @@ function ChatPanel({
     <aside ref={kokRef} style={stil} className="chat">
       <PanelBaslik baslik={ceviri('Sohbet')} tutamac={tutamac}>
         {tasindi && (
-          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+          <button
+            className="icon-btn"
+            onClick={sifirla}
+            aria-label={ceviri('Yerine döndür')}
+            title={ceviri('Yerine döndür')}
+          >
             ↺
           </button>
         )}
-        <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
+        <button
+          className="icon-btn"
+          onClick={onKapat}
+          aria-label={ceviri('Kapat')}
+          title={ceviri('Kapat')}
+        >
           ✕
         </button>
       </PanelBaslik>

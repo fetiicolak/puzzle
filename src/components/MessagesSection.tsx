@@ -65,7 +65,7 @@ export default function MessagesSection() {
 
   useEffect(() => {
     let iptal = false
-    tazele().finally(() => {
+    void tazele().finally(() => {
       if (!iptal) setYukleniyor(false)
     })
     return () => {

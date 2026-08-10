@@ -1391,9 +1391,13 @@ button {
   max-height: min(70vh, 520px);
   display: flex;
   flex-direction: column;
+  /*
+    backdrop-filter yok — bkz. .video-panel. Zemin zaten %97 opak, bulanıklık
+    görünmüyor; arkasındaki tuval her karede değiştiği için tarayıcı onu
+    boyuna yeniden hesaplıyordu. Kural CLAUDE.md'de yazılıydı ama bu panelde
+    kalmıştı.
+  */
   background: rgba(26, 20, 38, 0.97);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -1740,6 +1744,25 @@ button {
     width: 38vw;
     top: calc(var(--ust-cubuk) + 4px);
     right: 8px;
+  }
+
+  /*
+    "Odadakiler" kamera panelinin soluna sığsın.
+
+    390 pikselde ikisi de varsayılan yerlerindeyken üst üste biniyordu: oda
+    paneli 320 px (12'den 332'ye), kamera paneli 38vw = 148 px (234'ten
+    382'ye). Aradaki 98 pikselde iki panel birden vardı ve alttaki kamera
+    okunmuyordu.
+
+    Genişlik artık kameradan geri kalana göre: 100vw - 12 (sol boşluk)
+    - 38vw (kamera) - 8 (kamera sağ boşluğu) - 12 (aradaki boşluk).
+    700'de 320'de sınırlanıyor, yani geniş ekranda hiçbir şey değişmiyor.
+
+    Panelin yerini kullanıcı değiştirdiyse satır içi stil bunu ezer
+    (bkz. useSurukle) — burası yalnızca varsayılan yerleşim.
+  */
+  .oda-panel {
+    width: min(320px, calc(62vw - 32px));
   }
 }
 
@@ -2345,9 +2368,9 @@ button {
   top: calc(var(--ust-cubuk) + 12px);
   left: 50%;
   transform: translateX(-50%);
+  /* backdrop-filter yok: tuvalin üstünde ve kullanıcı kapatana kadar açık
+     kalıyor — bkz. .video-panel */
   background: rgba(26, 20, 38, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   padding: 18px;

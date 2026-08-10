@@ -232,7 +232,7 @@ const sayiMi = (v: unknown, enAz: number, enCok: number): boolean =>
   typeof v === 'number' && Number.isFinite(v) && v >= enAz && v <= enCok
 
 const tamSayiMi = (v: unknown, enAz: number, enCok: number): boolean =>
-  sayiMi(v, enAz, enCok) && Number.isInteger(v as number)
+  sayiMi(v, enAz, enCok) && Number.isInteger(v)
 
 const metinMi = (v: unknown, enCokUzunluk: number): boolean =>
   typeof v === 'string' && v.length <= enCokUzunluk
@@ -330,8 +330,9 @@ export function dogrula(veri: unknown, hostMu: boolean, dogrudan: boolean): Msg 
         )
       case 'kick':
         return metinMi(m.uid, 64)
+      // İkisinin de ek alanı yok. 'bye'ı herkes gönderebilir; yalnızca kendi
+      // ayrılışını bildiriyor.
       case 'full':
-      // Ek alanı yok; herkes gönderebilir (yalnızca kendi ayrılışını bildirir)
       case 'bye':
         return true
       default:

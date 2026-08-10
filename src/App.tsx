@@ -1,12 +1,26 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import AuthScreen from './components/AuthScreen'
 import ConfirmDialog from './components/ConfirmDialog'
-import GameScreen, { type GameConfig } from './components/GameScreen'
+import type { GameConfig } from './components/GameScreen'
 import HomeScreen from './components/HomeScreen'
 import JoinChoiceScreen from './components/JoinChoiceScreen'
 import NewPasswordScreen from './components/NewPasswordScreen'
 import SetupScreen, { type StartOptions } from './components/SetupScreen'
-import { randomRoomCode } from './net/peer'
+import { randomRoomCode } from './net/odakodu'
+
+/*
+  Oyun ekranı ayrı bir paket olarak yükleniyor.
+
+  Açılışta gereken tek şey giriş ve ana ekran; oyun ekranı ise yanında motoru
+  (kesim, tuval), PeerJS'i ve ses üretimini getiriyor. Hepsi tek pakette
+  olduğunda ilk açılışta ~694 KB indiriliyordu. Bölündükten sonra oyun paketi
+  ancak bir puzzle açılırken iniyor — o sırada zaten "Parçalar kesiliyor"
+  ekranı var, bekleme fark edilmiyor.
+
+  `type GameConfig` yukarıda ayrıca ve yalnızca tip olarak alınıyor: normal
+  import olsaydı modül açılış paketine geri girer, bölme hiçbir işe yaramazdı.
+*/
+const GameScreen = lazy(() => import('./components/GameScreen'))
 import { useDil } from './dil'
 import { savePuzzle, type SavedPuzzle } from './storage'
 import { useAuth } from './supabase/auth'
@@ -372,7 +386,18 @@ export default function App() {
         />
         )
       case 'game':
-        return <GameScreen key={screen.config.puzzleId} config={screen.config} onExit={goHome} />
+        return (
+          <Suspense
+            fallback={
+              <div className="overlay">
+                <div className="spinner" />
+                <p>{ceviri('Bir saniye…')}</p>
+              </div>
+            }
+          >
+            <GameScreen key={screen.config.puzzleId} config={screen.config} onExit={goHome} />
+          </Suspense>
+        )
     }
   }
 

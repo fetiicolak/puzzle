@@ -905,7 +905,16 @@ drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles
   for select to authenticated using (public.profil_gorunur(id));
 
--- Alıcı da kendi gelen kutusundan mesajı silebilmeli (taciz durumunda)
+/*
+  Alıcı da mesajı silebilmeli (taciz durumunda).
+
+  Silme iki taraflı: satır tamamen gidiyor, gönderenin geçmişinden de
+  düşüyor. "Yalnızca benim gelen kutumdan sil" demek için satır başına iki
+  bayrak (gonderen_sildi / alici_sildi) ve istemcide süzme gerekirdi.
+  2026-08-11'de a/b hesaplarıyla denendi ve davranış bilerek böyle bırakıldı;
+  şikayet kaydı mesaja bağlı değil (reports.reason serbest metin), yani
+  silinen mesaj bir şikayetin dayanağını götürmüyor.
+*/
 drop policy if exists messages_delete on public.messages;
 create policy messages_delete on public.messages
   for delete to authenticated

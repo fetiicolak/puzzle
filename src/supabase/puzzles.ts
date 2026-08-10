@@ -151,16 +151,19 @@ export async function createRemotePuzzle(opts: {
     unlock_at: opts.unlockAt ?? null,
   }
 
-  let { data, error } = await supabase.from('puzzles').insert(satir).select().single()
+  // Yanıt nesnesi bir bütün olarak tutuluyor: Supabase istemcisi tip üretmeden
+  // kullanıldığı için `data` alanı `any`, doğrudan parçalayınca tip güvenliği
+  // sessizce kayboluyor. Aşağıda tek bir yerde daraltılıyor.
+  let cevap = await supabase.from('puzzles').insert(satir).select().single()
 
   // Şemanın son sürümü henüz çalıştırılmadıysa yeni sütunlar olmayabilir.
   // Kayıt tamamen başarısız olacağına, o alanı atlayıp devam etmek daha iyi.
-  if (error && eksikSutun(error.message)) {
+  if (cevap.error && eksikSutun(cevap.error.message)) {
     delete satir.artist
-    ;({ data, error } = await supabase.from('puzzles').insert(satir).select().single())
+    cevap = await supabase.from('puzzles').insert(satir).select().single()
   }
-  if (error) throw new Error(error.message)
-  return data as RemotePuzzle
+  if (cevap.error) throw new Error(cevap.error.message)
+  return cevap.data as RemotePuzzle
 }
 
 /** Hata "böyle bir sütun yok" mu diyor */
@@ -184,9 +187,9 @@ export class OdaHatasi extends Error {
 
 export async function joinRemotePuzzle(roomCode: string): Promise<RemotePuzzle | null> {
   if (!supabase) return null
-  const { data, error } = await supabase.rpc('join_puzzle', { p_code: roomCode })
-  if (error) {
-    const m = error.message ?? ''
+  const cevap = await supabase.rpc('join_puzzle', { p_code: roomCode })
+  if (cevap.error) {
+    const m = cevap.error.message ?? ''
     // sunucu kilidi: özel gün tarihi gelmeden katılım engellenir
     if (m.includes('acilmadi')) {
       throw new OdaHatasi('Bu puzzle henüz açılmadı. Özel gün için saklanmış.', 'kilitli')
@@ -194,7 +197,7 @@ export async function joinRemotePuzzle(roomCode: string): Promise<RemotePuzzle |
     if (m.includes('bulunamadi')) return null
     return null
   }
-  return (data ?? null) as RemotePuzzle | null
+  return (cevap.data ?? null) as RemotePuzzle | null
 }
 
 /** Depodaki fotoğrafı indirilebilir geçici adrese çevir */

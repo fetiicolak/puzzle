@@ -21,6 +21,18 @@ const MUZIK_PARCA_ANAHTARI = 'puzzle:muzik-parca'
  */
 const EFEKT_TAVAN = 0.9
 
+/**
+ * Müzik yolunun tam açıkken kazancı.
+ *
+ * Efektlerin tersine 1'den büyük: notaların kendi tepe kazançları çok küçük
+ * (`muzik.ts`'te yastık 0,03-0,06) ve hepsi pes — piyanoda 130-330 Hz, gecede
+ * 49-110 Hz. Küçük hoparlörler bu bandı sertçe kesiyor, tablette müzik hiç
+ * duyulmuyordu; efektler duyuluyordu çünkü onlar 590-1300 Hz'de ve iki katı
+ * yüksek. Aynı anda çalan en yüksek birleşim (piyano: üç yastık + çan)
+ * 0,21 × 2,5 ≈ 0,53 — efektlerle toplamı bile 1'in altında, kırpılma yok.
+ */
+export const MUZIK_TAVAN = 2.5
+
 let ctx: AudioContext | null = null
 let anaKazanc: GainNode | null = null
 /** Efektler ve müzik ayrı yollardan geçer ki biri kapatılınca diğeri kalsın */
@@ -98,6 +110,11 @@ export function muzikSeviyesi(): number {
 /** Efekt yolunun o an olması gereken kazancı: kapalıysa 0, açıksa seviye kadar */
 function efektHedef(): number {
   return sesAcikMi() ? EFEKT_TAVAN * efektSeviyesi() : 0
+}
+
+/** Müzik yolunun o an olması gereken kazancı (çalıyorken) */
+function muzikHedef(): number {
+  return MUZIK_TAVAN * muzikSeviyesi()
 }
 
 /** AudioContext'i kur (yalnızca kullanıcı etkileşiminden sonra çağrılmalı) */
@@ -356,7 +373,7 @@ export async function muzigiBaslat(): Promise<boolean> {
   // yavaşça aç, kulağa aniden girmesin
   muzikKazanc.gain.cancelScheduledValues(c.currentTime)
   muzikKazanc.gain.setValueAtTime(0.0001, c.currentTime)
-  muzikKazanc.gain.linearRampToValueAtTime(muzikSeviyesi(), c.currentTime + 2.5)
+  muzikKazanc.gain.linearRampToValueAtTime(muzikHedef(), c.currentTime + 2.5)
   calmayaBasla(c)
   ayarYaz(MUZIK_ANAHTARI, true)
   return true
@@ -432,7 +449,7 @@ export function parcaSec(id: string, disTohum?: number): number {
       kaynaklariSustur()
       muzikKazanc.gain.cancelScheduledValues(c2.currentTime)
       muzikKazanc.gain.setValueAtTime(0.0001, c2.currentTime)
-      muzikKazanc.gain.linearRampToValueAtTime(muzikSeviyesi(), c2.currentTime + 1)
+      muzikKazanc.gain.linearRampToValueAtTime(muzikHedef(), c2.currentTime + 1)
       calmayaBasla(c2)
     }, 520)
   }
@@ -477,7 +494,7 @@ export function muzikSeviyesiAyarla(seviye: number): void {
   if (c && muzikKazanc && muzikCalisiyor) {
     muzikKazanc.gain.cancelScheduledValues(c.currentTime)
     muzikKazanc.gain.setValueAtTime(muzikKazanc.gain.value, c.currentTime)
-    muzikKazanc.gain.setTargetAtTime(s, c.currentTime, 0.05)
+    muzikKazanc.gain.setTargetAtTime(muzikHedef(), c.currentTime, 0.05)
   }
 }
 

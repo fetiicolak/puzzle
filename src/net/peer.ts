@@ -5,7 +5,10 @@
 // yeter; tam ağ (herkes herkese) kurmaya gerek kalmaz.
 
 import Peer, { type DataConnection, type MediaConnection } from 'peerjs'
+import { randomRoomCode } from './odakodu'
 import { dogrula, type Msg } from './protocol'
+
+export { randomRoomCode }
 
 export type RoomStatus =
   | 'idle'
@@ -30,6 +33,23 @@ export interface RoomEvents {
 }
 
 const PREFIX = 'birlikte-puzzle-'
+
+/**
+ * Karşılık beklemeden gönder.
+ *
+ * PeerJS'in `send`'i iki ayrı yoldan patlayabiliyor: kanal kapanmışsa senkron
+ * atıyor, açık ama tıkalıysa döndürdüğü söz reddediliyor. İkisi de burada
+ * yutuluyor — gönderilemeyen tek mesaj yüzünden oyun durmamalı, yakalanmamış
+ * reddetme de konsolu kirletmemeli. Bu tür mesajlar (kick/bye/full/tanıtım)
+ * zaten yeniden denenmiyor: ulaşmazsa bir sonraki tam senkron düzeltiyor.
+ */
+function sessizGonder(conn: DataConnection | undefined, msg: Msg): void {
+  try {
+    void Promise.resolve(conn?.send(msg)).catch(() => {})
+  } catch {
+    // kanal kapanmış olabilir
+  }
+}
 
 /** Kanal tamponu bu eşiği aşarsa gönderime ara verilir (bayt) */
 const BUFFER_LIMIT = 64 * 1024
@@ -137,7 +157,7 @@ export async function baglantiTesti(sureMs = 8000): Promise<BaglantiTesti> {
     if (t) turler.add(t)
   }
   pc.addEventListener('icecandidateerror', (e) => {
-    const h = e as RTCPeerConnectionIceErrorEvent
+    const h = e
     const metin = `${h.errorCode}: ${h.errorText}`
     if (!hatalar.includes(metin)) hatalar.push(metin)
   })
@@ -165,14 +185,6 @@ export async function baglantiTesti(sureMs = 8000): Promise<BaglantiTesti> {
         ? 'Dış dünyaya çıkış bulunamadı. Ağınız WebRTC trafiğini engelliyor olabilir.'
         : 'Hiçbir bağlantı yolu bulunamadı.'
   return { yerel, disAdres, aktarma, ozet, hatalar: hatalar.slice(0, 3) }
-}
-
-export function randomRoomCode(): string {
-  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789'
-  let code = ''
-  const bytes = crypto.getRandomValues(new Uint8Array(8))
-  for (const b of bytes) code += alphabet[b % alphabet.length]
-  return code
 }
 
 interface Outgoing {
@@ -332,7 +344,7 @@ export class Room {
         if (this.conns.size + 1 >= this.maxPlayers) {
           // oda dolu: bağlantıyı nazikçe reddet
           conn.on('open', () => {
-            conn.send({ t: 'full' } as unknown as Msg)
+            sessizGonder(conn, { t: 'full' } as unknown as Msg)
             setTimeout(() => conn.close(), 250)
           })
           return
@@ -420,7 +432,9 @@ export class Room {
 
   private handlePeerError(err: { type?: string }): void {
     if (this.closed) return
-    const type = String(err.type ?? err)
+    // Yalnızca `type` alanına bak: PeerJS hata nesnesinin kendisini metne
+    // çevirmek "[object Object]" veriyordu ve durum çubuğunda o yazıyordu.
+    const type = typeof err.type === 'string' ? err.type : 'bilinmeyen'
 
     // Host: oda kodu sunucuda hâlâ kayıtlı (ör. az önce kapatılan sekme).
     // Kayıt genelde birkaç saniyede düşer; önce AYNI kodla tekrar dene, çünkü
@@ -499,7 +513,7 @@ export class Room {
       */
       const dogrulanmis = dogrula(data, this.isHost, !(data as { from?: string })?.from)
       if (!dogrulanmis) return
-      const msg = dogrulanmis as Msg & { t: string; from?: string }
+      const msg = dogrulanmis
 
       // Kimlik tanıtımı: aynı kişinin eski bağlantısını kapat
       if (this.isHost && msg.t === 'hello' && !msg.from) {
@@ -509,12 +523,8 @@ export class Room {
         if (kimlik && this.engellenenler.has(kimlik)) {
           this.conns.delete(id)
           this.kimlikler.delete(id)
-          try {
-            conn.send({ t: 'kick', uid: kimlik } as Msg)
-            setTimeout(() => conn.close(), 250)
-          } catch {
-            conn.close()
-          }
+          sessizGonder(conn, { t: 'kick', uid: kimlik })
+          setTimeout(() => conn.close(), 250)
           this.emitHostStatus()
           return
         }
@@ -524,13 +534,10 @@ export class Room {
         // tarafından basıldığı için misafir bunları taklit edemez.
         for (const [digerId, hello] of this.sonHello) {
           if (digerId === id) continue
-          try {
-            conn.send({ ...hello, from: digerId } as Msg)
-          } catch {
-            // kanal kapanmış olabilir; sonraki tanıtımda düzelir
-          }
+          // ulaşmazsa sonraki tanıtımda düzelir
+          sessizGonder(conn, { ...hello, from: digerId })
         }
-        this.sonHello.set(id, msg as Msg)
+        this.sonHello.set(id, msg)
       }
       // Host merkezdir: gelen mesajı diğer katılımcılara aynen ilet
       if (this.isHost) {
@@ -565,7 +572,7 @@ export class Room {
         return
       }
 
-      this.events.onMessage(msg as Msg, msg.from ?? id)
+      this.events.onMessage(msg, msg.from ?? id)
     })
 
     const bittiHandler = () => {
@@ -610,11 +617,7 @@ export class Room {
     for (const [id, k] of [...this.kimlikler]) {
       if (k !== kimlik) continue
       const conn = this.conns.get(id)
-      try {
-        conn?.send({ t: 'kick', uid: kimlik } as Msg)
-      } catch {
-        // kanal kapanmış olabilir
-      }
+      sessizGonder(conn, { t: 'kick', uid: kimlik })
       setTimeout(() => {
         this.kimlikler.delete(id)
         this.conns.delete(id)
@@ -700,7 +703,7 @@ export class Room {
           break
         }
         const hedefler = this.queue[0].to
-          ? [this.conns.get(this.queue[0].to!)].filter(Boolean as unknown as (c: DataConnection | undefined) => c is DataConnection)
+          ? [this.conns.get(this.queue[0].to)].filter(Boolean as unknown as (c: DataConnection | undefined) => c is DataConnection)
           : [...this.conns.values()]
 
         // hedeflerden biri bile tıkalıysa bekle
@@ -716,11 +719,8 @@ export class Room {
         const item = this.queue.shift()!
         for (const c of hedefler) {
           if (!c.open) continue
-          try {
-            c.send(item.msg)
-          } catch {
-            // kanal kapandıysa yoksay; yeniden bağlanınca tam senkron gelir
-          }
+          // kanal kapandıysa yoksay; yeniden bağlanınca tam senkron gelir
+          sessizGonder(c, item.msg)
         }
       }
     } finally {
@@ -828,11 +828,7 @@ export class Room {
     // Kuyruğu beklemeden doğrudan gönderiliyor: birazdan kapanıyoruz.
     for (const c of this.conns.values()) {
       if (!c.open) continue
-      try {
-        c.send({ t: 'bye' } as Msg)
-      } catch {
-        // kanal çoktan kapanmış olabilir
-      }
+      sessizGonder(c, { t: 'bye' })
     }
 
     this.closed = true

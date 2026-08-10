@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ConfirmDialog from './ConfirmDialog'
 import Linkli from './Linkli'
 import { basHarfler } from '../ad'
 import { useDil } from '../dil'
+import { useModalErisim } from '../erisim'
 import { hataMetni } from '../supabase/client'
 import {
   engelle,
@@ -44,6 +45,8 @@ export default function MessageBox({ kisi, onKapat }: Props) {
   const [bilgi, setBilgi] = useState<string | null>(null)
   const sonRef = useRef<HTMLDivElement>(null)
   const girdiRef = useRef<HTMLInputElement>(null)
+  const baslikId = useId()
+  const kutuRef = useModalErisim(onKapat)
 
   const tazele = async () => {
     setMesajlar(await mesajlariGetir(kisi.id))
@@ -52,7 +55,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
 
   useEffect(() => {
     let iptal = false
-    tazele().finally(() => {
+    void tazele().finally(() => {
       if (!iptal) setYukleniyor(false)
     })
     // pencere açıkken yeni mesajları çek
@@ -117,19 +120,32 @@ export default function MessageBox({ kisi, onKapat }: Props) {
   */
   return createPortal(
     <div className="modal-arka" onClick={onKapat}>
-      <div className="mesaj-kutusu" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="mesaj-kutusu"
+        ref={kutuRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={baslikId}
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="chat-head">
           <span className="avatar">{basHarfler(kisi.ad)}</span>
-          <b>{kisi.ad}</b>
+          <b id={baslikId}>{kisi.ad}</b>
           <span className="spacer" />
           <button
             className={`icon-btn ${menuAcik ? 'on' : ''}`}
             onClick={() => setMenuAcik((v) => !v)}
+            aria-label={ceviri('Diğer')}
             title={ceviri('Diğer')}
           >
             ⋯
           </button>
-          <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
+          <button
+            className="icon-btn"
+            onClick={onKapat}
+            aria-label={ceviri('Kapat')}
+            title={ceviri('Kapat')}
+          >
             ✕
           </button>
         </header>
@@ -240,6 +256,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
                 {/* Rahatsız eden bir mesajı gelen kutundan kaldırabilirsin */}
                 <button
                   className="mesaj-sil"
+                  aria-label={ceviri('Bu mesajı sil')}
                   title={ceviri('Bu mesajı sil')}
                   onClick={async () => {
                     setHata(null)
@@ -270,6 +287,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
               type="button"
               className="tepki"
               disabled={gonderiliyor}
+              aria-label={ceviri('{emoji} ekle', { emoji: e })}
               title={ceviri('{emoji} ekle', { emoji: e })}
               onClick={() => emojiEkle(e)}
             >
@@ -279,6 +297,7 @@ export default function MessageBox({ kisi, onKapat }: Props) {
           <button
             type="button"
             className="tepki emoji-daha"
+            aria-label={emojiAcik ? ceviri('Daha az göster') : ceviri('Daha fazla emoji')}
             title={emojiAcik ? ceviri('Daha az göster') : ceviri('Daha fazla emoji')}
             onClick={() => setEmojiAcik((v) => !v)}
           >

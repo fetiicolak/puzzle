@@ -47,9 +47,11 @@ export async function profilimiGetir(): Promise<Profil | null> {
   const ben = oturum.user?.id
   if (!ben) return null
 
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', ben).maybeSingle()
-  if (error || !data) return null
-  return satirdanProfil(data as Record<string, unknown>)
+  // Yanıt bütün olarak tutuluyor: istemci tip üretmeden kullanıldığı için
+  // `data` alanı `any`, parçalayınca tip güvenliği sessizce kayboluyor.
+  const cevap = await supabase.from('profiles').select('*').eq('id', ben).maybeSingle()
+  if (cevap.error || !cevap.data) return null
+  return satirdanProfil(cevap.data as Record<string, unknown>)
 }
 
 export async function profilKaydet(alanlar: {

@@ -104,5 +104,9 @@ export function useDil(): DilDurumu {
  * Provider'ın yazdığı son dili okur.
  */
 export function suankiDil(): Dil {
+  // document yoksa (test ortamı, ileride sunucu tarafı) varsayılana düş:
+  // bu fonksiyon hataMetni() gibi bileşen dışı yollardan da çağrılıyor ve
+  // orada patlaması hatanın kendisini gizliyor.
+  if (typeof document === 'undefined') return 'tr'
   return (document.documentElement.lang as Dil) || 'tr'
 }

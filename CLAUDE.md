@@ -25,9 +25,30 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   içindeki yasal satır.
 - Supabase'in ham hata metinleri `hataMetni()` (`src/supabase/client.ts`)
   içinden geçirilir.
+- **Şemaya `raise exception` eklersen `SUNUCU_HATALARI`'na da bir satır ekle**
+  (`client.ts`) ve karşılığını `sozluk.ts`'e yaz. SQL'deki metinler bilerek
+  ASCII (`gunluk puzzle sinirina ulastin`); eşlenmezse kullanıcı ekranda tam
+  olarak onu görüyor. `hata.test.ts` şemadaki metinlerin listesini tutuyor ve
+  eşlenmemiş biri kalırsa düşüyor — listeyi de güncelle.
 - **Hukuki sayfalar dört dosya:** `gizlilik.html`/`kosullar.html` (TR) ve
   `privacy.html`/`terms.html` (EN). Biri değişirse karşılığını da güncelle;
   `AuthScreen`'deki bağlantılar dile göre ayrılıyor.
+
+## Lint
+
+- **`eslint .` üç şey için var**, tsconfig'in görmediği şeyler: hook
+  bağımlılıkları, yutulan promise'ler (`no-floating-promises`) ve projeye özel
+  yasaklar (`no-alert`). Tip denetimli kurallar açık (`projectService`).
+- **`eslint --fix`'i düşünmeden çalıştırma.** `no-unnecessary-type-assertion`
+  bir kez `as { user_id: string }` gibi daraltmaları silip yerine çıplak `any`
+  bıraktı; `tsc` temiz kaldığı için sessizce geçiyordu. Kural bu yüzden
+  **kapalı** ve kapalı kalmalı — gerekçesi `eslint.config.js` içinde.
+- **Kalan 7 uyarı bilinçli.** `react-refresh/only-export-components`, hem
+  bileşen hem yardımcı dışa aktaran dosyalarda (`dil.tsx`, `auth.tsx`,
+  `Linkli.tsx`) çıkıyor; bölmek uğraşa değmez. `lint` yine de 0 kodla biter.
+- **`no-dupe-keys` açık.** `sozluk.ts` 500 satır ve anahtarlar uzun Türkçe
+  cümleler; aynı anahtar iki kez yazıldığında sonuncusu sessizce kazanıyor ve
+  TypeScript `Record<string, string>` altında bunu yakalamıyor. Bir kez oldu.
 
 ## Araç tuzakları
 
@@ -41,14 +62,41 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   açılış kodu (davet, şifre sıfırlama) hiç çalışmaz. İki kez buna takıldık.
 - Tarayıcı paneli arka plandayken CSS animasyonları ilerlemiyor; ölçüm
   alırken `el.style.animation = 'none'` yapıp öyle ölç.
+- **Tarayıcı panelinde Enter'ı `Return` diye gönderme.** `Return` olayı
+  `e.key` alanını **boş** bırakıyor; `e.key === 'Enter'` bakan her kod
+  (`tiklanabilirTus`, `Tutorial`) haklı olarak yok sayıyor ve "klavye
+  çalışmıyor" gibi görünüyor. `Enter` yazınca doğru geliyor. Bir kez
+  kartların klavyeyle açılması bu yüzden "bozuk" sanıldı.
+- **Odağı JS ile `.click()` ederek açılan pencerede odak testi yapma.**
+  `element.click()` öğeyi odaklamıyor; `useModalErisim` render sırasında
+  `document.activeElement`i (yani `body`yi) yakalıyor ve kapanınca geri
+  dönecek bir yer bulamıyor. Gerçek fare tıklaması gerekiyor.
+- Sayfa kaydıkça ekran görüntüsündeki koordinatlar eskiyor. Tıklamadan hemen
+  önce `getBoundingClientRect` ile yerini ölç; arada `scrollIntoView` varsa
+  yerleşim yeniden oturana kadar bekle.
 
 ## Arayüz kuralları
 
 - **`alert` / `confirm` / `prompt` kullanılmaz.** `ConfirmDialog` var;
   bilgi/hata kutusu için `tekButon` propu. Kaynakta hiç `alert(` kalmamalı.
-- Modaller `createPortal` ile `document.body`'ye çizilir. Sebep: `oda-panel`
-  gibi `backdrop-filter` kullanan kutular sabit konumlu çocukları için yeni
-  sınırlayıcı blok yaratıyor, pencere ekrandan taşıyor.
+  (ESLint'te `no-alert` hata seviyesinde.)
+- Modaller `createPortal` ile `document.body`'ye çizilir. Sebep: `backdrop-filter`
+  kullanan kutular sabit konumlu çocukları için yeni sınırlayıcı blok
+  yaratıyor, pencere ekrandan taşıyor.
+- **Her modal `useModalErisim` kullanır** (`src/erisim.ts`) ve kutusuna
+  `role="dialog" aria-modal="true"` + `aria-labelledby` yazar. Kanca üç işi
+  birden yapıyor: Escape, odak tuzağı ve kapanınca odağın geldiği yere dönmesi.
+  Kendi `keydown`'ını yazma — altı pencerede altı ayrı Escape dinleyicisi vardı.
+  - **Kancayı ekledikten sonra Enter'a dikkat.** Odak tuzağı geldiğinden beri
+    pencerede hep bir düğme odakta; ayrıca Enter'ı yakalayan bir kod varsa
+    (turdaki "ileri" gibi) tek basışta iki iş birden oluyor. `Tutorial`
+    bu yüzden olayın hedefi düğmeyse kendi işini atlıyor.
+- **Düğme yalnızca simgeden ibaretse `aria-label` şart.** `title` tek başına
+  yeterli sayılmıyor; ikisi de aynı metni alır (`ceviri(...)` bir kez yazılır,
+  iki yere verilir).
+- **Kart gibi tıklanabilir `article`'lar** `tiklanabilirTus` + `tabIndex={0}` +
+  `role="button"` ile klavyeye açılır. Düğmeye çevirmek yok: içlerinde kendi
+  düğmeleri var, iç içe `button` geçersiz HTML.
 - Pencere genişliği `min(100%, Npx)` — `vw` kullanma. `modal-arka`'nın 18px
   iç boşluğu var, `94vw` onu taşırıp pencereyi kenara yapıştırıyor.
 - **Üst çubuğa düğme eklersen `Tutorial.tsx`'in araç listesine de ekle.**
@@ -72,6 +120,8 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   değiştiği için tarayıcı bulanıklığı boyuna yeniden hesaplıyor. Görüşme açıkken
   takılmanın sebeplerinden biriydi. Akıştaki (`.game-topbar`) elemanlarda sorun
   yok — arkalarında hareketli bir şey olmuyor.
+  Kural yazıldıktan sonra `.oda-panel` ve `.game-banner`'da bir tur daha kaldı;
+  **yeni panel eklerken CSS'i tarayıp doğrula**, kural tek başına yetmiyor.
 
 ### Oyun ekranındaki yüzen paneller
 
@@ -83,6 +133,14 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
 - **Varsayılan yerler dört köşeye dağıtılmış**: sol üst odadakiler · sağ üst
   kameralar · sol alt orijinal · sağ alt sohbet. Yeni panel eklerken bu
   dağılımı boz(may)acak bir yer seç ve dört panel birden açıkken ölç.
+  - **Ölçmek için oyuna girmen gerekmiyor.** `public/` içine geçici bir HTML
+    koyup `index.css`'i bağla, panel sınıflarını boş `<aside>`lere ver,
+    `getBoundingClientRect` ile kutuları karşılaştır. (Sayfayı sonra sil —
+    `public/` olduğu gibi dağıtıma giriyor.) `--ust-cubuk` değişkenini elle
+    vermeyi unutma, onu normalde GameScreen yazıyor.
+  - 700 px altında oda paneli kameradan geri kalana göre daralıyor
+    (`min(320px, calc(62vw - 32px))`). Öncesinde 390 px'te 98 piksel üst üste
+    biniyorlardı. Kamera 38vw; birini değiştirirsen diğerinin payı bozulur.
 - **Panel yeri açılışta değil, kullanıcı taşıyınca belirlenir.** Taşınana kadar
   satır içi stil verilmiyor; duyarlı CSS kuralları böylece çalışmaya devam
   ediyor. Taşındığı an `left/top`'a geçiliyor ve `puzzle:panel:<ad>` altında
@@ -198,6 +256,17 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
 
 - **StrictMode kapalı** (`src/main.tsx`). Çift effect, aynı oda kimliğiyle iki
   PeerJS bağlantısı açıp `unavailable-id` hatası veriyor.
+- **Oyun ekranı gecikmeli yükleniyor** (`lazy` + `Suspense`, `App.tsx`).
+  Yanında motoru, PeerJS'i ve ses üretimini getiriyor; açılışta gerekmiyorlar.
+  Sertifika da ayrı. Açılış paketi 694 KB'dan 522 KB'a indi (satıcılar ayrı
+  parçalarda: `react` 192, `supabase` 215, uygulama 118).
+  - **`App.tsx` içinden `net/peer` import etme.** Oda kodu üreteci bu yüzden
+    `net/odakodu.ts`'te duruyor; `peer.ts`'ten alınırsa PeerJS açılış paketine
+    geri giriyor ve bölme hiçbir işe yaramıyor.
+  - `GameConfig` **yalnızca tip olarak** alınıyor (`import type`). Normal
+    import modülü açılışa çeker.
+  - Yeni satıcı paketi eklersen `vite.config.ts`'teki `manualChunks`'a bak:
+    yalnızca açılışta gereken şeyler oraya yazılır.
 - **`detectSessionInUrl: false`** — adres çubuğundaki `#room=` ile çakışıyor.
   Şifre sıfırlama jetonu bu yüzden elle okunuyor (`kurtarmaJetonu`).
 - **Ses dosyası yok, Web Audio ile üretiliyor** (`src/audio.ts`). Paket
@@ -341,16 +410,21 @@ sayılmıyor.
 **Kullanıcıda (kod işi değil)**
 - [ ] SMTP sağlayıcısı bağla (Resend/Brevo) — şifre sıfırlama bunsuz çalışmıyor
 - [ ] Supabase → URL Configuration → izinli yönlendirmelere site adresini ekle
-- [ ] `b@gmail.com` tekrar açılamıyor; hata metni alınacak
-- [ ] Depolama kotası kararı: 1 GB ≈ 200-700 fotoğraf, dolunca ne olacak
+- [ ] Depolama kotası kararı: 1 GB ≈ 200-700 fotoğraf, dolunca ne olacak.
+      **Canlıya almadan hemen önce konuşulacak** (2026-08-11 kararı); şimdiden
+      kod yazma, seçenek kullanıcıda.
 
 **Doğrulanmamış** — kod yazıldı, `tsc`/test/build temiz, ama şu koşulda hiç
 denenmedi. Parantez içi, denemek için gereken şey.
 
 *Gerçek cihaz gerekiyor (tarayıcı paneli yetmiyor)*
-- [ ] Başarım: 200 / 300 / 500 parça, kamera açıkken, zayıf bir tablet ya da
-      telefonda. Ölçümler geliştirme makinesinde yapıldı; oran korunmalı ama
-      gerçek kare hızı bilinmiyor. (2026-08-09'da eklendi)
+- [ ] **Zayıf cihazda kalan takılma.** 2026-08-11'de gerçek cihazda denendi:
+      kasma azalmış ama **tamamen bitmemiş**. Hangi parça sayısında, kamera
+      açık mıydı, hangi cihaz — bilinmiyor; ölçüm yapılmadan yeni "iyileştirme"
+      yazma (bkz. *Çizim başarımı*). Sıradaki adım: cihazda
+      `__puzzle.board.hafifMod` ve `dpr` değerlerine bakmak, `render()`
+      süresini ölçmek. Şüpheliler: zayıf cihazda `dpr` tavanı hâlâ 1.5,
+      `hafifMod` ölçütü kaba (`hardwareConcurrency<=4 || deviceMemory<=4`).
 - [ ] Odadan çıkınca kameranın gerçekten bırakılması — cihazın ışığı sönüyor
       mu? Tarayıcı paneli `getUserMedia`'yı engellediği için tuvalden üretilen
       sahte akışla denendi, gerçek kamerayla denenmedi. (2026-08-06)
@@ -375,32 +449,50 @@ denenmedi. Parantez içi, denemek için gereken şey.
       doğrulandı (%40 → 0.36, %25 → 0.25, %0 → tam sessiz) ama kimse kulakla
       dinlemedi ve dokunmatikte `input[type=range]` sürüklenmesi denenmedi.
       (2026-08-09)
-- [ ] **Müzik parçaları kulakla dinlenmedi.** İlk sürümde üçü birbirine
-      benziyordu; kurguları ayrıldı (gece: 49-98 Hz sawtooth drone, 14 sn'de
-      bir akor · kutu: 0,36 sn'de bir tek tek nota, 880-2093 Hz triangle ·
-      beyaz: yalnızca gürültü, nota yok). Çalan frekanslar ve zamanlama
-      tarayıcıda ölçüldü, **kulakla dinlenmedi**. Beğenilmezse `PARCALAR`
-      tablosundaki sayılar değişir. (2026-08-10)
+- [ ] **Tablette müziğin duyulup duyulmadığı.** 2026-08-11'de kullanıcı
+      "sesler iyi ama tablette müziğin sesi gelmiyor" dedi. Sebep ölçüldü:
+      müzik notalarının tepe kazançları çok küçük (0,03-0,06) ve hepsi pes
+      (piyano 130-330 Hz, gece 49-110 Hz); küçük hoparlörler o bandı kesiyor,
+      efektler ise 590-1300 Hz'de ve iki katı yüksek olduğu için duyuluyordu.
+      Müzik yoluna `MUZIK_TAVAN = 2,5` çarpanı kondu (`audio.ts`), kırpılmaya
+      gitmediği testle bağlandı. **Tablette tekrar dinlenmeli.** "Gece"
+      49-110 Hz'de kaldığı için orada hâlâ zayıf duyulabilir — öyleyse
+      çözüm çarpan değil, `PARCALAR`'da oktavı yükseltmek.
+- [ ] **Müzik parçaları kulakla dinlenmedi.** (2026-08-10) → 2026-08-11:
+      kullanıcı "sesler iyi" dedi; geriye yalnızca yukarıdaki tablet maddesi
+      kaldı.
 
-*İki hesap gerekiyor*
-- [ ] A5 uçtan uca test: hız sınırı, engelleme, şikayet, alıcının mesaj silmesi
-- [ ] Oyun içi arkadaş paneli (🤝): "şu an sitede" ışığı, mesaj kutusu ve
-      "Davet et" ile giden davet mesajı
-- [ ] Ana ekrandaki Mesajlar bölümü: önizleme, okunmamış rozeti ve sıralama
+*İki hesap gerekiyor* — **hepsi 2026-08-11'de a/b hesaplarıyla yapıldı.**
+Kalan tek şey:
+- [ ] Mesaj hız sınırı (saatte 60) gerçekten tetikleniyor mu. Tetikleyici ve
+      metni yerinde (`mesaj_hiz_siniri`, `hata.test.ts` eşlemeyi tutuyor) ama
+      60 gerçek mesaj gönderilmedi — veritabanını çöple doldurmamak için.
 
-*Bilinen, kabul edilmiş sınır (düzeltilecekse iş var)*
-- [ ] 390 px genişlikte "Odadakiler" paneli (320 px) ile kamera paneli yan yana
-      sığmıyor, üst üste biniyor. Odadakiler üstte ve geçici; şimdilik
-      bırakıldı. Tablette ve masaüstünde sorun yok.
+**Karar bekleyen davranışlar** — 2026-08-11'de a/b testinde görüldü, ikisi de
+bilinçli tercihin sonucu ama sonuçları kullanıcıya söylenmedi.
+
+- [ ] **Engellediğin kişinin adı sana da görünmüyor.** `profil_gorunur`
+      engellemeyi çift yönlü uyguluyor; "Engellediklerin" listesinde herkes
+      "Engellenen kişi / EK" diye çıkıyor. Bir kişide sorun değil, birkaç
+      kişide doğru olanın engelini kaldırmak imkânsız.
+- [ ] **Engelleme arkadaşlığı siliyor ve geri yolu yok.** Onay penceresi bunu
+      yazıyor ("Aranızdaki arkadaşlık da kalkar") ama engeli kaldırınca
+      arkadaşlık geri gelmiyor ve arkadaş eklemenin tek yolu *birlikte
+      oynamış olmak* (`birlikteOynananlar`) — arama/e-postayla ekleme yok.
+      Testte a ile b'nin yeniden arkadaş olabilmesi için yeni bir odaya
+      birlikte girmeleri gerekti.
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)
-- [ ] Kod bölme — tek chunk ~600 KB
-- [ ] ESLint + `lint` script'i
-- [ ] Erişilebilirlik: modal `role="dialog"`, odak tuzağı, ikon butonlara `aria-label`,
-      `HomeScreen`'deki tıklanabilir `article`'lar klavyeyle açılamıyor
-- [ ] Test kapsamı: `supabase/`, `net/peer.ts`, `engine/board.ts` ve bileşenler
-      test edilmiyor (şu an `engine` 41 + `protocol` 23 + `Linkli` 12 = 76)
+- [ ] Supabase paketi 215 KB ile en büyük parça ve açılışta iniyor (oturum
+      kontrolü ilk iş). Realtime istemcisi kullanılmadığı hâlde içinde;
+      ayıklamanın resmî yolu yok. Ancak girişi geciktirerek çözülür.
+- [ ] Test kapsamı: `net/peer.ts` (WebRTC), `engine/board.ts` (tuval) ve
+      bileşenler hâlâ test edilmiyor — üçü de sahte ortam gerektiriyor.
+      Şu an 125 test: `engine` 41 + `protocol` 28 + `muzik` 14 + `puzzles` 15
+      + `Linkli` 12 + `ad`/`odakodu` 9 + `hata` 6.
+- [ ] Erişilebilirlik kalanı: renk karşıtlığı ölçülmedi, `canvas` üzerindeki
+      oyun klavyeyle oynanamıyor.
 
 **Ölçek büyürse**
 - [ ] Kendi TURN sunucusu (şimdilik metered.ca ücretsiz katman)
@@ -410,12 +502,13 @@ denenmedi. Parantez içi, denemek için gereken şey.
 
 ```bash
 npm run dev      # http://localhost:5173
-npm test         # Vitest — engine + protocol
+npm test         # Vitest — 125 test
+npm run lint     # ESLint (flat config, tip denetimli kurallar açık)
 npm run build    # tsc -b && vite build
 ```
 
-Lint yok; `tsconfig` sıkı (`strict`, `noUnusedLocals`, `noUnusedParameters`).
-`npx tsc -b` temiz olmadan commit etme.
+`tsconfig` sıkı (`strict`, `noUnusedLocals`, `noUnusedParameters`).
+**`npx tsc -b`, `npm test` ve `npm run lint` temiz olmadan commit etme.**
 
 ## Doğrulama beklentisi
 

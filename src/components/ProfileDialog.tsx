@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import Select from './Select'
 import { basHarfler } from '../ad'
 import { useDil } from '../dil'
+import { useModalErisim } from '../erisim'
 import {
   hesabiSil,
   avatarHazirla,
@@ -41,10 +42,12 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
   const [hata, setHata] = useState<string | null>(null)
   const [silmeOnayi, setSilmeOnayi] = useState(false)
   const dosyaRef = useRef<HTMLInputElement>(null)
+  const baslikId = useId()
+  const kutuRef = useModalErisim(onKapat, !kaydediliyor)
 
   useEffect(() => {
     let iptal = false
-    profilimiGetir()
+    void profilimiGetir()
       .then(async (p) => {
         if (iptal || !p) return
         setProfil(p)
@@ -61,14 +64,6 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
       iptal = true
     }
   }, [])
-
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !kaydediliyor) onKapat()
-    }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onKapat, kaydediliyor])
 
   const fotoSec = async (dosya: File) => {
     setHata(null)
@@ -139,8 +134,15 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
 
   return (
     <div className="modal-arka" onClick={() => !kaydediliyor && onKapat()}>
-      <div className="dialog dialog-genis" onClick={(e) => e.stopPropagation()}>
-        <h3>{ceviri('Profilim')}</h3>
+      <div
+        className="dialog dialog-genis"
+        ref={kutuRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={baslikId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 id={baslikId}>{ceviri('Profilim')}</h3>
 
         {yukleniyor ? (
           <p className="dialog-mesaj">{ceviri('Yükleniyor…')}</p>
@@ -150,6 +152,7 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
               <button
                 className="avatar buyuk"
                 onClick={() => dosyaRef.current?.click()}
+                aria-label={ceviri('Fotoğraf seç')}
                 title={ceviri('Fotoğraf seç')}
               >
                 {onizleme ? <img src={onizleme} alt="" /> : bas}
@@ -231,9 +234,9 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
                 deger={cinsiyet}
                 onDegis={(v) => setCinsiyet(v)}
                 secenekler={[
-                  { deger: '' as Cinsiyet | '', etiket: ceviri('Seçilmedi') },
+                  { deger: '', etiket: ceviri('Seçilmedi') },
                   ...(Object.keys(CINSIYET_ADI) as Cinsiyet[]).map((c) => ({
-                    deger: c as Cinsiyet | '',
+                    deger: c,
                     etiket: ceviri(CINSIYET_ADI[c]),
                   })),
                 ]}

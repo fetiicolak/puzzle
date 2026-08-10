@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDil } from '../dil'
+import { useModalErisim } from '../erisim'
 
 interface Props {
   baslik: string
@@ -38,13 +39,10 @@ export default function ConfirmDialog({
   const [calisiyor, setCalisiyor] = useState(false)
   const [hata, setHata] = useState<string | null>(null)
 
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !calisiyor) onIptal()
-    }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onIptal, calisiyor])
+  // Escape, odak tuzağı ve kapanınca odağın geri dönmesi. İşlem sürerken
+  // (calisiyor) Escape yok sayılıyor — düğmeler de o sırada pasif.
+  const baslikId = useId()
+  const kutuRef = useModalErisim(onIptal, !calisiyor)
 
   const onayla = async () => {
     setCalisiyor(true)
@@ -66,8 +64,15 @@ export default function ConfirmDialog({
   */
   return createPortal(
     <div className="modal-arka" onClick={() => !calisiyor && onIptal()}>
-      <div className="dialog" onClick={(e) => e.stopPropagation()}>
-        <h3>{ceviri(baslik)}</h3>
+      <div
+        className="dialog"
+        ref={kutuRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={baslikId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 id={baslikId}>{ceviri(baslik)}</h3>
         <p className="dialog-mesaj">{ceviri(mesaj)}</p>
 
         {hata && <div className="form-error">{hata}</div>}

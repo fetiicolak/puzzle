@@ -138,11 +138,21 @@ export default function VideoPanel({
     <aside ref={kokRef} style={stil} className={`video-panel ${sadeceSes ? 'sesli' : ''}`}>
       <PanelBaslik baslik={ceviri('Görüşme')} tutamac={tutamac}>
         {tasindi && (
-          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+          <button
+            className="icon-btn"
+            onClick={sifirla}
+            aria-label={ceviri('Yerine döndür')}
+            title={ceviri('Yerine döndür')}
+          >
             ↺
           </button>
         )}
-        <button className="icon-btn" onClick={onKapat} title={ceviri('Görüşmeyi bitir')}>
+        <button
+          className="icon-btn"
+          onClick={onKapat}
+          aria-label={ceviri('Görüşmeyi bitir')}
+          title={ceviri('Görüşmeyi bitir')}
+        >
           ✕
         </button>
       </PanelBaslik>
@@ -182,6 +192,7 @@ export default function VideoPanel({
           <button
             className={`icon-btn ${kameraAcik ? 'on' : ''}`}
             onClick={onKamera}
+            aria-label={kameraAcik ? ceviri('Kamerayı kapat') : ceviri('Kamerayı aç')}
             title={kameraAcik ? ceviri('Kamerayı kapat') : ceviri('Kamerayı aç')}
           >
             {kameraAcik ? '📹' : '🚫'}
@@ -190,6 +201,7 @@ export default function VideoPanel({
         <button
           className={`icon-btn ${sesAcik ? 'on' : ''}`}
           onClick={onSes}
+          aria-label={sesAcik ? ceviri('Mikrofonu kapat') : ceviri('Mikrofonu aç')}
           title={sesAcik ? ceviri('Mikrofonu kapat') : ceviri('Mikrofonu aç')}
         >
           {sesAcik ? '🎤' : '🔇'}

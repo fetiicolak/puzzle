@@ -173,6 +173,56 @@ export const supabase: SupabaseClient | null = supabaseEnabled
   : null
 
 /**
+ * Veritabanı tetikleyicilerinin `raise exception` metinleri.
+ *
+ * Bunlar SQL dosyasında ASCII yazılıyor (`gunluk puzzle sinirina ulastin`) —
+ * orada Türkçe karakter kullanmamak bilinçli bir tercih. Ama kullanıcıya da
+ * aynen böyle gösteriliyorlardı: ne Türkçesi doğru ne İngilizcesi vardı.
+ * Burada tek noktadan çevriliyor.
+ *
+ * Anahtar, hata metninde geçen ayırt edici parça (küçük harfe çevrilmiş
+ * metinde aranıyor). Yeni bir `raise exception` eklersen buraya da bir satır
+ * ekle — yoksa kullanıcı ham sunucu metnini görür.
+ */
+const SUNUCU_HATALARI: [string, string][] = [
+  ['oda bulunamadi', 'Böyle bir oda bulunamadı. Linki kontrol et.'],
+  ['puzzle henuz acilmadi', 'Bu puzzle henüz açılmadı. Özel gün için saklanmış.'],
+  ['odadan cikarildin', 'Bu odadan çıkarıldın.'],
+  ['sahiplik degistirilemez', 'Puzzle’ın sahibi değiştirilemez.'],
+  [
+    'bu alani yalnizca puzzle sahibi degistirebilir',
+    'Bunu yalnızca puzzle’ı kuran kişi değiştirebilir.',
+  ],
+  ['bu odanin katilimcisi degilsin', 'Bu odanın katılımcısı değilsin.'],
+  ['kisi odada degil', 'Bu kişi artık odada değil.'],
+  ['kendini cikaramazsin', 'Kendini odadan çıkaramazsın.'],
+  ['odayi kuran kisi cikarilamaz', 'Odayı kuran kişi çıkarılamaz.'],
+  [
+    'yetkili bir kisiyi yalnizca odayi kuran cikarabilir',
+    'Yetkili birini yalnızca odayı kuran çıkarabilir.',
+  ],
+  ['yetkiyi yalnizca odayi kuran verebilir', 'Yetkiyi yalnızca odayı kuran verebilir.'],
+  ['odayi kuranin yetkisi degistirilemez', 'Odayı kuranın yetkisi değiştirilemez.'],
+  ['arkadaslik taraflari degistirilemez', 'Bu arkadaşlık kaydı değiştirilemez.'],
+  ['gecersiz arkadaslik durumu degisikligi', 'Bu arkadaşlık isteği böyle güncellenemez.'],
+  ['mesaj icerigi degistirilemez', 'Gönderilmiş bir mesajın içeriği değiştirilemez.'],
+  [
+    'gunluk puzzle sinirina ulastin',
+    'Bugünlük puzzle oluşturma sınırına ulaştın. Yarın tekrar dene.',
+  ],
+  ['cok hizli mesaj gonderiyorsun', 'Çok hızlı mesaj gönderiyorsun. Biraz bekleyip tekrar dene.'],
+  [
+    'gunluk arkadaslik istegi sinirina ulastin',
+    'Bugünlük arkadaşlık isteği sınırına ulaştın. Yarın tekrar dene.',
+  ],
+  ['gunluk sikayet sinirina ulastin', 'Bugünlük şikayet sınırına ulaştın.'],
+  ['oturum yok', 'Önce giriş yapmalısın.'],
+  // Yetki metni en sonda: "yetkin yok" başka satırların içinde de geçebilir,
+  // daha belirli olanlar önce eşleşsin.
+  ['yetkin yok', 'Bu işlem için yetkin yok.'],
+]
+
+/**
  * Supabase hatalarını kullanıcıya gösterilebilir Türkçe metne çevir.
  * Yalnızca giriş akışında değil, tanımadığımız her sunucu hatasında
  * kullanılıyor — ham İngilizce metin kullanıcıya gösterilmesin.
@@ -181,6 +231,11 @@ export function hataMetni(message: string): string {
   // Bileşen değil, düz fonksiyon: dil <html lang>'ten okunuyor (bkz. dil.tsx)
   const c = (t: string) => cevir(suankiDil(), t)
   const m = message.toLowerCase()
+
+  for (const [anahtar, metin] of SUNUCU_HATALARI) {
+    if (m.includes(anahtar)) return c(metin)
+  }
+
   if (m.includes('row-level security') || m.includes('violates'))
     return c('Bu işlem için yetkin yok.')
   if (m.includes('failed to fetch') || m.includes('networkerror'))

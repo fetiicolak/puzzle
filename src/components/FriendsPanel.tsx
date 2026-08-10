@@ -46,7 +46,7 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
 
   useEffect(() => {
     let iptal = false
-    tazele().finally(() => {
+    void tazele().finally(() => {
       if (!iptal) setYukleniyor(false)
     })
     // "Şu an sitede" ışığı damgayla aynı sıklıkta tazelensin
@@ -75,7 +75,12 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
       <header className="chat-head">
         <b>{ceviri('Arkadaşlar')}</b>
         <span className="spacer" />
-        <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
+        <button
+          className="icon-btn"
+          onClick={onKapat}
+          aria-label={ceviri('Kapat')}
+          title={ceviri('Kapat')}
+        >
           ✕
         </button>
       </header>
@@ -122,6 +127,7 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
               <button
                 className="btn btn-sm btn-ghost"
                 onClick={() => setAcikSohbet(k)}
+                aria-label={ceviri('Mesaj yaz')}
                 title={ceviri('Mesaj yaz')}
               >
                 💬
@@ -131,6 +137,11 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
               <button
                 className="btn btn-sm btn-secondary"
                 disabled={!davetLinki || islemdeki === k.id || gonderilen.has(k.id)}
+                aria-label={
+                  davetLinki
+                    ? ceviri('Davet linkini mesaj olarak gönder')
+                    : ceviri('Önce odayı kur')
+                }
                 title={
                   davetLinki
                     ? ceviri('Davet linkini mesaj olarak gönder')

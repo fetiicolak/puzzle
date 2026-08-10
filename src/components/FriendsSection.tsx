@@ -48,7 +48,7 @@ export default function FriendsSection() {
 
   useEffect(() => {
     let iptal = false
-    tazele().finally(() => {
+    void tazele().finally(() => {
       if (!iptal) setYukleniyor(false)
     })
     return () => {
@@ -199,6 +199,7 @@ export default function FriendsSection() {
               </div>
               <button
                 className="del"
+                aria-label={ceviri('Arkadaşlıktan çıkar')}
                 title={ceviri('Arkadaşlıktan çıkar')}
                 disabled={islemdeki === a.id}
                 onClick={() => setCikarilacak(a)}

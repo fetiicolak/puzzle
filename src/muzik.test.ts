@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PARCALAR, VARSAYILAN_PARCA, notalariPlanla, parcaBul } from './muzik'
+import { MUZIK_TAVAN } from './audio'
 
 describe('parcaBul', () => {
   it('bilinen kimliği bulur', () => {
@@ -132,5 +133,51 @@ describe('notalariPlanla', () => {
         }
       }
     }
+  })
+})
+
+describe('müzik yolunun tepe kazancı', () => {
+  /*
+    Müzik yolu 1'den büyük bir çarpanla çalıyor (MUZIK_TAVAN) — küçük
+    hoparlörlerde pes yastıklar hiç duyulmuyordu. Çarpan büyütülürken
+    kırpılmaya gitmediğimizi burada ölçüyoruz: aynı anda çalan bütün
+    notaların tepe kazançları toplanıp çarpanla çarpılıyor.
+
+    Zarf sadeleştirmesi bilerek kötümser: nota, süresi boyunca hep tepede
+    sayılıyor. Gerçekte açılıp sönüyor, yani asıl toplam bundan küçük.
+  */
+  function tepe(parca: (typeof PARCALAR)[number]): number {
+    const adimlar = 12
+    const notalar = Array.from({ length: adimlar }, (_, a) =>
+      notalariPlanla(parca, 12345, a).map((n) => ({
+        bas: a * parca.akorSuresi + n.gecikme,
+        son: a * parca.akorSuresi + n.gecikme + n.sure,
+        ses: n.ses,
+      })),
+    ).flat()
+    let enYuksek = 0
+    const bitis = adimlar * parca.akorSuresi
+    for (let t = 0; t < bitis; t += 0.02) {
+      let toplam = 0
+      for (const n of notalar) if (t >= n.bas && t <= n.son) toplam += n.ses
+      if (toplam > enYuksek) enYuksek = toplam
+    }
+    return enYuksek
+  }
+
+  for (const parca of PARCALAR) {
+    it(`${parca.id}: efektlere yer bırakacak kadar altta`, () => {
+      /*
+        Efektlerle aynı anda toplanıyorlar. Efekt yolunun tavanı 0,9 ama
+        oradan geçen en yüksek ses kutlama arpeji: dört nota 0,11 sn arayla,
+        tepesi ~0,21 × 0,9 ≈ 0,19. Müziğe 0,7 bırakmak toplamı 1'in altında
+        tutuyor. Bugünkü en yükseği piyano: 0,525.
+      */
+      expect(tepe(parca) * MUZIK_TAVAN).toBeLessThan(0.7)
+    })
+  }
+
+  it('çarpan 1den büyük — yoksa tablette müzik duyulmuyor', () => {
+    expect(MUZIK_TAVAN).toBeGreaterThan(1)
   })
 })

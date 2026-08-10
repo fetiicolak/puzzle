@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useDil } from '../dil'
+import { useModalErisim } from '../erisim'
 
 interface Props {
   /** Şu anki ad — alan bununla dolu açılır */
@@ -19,19 +20,16 @@ export default function RenameDialog({ mevcutAd, onKaydet, onIptal }: Props) {
   const [hata, setHata] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const baslikId = useId()
+  const kutuRef = useModalErisim<HTMLFormElement>(onIptal)
+
   useEffect(() => {
-    // açılır açılmaz yazmaya başlanabilsin, metin de seçili gelsin
+    // açılır açılmaz yazmaya başlanabilsin, metin de seçili gelsin.
+    // useModalErisim de aynı alana odaklanıyor; bu efekt onunkinden sonra
+    // çalışıp yalnızca seçimi ekliyor.
     inputRef.current?.focus()
     inputRef.current?.select()
   }, [])
-
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onIptal()
-    }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onIptal])
 
   const temiz = ad.trim()
   const kaydedilebilir = temiz.length > 0 && temiz !== mevcutAd && !kaydediliyor
@@ -51,8 +49,16 @@ export default function RenameDialog({ mevcutAd, onKaydet, onIptal }: Props) {
 
   return (
     <div className="modal-arka" onClick={onIptal}>
-      <form className="dialog" onClick={(e) => e.stopPropagation()} onSubmit={gonder}>
-        <h3>{ceviri('Adı değiştir')}</h3>
+      <form
+        className="dialog"
+        ref={kutuRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={baslikId}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={gonder}
+      >
+        <h3 id={baslikId}>{ceviri('Adı değiştir')}</h3>
 
         <input
           ref={inputRef}

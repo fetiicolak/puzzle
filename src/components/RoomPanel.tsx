@@ -60,7 +60,7 @@ export default function RoomPanel({
 
   useEffect(() => {
     let iptal = false
-    tazele().finally(() => {
+    void tazele().finally(() => {
       if (!iptal) setYukleniyor(false)
     })
     return () => {
@@ -106,11 +106,21 @@ export default function RoomPanel({
     <aside ref={kokRef} style={stil} className="oda-panel">
       <PanelBaslik baslik={ceviri('Odadakiler')} tutamac={tutamac}>
         {tasindi && (
-          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+          <button
+            className="icon-btn"
+            onClick={sifirla}
+            aria-label={ceviri('Yerine döndür')}
+            title={ceviri('Yerine döndür')}
+          >
             ↺
           </button>
         )}
-        <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
+        <button
+          className="icon-btn"
+          onClick={onKapat}
+          aria-label={ceviri('Kapat')}
+          title={ceviri('Kapat')}
+        >
           ✕
         </button>
       </PanelBaslik>
@@ -169,6 +179,11 @@ export default function RoomPanel({
                 <button
                   className={`btn btn-sm ${k.rol === 'mod' ? 'btn-ghost' : 'btn-secondary'}`}
                   disabled={islemdeki === k.id}
+                  aria-label={
+                    k.rol === 'mod'
+                      ? ceviri('Çıkarma yetkisini geri al')
+                      : ceviri('Bu kişi de başkalarını çıkarabilsin')
+                  }
                   title={
                     k.rol === 'mod'
                       ? ceviri('Çıkarma yetkisini geri al')
@@ -185,6 +200,7 @@ export default function RoomPanel({
               {cikarabilirMiyim(k) && (
                 <button
                   className="del"
+                  aria-label={ceviri('Odadan çıkar')}
                   title={ceviri('Odadan çıkar')}
                   disabled={islemdeki === k.id}
                   onClick={() => setCikarilacak(k)}
@@ -211,6 +227,7 @@ export default function RoomPanel({
             {benHost && (
               <button
                 className="del"
+                aria-label={ceviri('Odadan çıkar')}
                 title={ceviri('Odadan çıkar')}
                 onClick={() => setCikarilacakMisafir(m)}
               >

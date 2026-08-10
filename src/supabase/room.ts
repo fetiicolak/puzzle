@@ -26,9 +26,10 @@ export const ROL_ADI: Record<OdaRolu, string> = {
 /** Odadaki kişiler; kurucu başta */
 export async function odaKatilimcilari(puzzleId: string): Promise<OdaKisisi[]> {
   if (!supabase) return []
-  const { data, error } = await supabase.rpc('oda_katilimcilari', { p_puzzle: puzzleId })
-  if (error || !data) return []
-  return (data as Record<string, unknown>[]).map((s) => ({
+  // Yanıt bütün olarak: `data` alanı `any`, parçalayınca tip güvenliği kaybolur
+  const cevap = await supabase.rpc('oda_katilimcilari', { p_puzzle: puzzleId })
+  if (cevap.error || !cevap.data) return []
+  return (cevap.data as Record<string, unknown>[]).map((s) => ({
     id: String(s.user_id),
     ad: (s.ad as string) || 'İsimsiz',
     rol: (s.rol as OdaRolu) ?? 'player',

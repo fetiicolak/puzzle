@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDil } from '../dil'
+import { useModalErisim } from '../erisim'
 
 interface Props {
   /** Döndürmeli zorluk açık mı — kapalıysa o adım hiç gösterilmez */
@@ -172,10 +173,16 @@ export default function Tutorial({ rotation, odada, hesapVar, davetVar, onKapat 
 
   const ileri = () => (sonMu ? onKapat() : setI((n) => n + 1))
 
+  const baslikId = useId()
+  const kutuRef = useModalErisim(onKapat)
+
   useEffect(() => {
     const tus = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onKapat()
-      else if (e.key === 'ArrowRight' || e.key === 'Enter') ileri()
+      // Escape'i useModalErisim karşılıyor.
+      // Enter odaktaki düğmeye ait: odak tuzağı geldiğinden beri turda hep bir
+      // düğme odakta oluyor ve burada da ilerletirsek iki adım birden atlanıyor.
+      const dugmedeMi = !!(e.target as HTMLElement | null)?.closest('button')
+      if (e.key === 'ArrowRight' || (e.key === 'Enter' && !dugmedeMi)) ileri()
       else if (e.key === 'ArrowLeft') setI((n) => Math.max(0, n - 1))
     }
     window.addEventListener('keydown', tus)
@@ -184,12 +191,19 @@ export default function Tutorial({ rotation, odada, hesapVar, davetVar, onKapat 
 
   return createPortal(
     <div className="modal-arka" onClick={onKapat}>
-      <div className="dialog tanitim" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="dialog tanitim"
+        ref={kutuRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={baslikId}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="tanitim-simge" aria-hidden="true">
           {adim.simge}
         </div>
 
-        <h3>{ceviri(adim.baslik)}</h3>
+        <h3 id={baslikId}>{ceviri(adim.baslik)}</h3>
         <p className="dialog-mesaj">{ceviri(adim.metin)}</p>
 
         {adim.araclar && (

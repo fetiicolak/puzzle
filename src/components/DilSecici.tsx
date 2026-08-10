@@ -18,6 +18,7 @@ export default function DilSecici({ ince }: { ince?: boolean }) {
           key={d}
           className={`dil-dugme ${dil === d ? 'secili' : ''}`}
           aria-pressed={dil === d}
+          aria-label={DIL_ADI[d]}
           title={DIL_ADI[d]}
           onClick={() => degistir(d)}
         >

@@ -29,6 +29,52 @@ export const SOZLUK: Record<string, string> = {
   Diğer: 'More',
   'Önce giriş yapmalısın': 'You need to sign in first',
 
+  // ------------------------------------------------------------ hata metni
+  // hataMetni() (supabase/client.ts) buradan geçiyor. Eskiden bu satırların
+  // hiçbiri sözlükte yoktu: İngilizce kullanan biri sunucu hatalarını Türkçe
+  // görüyordu, tetikleyici hatalarını ise ham ASCII olarak.
+  'Bu işlem için yetkin yok.': 'You are not allowed to do that.',
+  'Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.':
+    'Could not reach the server. Check your connection and try again.',
+  'E-posta veya şifre hatalı.': 'Wrong email or password.',
+  'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.':
+    'That email is already registered. Try signing in.',
+  'Şifre en az 6 karakter olmalı.': 'Password must be at least 6 characters.',
+  'Geçerli bir e-posta adresi girin.': 'Enter a valid email address.',
+  'E-postanızı doğrulamanız gerekiyor. Gelen kutunuzu kontrol edin.':
+    'You need to confirm your email. Check your inbox.',
+  'Çok fazla deneme yapıldı. Biraz bekleyip tekrar deneyin.':
+    'Too many attempts. Wait a moment and try again.',
+  'Böyle bir oda bulunamadı. Linki kontrol et.': 'No such room. Check the link.',
+  // 'Bu puzzle henüz açılmadı…' ve 'Bu odadan çıkarıldın.' aşağıda, oda
+  // bölümünde zaten var — burada tekrarlanmıyor (aynı anahtar iki kez
+  // yazılırsa sonuncusu sessizce kazanır).
+  'Puzzle’ın sahibi değiştirilemez.': 'A puzzle’s owner cannot be changed.',
+  'Bunu yalnızca puzzle’ı kuran kişi değiştirebilir.':
+    'Only the person who created the puzzle can change this.',
+  'Bu odanın katılımcısı değilsin.': 'You are not a member of this room.',
+  'Bu kişi artık odada değil.': 'That person is no longer in the room.',
+  'Kendini odadan çıkaramazsın.': 'You cannot remove yourself from the room.',
+  'Odayı kuran kişi çıkarılamaz.': 'The person who created the room cannot be removed.',
+  'Yetkili birini yalnızca odayı kuran çıkarabilir.':
+    'Only the room creator can remove a moderator.',
+  'Yetkiyi yalnızca odayı kuran verebilir.': 'Only the room creator can grant this.',
+  'Odayı kuranın yetkisi değiştirilemez.':
+    'The room creator’s permissions cannot be changed.',
+  'Bu arkadaşlık kaydı değiştirilemez.': 'This friendship record cannot be changed.',
+  'Bu arkadaşlık isteği böyle güncellenemez.':
+    'This friend request cannot be updated that way.',
+  'Gönderilmiş bir mesajın içeriği değiştirilemez.':
+    'The contents of a sent message cannot be changed.',
+  'Bugünlük puzzle oluşturma sınırına ulaştın. Yarın tekrar dene.':
+    'You have reached today’s limit for creating puzzles. Try again tomorrow.',
+  'Çok hızlı mesaj gönderiyorsun. Biraz bekleyip tekrar dene.':
+    'You are sending messages too quickly. Wait a moment and try again.',
+  'Bugünlük arkadaşlık isteği sınırına ulaştın. Yarın tekrar dene.':
+    'You have reached today’s limit for friend requests. Try again tomorrow.',
+  'Bugünlük şikayet sınırına ulaştın.': 'You have reached today’s report limit.',
+  'Önce giriş yapmalısın.': 'You need to sign in first.',
+
   // --------------------------------------------------------- davet ekranı
   Puzzle: 'Puzzle',
   daveti: 'invite',

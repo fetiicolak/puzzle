@@ -50,11 +50,21 @@ export default function SesAyarlari({
     <aside ref={kokRef} style={stil} className="ses-panel">
       <PanelBaslik baslik={ceviri('Ses')} tutamac={tutamac}>
         {tasindi && (
-          <button className="icon-btn" onClick={sifirla} title={ceviri('Yerine döndür')}>
+          <button
+            className="icon-btn"
+            onClick={sifirla}
+            aria-label={ceviri('Yerine döndür')}
+            title={ceviri('Yerine döndür')}
+          >
             ↺
           </button>
         )}
-        <button className="icon-btn" onClick={onKapat} title={ceviri('Kapat')}>
+        <button
+          className="icon-btn"
+          onClick={onKapat}
+          aria-label={ceviri('Kapat')}
+          title={ceviri('Kapat')}
+        >
           ✕
         </button>
       </PanelBaslik>
@@ -63,6 +73,7 @@ export default function SesAyarlari({
         <button
           className={`icon-btn ${sesler ? 'on' : ''}`}
           onClick={onSesler}
+          aria-label={sesler ? ceviri('Ses efektlerini kapat') : ceviri('Ses efektlerini aç')}
           title={sesler ? ceviri('Ses efektlerini kapat') : ceviri('Ses efektlerini aç')}
         >
           {sesler ? '🔊' : '🔈'}
@@ -91,6 +102,7 @@ export default function SesAyarlari({
         <button
           className={`icon-btn ${muzik ? 'on' : ''}`}
           onClick={onMuzik}
+          aria-label={muzik ? ceviri('Müziği kapat') : ceviri('Müziği aç')}
           title={muzik ? ceviri('Müziği kapat') : ceviri('Müziği aç')}
         >
           ♪

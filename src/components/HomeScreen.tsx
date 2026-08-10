@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import DilSecici from './DilSecici'
 import { cevir, suankiDil, useDil } from '../dil'
+import { tiklanabilirTus } from '../erisim'
 import FriendsSection from './FriendsSection'
 import MessagesSection from './MessagesSection'
 import ProfileDialog from './ProfileDialog'
@@ -174,7 +175,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
     }
     let iptal = false
     setUzakYukleniyor(true)
-    listRemotePuzzles()
+    void listRemotePuzzles()
       .then(async (liste) => {
         if (iptal) return
         // eski kayıtlarda eksik kalmış "bitti" bayrağını onar
@@ -424,6 +425,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
               <button
                 className="hesap-dugme"
                 onClick={() => setProfilAcik(true)}
+                aria-label={ceviri('Profilini düzenle')}
                 title={ceviri('Profilini düzenle')}
               >
                 <span className="avatar">
@@ -474,7 +476,11 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
         </p>
       </header>
 
-      <button className="btn btn-primary btn-lg" disabled={busy} onClick={() => fileRef.current?.click()}>
+      <button
+        className="btn btn-primary btn-lg"
+        disabled={busy}
+        onClick={() => fileRef.current?.click()}
+      >
         {busy ? ceviri('Hazırlanıyor…') : ceviri('Fotoğraf yükle')}
       </button>
       <small className="muted">{ceviri('ya da fotoğrafı sürükleyip buraya bırak')}</small>
@@ -493,7 +499,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
       {auth.user && uzak.length > 0 && (
         <section className="stats">
           {(() => {
-            const s = istatistikCikar(uzak, auth.user!.id)
+            const s = istatistikCikar(uzak, auth.user.id)
             return (
               <>
                 <div className="stat-box">
@@ -564,6 +570,22 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                 <article
                   key={p.id}
                   className={`resume-card ${kilitli ? 'kilitli' : ''}`}
+                  /*
+                    Kartın kendisi tıklanabilir ama düğme değil: içinde
+                    "yeniden adlandır" ve "sil" düğmeleri var, iç içe button
+                    geçersiz HTML. tabIndex + role + Enter/Boşluk ile klavyeye
+                    açılıyor (bkz. erisim.ts).
+                  */
+                  tabIndex={0}
+                  role="button"
+                  aria-label={p.title || ceviri('İsimsiz')}
+                  onKeyDown={tiklanabilirTus(() => {
+                    if (kilitli) {
+                      kilitliUyarisi(p.unlock_at!)
+                      return
+                    }
+                    onResumeRemote(p)
+                  })}
                   onClick={() => {
                     if (kilitli) {
                       kilitliUyarisi(p.unlock_at!)
@@ -608,6 +630,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   </div>
                   <button
                     className="del"
+                    aria-label={ceviri('Yeniden adlandır')}
                     title={ceviri('Yeniden adlandır')}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -618,6 +641,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                   </button>
                   <button
                     className="del"
+                    aria-label={ceviri('Sil')}
                     title={ceviri('Sil')}
                     disabled={siliniyor === p.id}
                     onClick={(e) => {
@@ -664,6 +688,16 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
               <article
                 key={p.id}
                 className={`resume-card ${kilitli ? 'kilitli' : ''}`}
+                tabIndex={0}
+                role="button"
+                aria-label={p.title || ceviri('İsimsiz')}
+                onKeyDown={tiklanabilirTus(() => {
+                  if (kilitli) {
+                    kilitliUyarisi(p.unlockAt!)
+                    return
+                  }
+                  onResume(p)
+                })}
                 onClick={() => {
                   if (kilitli) {
                     kilitliUyarisi(p.unlockAt!)
@@ -693,6 +727,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                 </div>
                 <button
                   className="del"
+                  aria-label={ceviri('Yeniden adlandır')}
                   title={ceviri('Yeniden adlandır')}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -703,6 +738,7 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
                 </button>
                 <button
                   className="del"
+                  aria-label={ceviri('Sil')}
                   title={ceviri('Sil')}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -758,6 +794,9 @@ export default function HomeScreen({ onPickImage, onResume, onResumeRemote, onSi
               className="sample"
               onClick={() => void pick(s)}
               disabled={busy}
+              aria-label={
+                s.artist ? `${ceviri(s.title)} — ${s.artist}` : ceviri(s.title)
+              }
               title={
                 s.artist ? `${ceviri(s.title)} — ${s.artist}` : ceviri(s.title)
               }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDil, type Dil } from '../dil'
+import { useModalErisim } from '../erisim'
 
 interface Props {
   baslik: string
@@ -179,6 +180,7 @@ export default function Certificate({
   const { dil, ceviri } = useDil()
   const tuvalRef = useRef<HTMLCanvasElement>(null)
   const [hazir, setHazir] = useState(false)
+  const kutuRef = useModalErisim(onKapat)
 
   useEffect(() => {
     const tuval = tuvalRef.current
@@ -480,28 +482,33 @@ export default function Certificate({
     }, 'image/png')
   }
 
-  const paylas = async () => {
+  const paylas = () => {
     const tuval = tuvalRef.current
     if (!tuval) return
-    tuval.toBlob(async (blob) => {
-      if (!blob) return
-      const dosya = new File([blob], 'birlikte-puzzle.png', { type: 'image/png' })
-      try {
-        const nav = navigator as Navigator & {
-          canShare?: (d: { files: File[] }) => boolean
-          share?: (d: { files: File[]; title?: string; text?: string }) => Promise<void>
-        }
-        if (nav.canShare?.({ files: [dosya] }) && nav.share) {
-          await nav.share({
-            files: [dosya],
-            title: 'Birlikte Puzzle',
-            text: `${baslik} — ${sureMetni(saniye, dil)}`,
-          })
-        }
-      } catch {
-        // kullanıcı vazgeçtiyse ya da desteklenmiyorsa indirme zaten var
+    // toBlob geri çağrısı void bekliyor: async gövde ayrı bir fonksiyona
+    // alınıp `void` ile başlatılıyor, yoksa dönen söz kimsenin izlemediği
+    // bir yerde kalıyor.
+    tuval.toBlob((blob) => void paylasimiAc(blob), 'image/png')
+  }
+
+  const paylasimiAc = async (blob: Blob | null) => {
+    if (!blob) return
+    const dosya = new File([blob], 'birlikte-puzzle.png', { type: 'image/png' })
+    try {
+      const nav = navigator as Navigator & {
+        canShare?: (d: { files: File[] }) => boolean
+        share?: (d: { files: File[]; title?: string; text?: string }) => Promise<void>
       }
-    }, 'image/png')
+      if (nav.canShare?.({ files: [dosya] }) && nav.share) {
+        await nav.share({
+          files: [dosya],
+          title: 'Birlikte Puzzle',
+          text: `${baslik} — ${sureMetni(saniye, dil)}`,
+        })
+      }
+    } catch {
+      // kullanıcı vazgeçtiyse ya da desteklenmiyorsa indirme zaten var
+    }
   }
 
   const paylasilabilir =
@@ -509,14 +516,22 @@ export default function Certificate({
 
   return (
     <div className="modal-arka" onClick={onKapat}>
-      <div className="sertifika-kutu" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="sertifika-kutu"
+        ref={kutuRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ceviri('Tamamlama sertifikası')}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Tuvalin içeriği metin değil; okuyucu için başlık aria-label'da */}
         <canvas ref={tuvalRef} className="sertifika-tuval" />
         <div className="dialog-butonlar sertifika-butonlar">
           <button className="btn btn-ghost" onClick={onKapat}>
             {ceviri('Kapat')}
           </button>
           {paylasilabilir && (
-            <button className="btn btn-secondary" disabled={!hazir} onClick={() => void paylas()}>
+            <button className="btn btn-secondary" disabled={!hazir} onClick={paylas}>
               {ceviri('Paylaş')}
             </button>
           )}
