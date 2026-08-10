@@ -268,6 +268,26 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   görünüyor. "Çıktım" bildirimi göndermek gerekmiyor. Damga dakikada bir,
   yalnızca sekme öndeyken atılıyor; okuma penceresi 2 dakika (`cevrimiciMi`).
 
+## İkon ve service worker
+
+- **Kaynak `public/icon.svg`, PNG'ler ondan üretiliyor.** Üretme komutu ve
+  gerekçeler dosyanın kendi içinde yorumda. Bir PNG'yi elle düzenleme —
+  yedisi birden tutarsız kalır.
+- **Yuvarlak köşe yalnızca `icon.svg` ve `icon-*.png`'de.**
+  `apple-touch-icon*` ve `icon-512-maskable.png` **kare** olmalı: iOS ve
+  Android kendi maskesini uyguluyor, önden yuvarlatılmış ikon orada çift
+  yuvarlak ya da kesik köşe veriyor.
+- **Maskable ikon dairesine sığ.** Android `purpose: "maskable"` ikonu 80%
+  çapında bir daireye kırpıyor; 100x100 tuvalde çizim merkezden 40 birimden
+  uzağa taşmamalı. Bugünkü çizim 38,2'de.
+- **Ortalamayı gözle değil ölçerek doğrula.** Eski ikon 512'lik karede 51
+  piksel aşağı kaymıştı (üstte 112, altta 61 boşluk) ve kimse fark etmemişti.
+  Tuvale çizip zemin renginden farklı piksellerin sınır kutusuna bak.
+- **`sw.js`: kabuk dosyası aynı adla değişirse `CACHE` sürümünü artır.**
+  `activate` yalnızca *farklı* anahtarlı önbellekleri siliyor; artırmazsan
+  kurulu uygulama eski dosyayı vermeye devam ediyor. Yeni bir kabuk dosyası
+  eklediysen `SHELL` listesine de yaz.
+
 ## Sırlar ve dağıtım
 
 - `.env` git'te izlenmiyor; şablon `.env.example`. Üretim değerleri **GitHub

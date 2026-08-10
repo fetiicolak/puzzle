@@ -2,7 +2,10 @@
 // Vite hash'li dosya adları ürettiği için kabuk dışındaki varlıklar çalışma anında
 // stale-while-revalidate ile önbelleğe alınır.
 
-const CACHE = 'birlikte-puzzle-v1'
+// Kabuk dosyalarının içeriği aynı adla değişirse sürümü artır: activate eski
+// önbelleği siliyor. Artırılmazsa kurulu uygulama eski ikonu göstermeye devam
+// ediyor (fetch stale-while-revalidate, yani ancak bir sonraki açılışta düzelir).
+const CACHE = 'birlikte-puzzle-v2'
 const SHELL = [
   './',
   './index.html',
@@ -10,6 +13,7 @@ const SHELL = [
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
+  './icon-512-maskable.png',
   './samples/gunbatimi.svg',
   './samples/kalpler.svg',
   './samples/gece.svg',
