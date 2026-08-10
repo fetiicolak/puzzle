@@ -78,6 +78,38 @@ describe('notalariPlanla', () => {
     expect(gurultu[0].sure).toBeGreaterThan(yagmur.akorSuresi)
   })
 
+  it('arpej parçası akorun notalarını sırayla çalıyor', () => {
+    // müzik kutusunun diğerlerinden asıl farkı bu: yastık yok, tek tek nota
+    const kutu = parcaBul('kutu')
+    const notalar = notalariPlanla(kutu, 11, 0)
+    expect(notalar.every((n) => n.zarf === 'can')).toBe(true)
+    expect(notalar.length).toBeGreaterThan(5)
+    // gecikmeler artan ve eşit aralıklı
+    const araliklar = notalar.slice(1).map((n, i) => +(n.gecikme - notalar[i].gecikme).toFixed(6))
+    expect(new Set(araliklar).size).toBe(1)
+    // merdiven: akorun içinde inip çıkıyor, rastgele atlamıyor
+    const indeksler = notalar.map((n) => kutu.akorlar[0].indexOf(n.frekans))
+    expect(indeksler.slice(0, 6)).toEqual([0, 1, 2, 3, 2, 1])
+  })
+
+  it('beyaz gürültü yalnızca gürültü, nota yok', () => {
+    // yağmurdan farkı: altında drone da yok
+    const notalar = notalariPlanla(parcaBul('beyaz'), 8, 2)
+    expect(notalar).toHaveLength(1)
+    expect(notalar[0].gurultu).toBe(true)
+  })
+
+  it('parçalar birbirinden ayırt edilebilir', () => {
+    // "üçü de birbirine benziyor" hatası buradan çıkmıştı: parçaları ayıran
+    // şey akorlar değil, kurgu + tını + tempo
+    const kimlik = (id: string) => {
+      const p = parcaBul(id)
+      return `${p.tur}/${p.dalga}/${p.akorSuresi}`
+    }
+    const kimlikler = PARCALAR.map((p) => kimlik(p.id))
+    expect(new Set(kimlikler).size).toBe(PARCALAR.length)
+  })
+
   it('bütün parçalar makul notalar üretiyor', () => {
     for (const p of PARCALAR) {
       for (let adim = 0; adim < 12; adim++) {

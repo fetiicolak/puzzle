@@ -210,8 +210,26 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   - Parça değişimi yumuşak geçişle: ramp aşağı → `kaynaklariSustur()` → ramp
     yukarı. Susturma olmazsa eski parçanın ileriye planlanmış notaları
     yenisinin üstüne biniyor.
-  - `durdur(ayariYaz)` ayrı: parça değiştirirken ayara `false` yazılmamalı,
-    yoksa "müzik kapalı" diye kaydedilip bir daha açılmıyor.
+  - `durdur(ayariYaz, sonus)` ayrı: parça değiştirirken ve **oyundan çıkarken**
+    ayara `false` yazılmamalı, yoksa "müzik kapalı" diye kaydedilip bir daha
+    açılmıyor.
+  - **Parçaları ayıran şey akorlar değil, kurgu.** Üç parça da aynı yastığı
+    çalıp yalnızca akor/oktav değiştirdiğinde kullanıcı hiçbirini birbirinden
+    ayıramadı. Ayrım `tur` (`akor` · `arpej` · `ambiyans`), dalga biçimi ve
+    `akorSuresi` üzerinden kuruluyor; testi de bu üçlünün benzersizliğine
+    bakıyor. **Sinüse lowpass koymak tını değiştirmez** — `gece` bu yüzden
+    `sawtooth` + 300 Hz kesim.
+  - **Müzik yalnızca oyun içinde çalar.** `sesiKapat()` (GameScreen
+    temizliğinde) durduruyor; iki inceliği var:
+    - Ayarı **yazmıyor**. Kullanıcı müziği kapatmadı, oyundan çıktı.
+    - `oturum` sayacını artırıyor. Çıkış düğmesine basmak da bir `pointerdown`
+      ve "ilk dokunuşta başlat" dinleyicisini tetikliyor; async `muzigiBaslat`
+      temizlikten *sonra* tamamlanıp müziği ana ekranda açıyordu — hesaptan
+      çıkınca bile susmuyordu. `muzigiBaslat` beklemeden önce `oturum`u
+      yakalayıp döndüğünde karşılaştırıyor.
+    - Kısılma 0,25 sn ve arkasından `kaynaklariSustur()`; ileriye planlanmış
+      notalar (ambiyansta 8+ sn süren döngü) yoksa ekran kapandıktan sonra
+      da çalmaya devam ediyor.
   - Efekt ve müzik ayrı kazanç yollarından geçiyor; seviye (0-1) bu yolların
     üstüne **çarpan** olarak biniyor. Seviye 1 iken ses eski davranışla birebir
     aynı — yeni ayar hiçbir şeyi sessizce değiştirmiyor.
@@ -320,11 +338,12 @@ denenmedi. Parantez içi, denemek için gereken şey.
       doğrulandı (%40 → 0.36, %25 → 0.25, %0 → tam sessiz) ama kimse kulakla
       dinlemedi ve dokunmatikte `input[type=range]` sürüklenmesi denenmedi.
       (2026-08-09)
-- [ ] **Müzik parçaları kulakla dinlenmedi.** Notalar, akorlar, geçiş rampası
-      ve tohum eşleşmesi ölçüldü; ama `gece` gerçekten sakin mi, `kutu` müzik
-      kutusu gibi mi, `yagmur` yağmura benziyor mu bilinmiyor — beyaz gürültü
-      + lowpass 1400 Hz kâğıt üstünde doğru, kulakta ne olduğu ayrı.
-      Beğenilmezse `PARCALAR` tablosundaki sayılar değişir. (2026-08-10)
+- [ ] **Müzik parçaları kulakla dinlenmedi.** İlk sürümde üçü birbirine
+      benziyordu; kurguları ayrıldı (gece: 49-98 Hz sawtooth drone, 14 sn'de
+      bir akor · kutu: 0,36 sn'de bir tek tek nota, 880-2093 Hz triangle ·
+      beyaz: yalnızca gürültü, nota yok). Çalan frekanslar ve zamanlama
+      tarayıcıda ölçüldü, **kulakla dinlenmedi**. Beğenilmezse `PARCALAR`
+      tablosundaki sayılar değişir. (2026-08-10)
 
 *İki hesap gerekiyor*
 - [ ] A5 uçtan uca test: hız sınırı, engelleme, şikayet, alıcının mesaj silmesi

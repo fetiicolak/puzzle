@@ -126,6 +126,7 @@ export const SOZLUK: Record<string, string> = {
   Gece: 'Night',
   'Müzik kutusu': 'Music box',
   Yağmur: 'Rain',
+  'Beyaz gürültü': 'White noise',
   'Müzik: {parca}': 'Music: {parca}',
   '{ad} müziği değiştirdi: {parca}': '{ad} changed the music: {parca}',
 

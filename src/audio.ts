@@ -221,6 +221,11 @@ let tohum = 0
 let aktifKaynaklar: AudioScheduledSourceNode[] = []
 /** Gürültü tamponu bir kez üretilip yeniden kullanılıyor */
 let gurultuTamponu: AudioBuffer | null = null
+/**
+ * Oyun oturumu sayacı. `sesiKapat` her çağrıldığında artıyor; uçmakta olan
+ * `muzigiBaslat` sözleri böylece geçersizleşiyor. Bkz. `sesiKapat`.
+ */
+let oturum = 0
 
 function yeniTohum(): number {
   try {
@@ -236,7 +241,9 @@ tohum = yeniTohum()
 
 function beyazGurultu(c: AudioContext): AudioBuffer {
   if (gurultuTamponu) return gurultuTamponu
-  const uzunluk = Math.floor(c.sampleRate * 2)
+  // 4 sn: döngü daha kısa olursa saf beyaz gürültüde tekrar duyuluyor
+  // (yağmurda drone maskeliyordu, "Beyaz gürültü"de maskeleyen bir şey yok)
+  const uzunluk = Math.floor(c.sampleRate * 4)
   const tampon = c.createBuffer(1, uzunluk, c.sampleRate)
   const veri = tampon.getChannelData(0)
   for (let i = 0; i < uzunluk; i++) veri[i] = Math.random() * 2 - 1
@@ -337,7 +344,12 @@ function calmayaBasla(c: AudioContext): void {
 }
 
 export async function muzigiBaslat(): Promise<boolean> {
+  const benimOturum = oturum
   const c = await uyandir()
+  // Beklerken oyundan çıkılmış olabilir: çıkış düğmesine basmak da bir
+  // pointerdown ve "ilk dokunuşta başlat" dinleyicisini tetikliyor. Kontrol
+  // olmadan bu söz temizlikten sonra tamamlanıp müziği ana ekranda açıyordu.
+  if (oturum !== benimOturum) return false
   if (!c || !muzikKazanc) return false
   if (muzikCalisiyor) return true
   muzikCalisiyor = true
@@ -352,9 +364,11 @@ export async function muzigiBaslat(): Promise<boolean> {
 
 /**
  * @param ayariYaz Kullanıcı gerçekten kapattıysa true. Parça değiştirirken
- *   false — yoksa "müzik kapalı" diye kaydedilip bir daha açılmıyor.
+ *   ve oyundan çıkarken false — yoksa "müzik kapalı" diye kaydedilip bir
+ *   daha açılmıyor.
+ * @param sonus Kısılma süresi (sn). Oyundan çıkarken kısa olmalı.
  */
-function durdur(ayariYaz: boolean): void {
+function durdur(ayariYaz: boolean, sonus = 1.2): void {
   const c = ctx
   if (zamanlayici) {
     clearInterval(zamanlayici)
@@ -365,7 +379,7 @@ function durdur(ayariYaz: boolean): void {
     // planlanmış notalar sönerken sesi kıs
     muzikKazanc.gain.cancelScheduledValues(c.currentTime)
     muzikKazanc.gain.setValueAtTime(muzikKazanc.gain.value, c.currentTime)
-    muzikKazanc.gain.linearRampToValueAtTime(0.0001, c.currentTime + 1.2)
+    muzikKazanc.gain.linearRampToValueAtTime(0.0001, c.currentTime + sonus)
   }
   if (ayariYaz) ayarYaz(MUZIK_ANAHTARI, false)
 }
@@ -467,11 +481,30 @@ export function muzikSeviyesiAyarla(seviye: number): void {
   }
 }
 
-/** Oyundan çıkarken her şeyi kapat */
+/**
+ * Oyundan çıkarken her şeyi kapat. Müzik yalnızca oyun içinde çalar.
+ *
+ * `muzigiDurdur`dan iki farkı var:
+ * - **Ayara dokunmuyor.** Kullanıcı müziği kapatmadı, oyundan çıktı; tercihi
+ *   bir sonraki oyunda geçerli kalmalı.
+ * - **Uçmakta olan başlatmaları geçersiz kılıyor** (`oturum`). Çıkış düğmesine
+ *   basmak da bir pointerdown; "ilk dokunuşta başlat" dinleyicisi tetikleniyor,
+ *   async başlatma temizlikten sonra tamamlanıp müziği ana ekranda açıyordu —
+ *   hesaptan çıkınca bile susmuyordu.
+ *
+ * Kısılma kısa (0,25 sn) ve arkasından planlanmış kaynaklar da susturuluyor:
+ * ekran kapandıktan sonra sessizce de olsa zamanlayıcı işletmenin anlamı yok.
+ */
 export function sesiKapat(): void {
-  muzigiDurdur()
+  oturum++
+  durdur(false, 0.25)
   if (zamanlayici) {
     clearInterval(zamanlayici)
     zamanlayici = null
   }
+  // Kısılma bitmeden kesersek hoparlörde "çıt" oluyor. Bu arada yeni bir
+  // oyun başlayıp müziği açtıysa dokunma.
+  window.setTimeout(() => {
+    if (!muzikCalisiyor) kaynaklariSustur()
+  }, 300)
 }
