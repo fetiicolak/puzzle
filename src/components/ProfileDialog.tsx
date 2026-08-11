@@ -1,14 +1,16 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import Select from './Select'
 import { basHarfler } from '../ad'
 import { useDil } from '../dil'
 import { useModalErisim } from '../erisim'
+import { engellenenler, engeliKaldir, type Kisi } from '../supabase/friends'
 import {
   hesabiSil,
   avatarHazirla,
   avatarSil,
   avatarUrl,
+  avatarUrlleri,
   avatarYukle,
   profilKaydet,
   profilimiGetir,
@@ -41,6 +43,13 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [hata, setHata] = useState<string | null>(null)
   const [silmeOnayi, setSilmeOnayi] = useState(false)
+  /*
+    Engellediklerin burada duruyor. Önce arkadaş listesinin altındaydı; oraya
+    bakmak için önce "Arkadaşlar" bölümünü açmak gerekiyordu ve engellenen kişi
+    tanım gereği arkadaş listesinde olmadığı için orada aranmıyordu.
+  */
+  const [engelliler, setEngelliler] = useState<Kisi[]>([])
+  const [engelAvatarlari, setEngelAvatarlari] = useState<Map<string, string>>(new Map())
   const dosyaRef = useRef<HTMLInputElement>(null)
   const baslikId = useId()
   const kutuRef = useModalErisim(onKapat, !kaydediliyor)
@@ -64,6 +73,16 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
       iptal = true
     }
   }, [])
+
+  const engelleriTazele = useCallback(async () => {
+    const liste = await engellenenler()
+    setEngelliler(liste)
+    setEngelAvatarlari(await avatarUrlleri(liste.map((k) => k.avatarPath)))
+  }, [])
+
+  useEffect(() => {
+    void engelleriTazele()
+  }, [engelleriTazele])
 
   const fotoSec = async (dosya: File) => {
     setHata(null)
@@ -248,6 +267,43 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
                 'Bu bilgileri yalnızca birlikte puzzle çözdüğün ve arkadaş olduğun kişiler görebilir.',
               )}
             </small>
+
+            {engelliler.length > 0 && (
+              <div className="profil-bolum">
+                <b>{ceviri('Engellediklerin')}</b>
+                <small className="muted">
+                  {ceviri('Sana mesaj gönderemezler ve profilini göremezler.')}
+                </small>
+                <div className="friend-list">
+                  {engelliler.map((k) => {
+                    const url = k.avatarPath ? engelAvatarlari.get(k.avatarPath) : null
+                    return (
+                      <div key={k.id} className="friend-row muted-row">
+                        <span className="avatar dim">
+                          {url ? <img src={url} alt="" /> : basHarfler(k.ad)}
+                        </span>
+                        <div className="info">
+                          <b>{k.ad}</b>
+                        </div>
+                        <button
+                          className="btn btn-sm btn-ghost"
+                          onClick={() =>
+                            void engeliKaldir(k.id).then(() => engelleriTazele())
+                          }
+                        >
+                          {ceviri('Engeli kaldır')}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+                <small className="muted">
+                  {ceviri(
+                    'Engeli kaldırmak arkadaşlığı geri getirmez; yeniden arkadaş olmak için birinizin istek göndermesi gerekir.',
+                  )}
+                </small>
+              </div>
+            )}
 
             <div className="tehlike-bolge">
               <b>{ceviri('Hesabı sil')}</b>

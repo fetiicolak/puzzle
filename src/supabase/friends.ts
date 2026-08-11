@@ -247,19 +247,63 @@ export async function engeliKaldir(kisiId: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-/** Engellediğin kişiler */
+/** kisi_ara ve engellediklerim aynı biçimde dönüyor */
+interface AramaSatiri {
+  id: string
+  display_name: string
+  avatar_path: string | null
+}
+
+/** rpc() üretilmiş tip olmadığı için `any` dönüyor; tek yerde daraltalım */
+type AramaCevabi = { data: AramaSatiri[] | null; error: unknown }
+
+const satirdanKisi = (r: AramaSatiri): Kisi => ({
+  id: r.id,
+  ad: r.display_name || 'İsimsiz',
+  avatarPath: r.avatar_path,
+})
+
+/**
+ * Engellediğin kişiler.
+ *
+ * Adlar sunucudaki `engellediklerim()` fonksiyonundan geliyor: profil
+ * görünürlüğü engeli çift yönlü uyguladığı için doğrudan profiles'tan
+ * okunduğunda liste "Engellenen kişi" diye çıkıyor ve birkaç kişide doğru
+ * olanın engelini kaldırmak imkânsız oluyordu. Şema henüz çalıştırılmadıysa
+ * eski yola düşülüyor — liste adsız da olsa görünmeye devam etsin.
+ */
 export async function engellenenler(): Promise<Kisi[]> {
   if (!supabase) return []
-  const { data } = await supabase.from('blocks').select('blocked')
-  const idler = (data ?? []).map((r) => (r as { blocked: string }).blocked)
+  const { data, error } = (await supabase.rpc('engellediklerim')) as AramaCevabi
+  if (!error) return (data ?? []).map(satirdanKisi)
+
+  const { data: ham } = await supabase.from('blocks').select('blocked')
+  const idler = (ham ?? []).map((r) => (r as { blocked: string }).blocked)
   if (idler.length === 0) return []
-  // Engellediğin kişinin profili artık sana kapalı; adı gösteremeyebiliriz
   const adlar = await adlariGetir(idler)
   return idler.map((id) => ({
     id,
     ad: adlar.get(id)?.ad ?? 'Engellenen kişi',
     avatarPath: adlar.get(id)?.avatarPath ?? null,
   }))
+}
+
+/** Aramanın çalışması için gereken en az harf sayısı (sunucuda da aynısı) */
+export const ARAMA_EN_AZ = 3
+
+/**
+ * Ada göre kişi ara.
+ *
+ * Sunucu tarafı `kisi_ara`: profiles'ın select politikası yalnızca arkadaşları
+ * gösterdiği için istemciden doğrudan aranamıyor. Şema çalıştırılmamışsa boş
+ * dönüyor — arama kutusu "kimse bulunamadı" der, uygulama kırılmaz.
+ */
+export async function kisiAra(sorgu: string): Promise<Kisi[]> {
+  const temiz = sorgu.trim()
+  if (!supabase || temiz.length < ARAMA_EN_AZ) return []
+  const { data, error } = (await supabase.rpc('kisi_ara', { p_sorgu: temiz })) as AramaCevabi
+  if (error) return []
+  return (data ?? []).map(satirdanKisi)
 }
 
 /** Kötüye kullanım bildirimi */

@@ -21,8 +21,18 @@ interface Konum {
 
 const anahtar = (ad: string) => `puzzle:panel:${ad}`
 
-/** Panelin ekran dışında kalmasını engelleyecek en küçük görünür pay */
-const PAY = 24
+/**
+ * Panelden ekranda kalması gereken en küçük parça.
+ *
+ * Önce 24 px'ti ve panel gerçekten "kaybediliyordu": ekranda kalan şeritte
+ * ne başlık çubuğunun tutulacak boşluğu ne de ↺ düğmesi oluyordu, yani
+ * kenara itilen panel bir daha geri çekilemiyordu. Tutamağın kavranabilir bir
+ * bölümü hep görünür kalmalı; 140 px başlık çubuğunun çift çizgisini ve
+ * düğmelerini içeride tutuyor.
+ */
+const YATAY_PAY = 140
+/** Başlık çubuğu en az 40 px; altta o kadarı görünsün ki tutulabilsin */
+const DIKEY_PAY = 44
 
 function oku(ad: string): Konum | null {
   try {
@@ -57,9 +67,11 @@ function ustSinir(): number {
  */
 function sinirla(x: number, y: number, en: number): Konum {
   const ust = ustSinir()
+  // Dar ekranda panel payın kendisinden dar olabilir; o zaman tamamı görünsün
+  const pay = Math.min(YATAY_PAY, en)
   return {
-    x: Math.min(Math.max(PAY - en, x), window.innerWidth - PAY),
-    y: Math.min(Math.max(ust, y), window.innerHeight - PAY),
+    x: Math.min(Math.max(pay - en, x), window.innerWidth - pay),
+    y: Math.min(Math.max(ust, y), window.innerHeight - DIKEY_PAY),
   }
 }
 

@@ -490,6 +490,31 @@ button {
   text-wrap: pretty;
 }
 
+/* profil penceresindeki yan bölüm (engellediklerin) — tehlike bölgesinin
+   uyarı rengi olmadan aynı çerçeve */
+.profil-bolum {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 13px 15px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+.profil-bolum b {
+  font-size: 0.92rem;
+}
+.profil-bolum small {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+.profil-bolum .friend-list {
+  width: 100%;
+}
+
 /* galeri kategori çubuğu */
 .kategori-cubugu {
   display: flex;

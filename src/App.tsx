@@ -6,6 +6,7 @@ import HomeScreen from './components/HomeScreen'
 import JoinChoiceScreen from './components/JoinChoiceScreen'
 import NewPasswordScreen from './components/NewPasswordScreen'
 import SetupScreen, { type StartOptions } from './components/SetupScreen'
+import { acikOyunuOku, acikOyunuSil, acikOyunuYaz } from './acikOyun'
 import { randomRoomCode } from './net/odakodu'
 
 /*
@@ -41,7 +42,10 @@ function davetKodu(): string | null {
 
 function initialScreen(): Screen {
   const kod = davetKodu()
-  return kod ? { s: 'join', roomCode: kod } : { s: 'home' }
+  if (kod) return { s: 'join', roomCode: kod }
+  // Sayfa oyunun ortasında yenilendiyse aynı puzzle'a geri dön
+  const acik = acikOyunuOku()
+  return acik ? { s: 'game', config: acik } : { s: 'home' }
 }
 
 /**
@@ -83,9 +87,23 @@ export default function App() {
     window.addEventListener('popstate', geri)
     return () => window.removeEventListener('popstate', geri)
   }, [])
+
+  /*
+    Açık oyunu sekmeye not et. Tek yerde duruyor çünkü ekran üç ayrı yoldan
+    değişebiliyor (setScreen, geri tuşu, davetten dönüş); her birine ayrı satır
+    yazmak birini unutmak demekti.
+  */
+  useEffect(() => {
+    if (screen.s === 'game') acikOyunuYaz(screen.config)
+    else acikOyunuSil()
+  }, [screen])
   // Davet linkiyle gelen kişi önce seçim ekranını görür; giriş duvarına
   // ancak "hesabımla gireyim" derse takılır.
-  const [misafirDevam, setMisafirDevam] = useState(false)
+  // Yenilemeden sonra misafir oyununa geri dönüldüyse giriş duvarı çıkmasın:
+  // kullanıcı bu oyuna zaten "misafir olarak devam et" diyerek girmişti.
+  const [misafirDevam, setMisafirDevam] = useState(
+    () => screen.s === 'game' && !!screen.config.misafirZorla,
+  )
   /** Girişten sonra doğrudan odaya dönebilmek için beklemeye alınan davet */
   const [bekleyenDavet, setBekleyenDavet] = useState<string | null>(null)
   /**

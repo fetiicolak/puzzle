@@ -5,14 +5,14 @@ import { useDil } from '../dil'
 import { hataMetni } from '../supabase/client'
 import { avatarUrlleri } from '../supabase/profile'
 import {
+  ARAMA_EN_AZ,
   arkadaslikIste,
   arkadasligiKabulEt,
   arkadasligiSil,
   arkadasliklariGetir,
   birlikteOynananlar,
   cevrimiciMi,
-  engellenenler,
-  engeliKaldir,
+  kisiAra,
   type Arkadaslik,
   type Kisi,
 } from '../supabase/friends'
@@ -29,7 +29,10 @@ export default function FriendsSection() {
   const [acik, setAcik] = useState(false)
   const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
   const [hata, setHata] = useState<string | null>(null)
-  const [engelliler, setEngelliler] = useState<Kisi[]>([])
+  /** Arama kutusuna yazılan metin */
+  const [sorgu, setSorgu] = useState('')
+  const [sonuclar, setSonuclar] = useState<Kisi[] | null>(null)
+  const [araniyor, setAraniyor] = useState(false)
 
   const tazele = useCallback(async () => {
     const liste = await arkadasliklariGetir()
@@ -37,7 +40,6 @@ export default function FriendsSection() {
     // zaten arkadaş olduğun ya da istek gidip gelen kişileri önerme
     const oneri = await birlikteOynananlar(liste.map((a) => a.kisi.id))
     setOneriler(oneri)
-    setEngelliler(await engellenenler())
     setAvatarlar(
       await avatarUrlleri([
         ...liste.map((a) => a.kisi.avatarPath),
@@ -63,6 +65,38 @@ export default function FriendsSection() {
     const zamanlayici = setInterval(() => void tazele(), 60_000)
     return () => clearInterval(zamanlayici)
   }, [acik, tazele])
+
+  /*
+    Yazdıkça arama. Her tuşta sorgu atmamak için 350 ms bekleniyor; `iptal`
+    bayrağı da geç dönen bir cevabın daha yeni sonucun üstüne yazmasını
+    engelliyor (kısa sorgu uzun sorgudan sonra dönebiliyor).
+  */
+  useEffect(() => {
+    const temiz = sorgu.trim()
+    if (temiz.length < ARAMA_EN_AZ) {
+      setSonuclar(null)
+      setAraniyor(false)
+      return
+    }
+    let iptal = false
+    setAraniyor(true)
+    const zamanlayici = setTimeout(() => {
+      void kisiAra(temiz)
+        .then(async (liste) => {
+          if (iptal) return
+          setSonuclar(liste)
+          const yeni = await avatarUrlleri(liste.map((k) => k.avatarPath))
+          if (!iptal) setAvatarlar((eski) => new Map([...eski, ...yeni]))
+        })
+        .finally(() => {
+          if (!iptal) setAraniyor(false)
+        })
+    }, 350)
+    return () => {
+      iptal = true
+      clearTimeout(zamanlayici)
+    }
+  }, [sorgu])
 
   const sarmala = async (anahtar: string, is: () => Promise<void>) => {
     setIslemdeki(anahtar)
@@ -111,15 +145,13 @@ export default function FriendsSection() {
   // arkadaşın varken 2 görünüyordu.
   const toplam = arkadaslar.length
 
-  // Engellediğin biri bölüm tamamen boşken de görünebilmeli
-  const bosMu =
-    arkadaslar.length === 0 &&
-    gelenler.length === 0 &&
-    gidenler.length === 0 &&
-    oneriler.length === 0 &&
-    engelliler.length === 0
+  // Bölüm hiç arkadaşın yokken de duruyor: arama kutusu tam olarak o durumda
+  // gerekiyor. (Eskiden liste boşsa bölüm hiç çizilmiyordu ve arkadaş
+  // eklemenin tek yolu birlikte oynamış olmaktı.)
 
-  if (bosMu) return null
+  /** Aramada çıkan ama zaten listende olan kişileri gösterme */
+  const tanidik = new Set(arkadasliklar.map((a) => a.kisi.id))
+  const bulunanlar = (sonuclar ?? []).filter((k) => !tanidik.has(k.id))
 
   return (
     <section className="block">
@@ -156,6 +188,41 @@ export default function FriendsSection() {
 
       {acik && (
         <>
+      <label className="field">
+        <span className="field-label">{ceviri('Arkadaş ara')}</span>
+        <input
+          className="input"
+          type="search"
+          value={sorgu}
+          maxLength={40}
+          placeholder={ceviri('Adının en az {n} harfi', { n: ARAMA_EN_AZ })}
+          onChange={(e) => setSorgu(e.target.value)}
+        />
+      </label>
+
+      {sonuclar !== null && (
+        <div className="friend-list">
+          {bulunanlar.map((k) => (
+            <div key={k.id} className="friend-row">
+              <Avatar kisi={k} sonuk />
+              <div className="info">
+                <b>{k.ad}</b>
+              </div>
+              <button
+                className="btn btn-sm btn-secondary"
+                disabled={islemdeki === k.id}
+                onClick={() => void sarmala(k.id, () => arkadaslikIste(k.id))}
+              >
+                {islemdeki === k.id ? '…' : ceviri('Ekle')}
+              </button>
+            </div>
+          ))}
+          {bulunanlar.length === 0 && !araniyor && (
+            <p className="hint-line">{ceviri('Bu adla kimse bulunamadı.')}</p>
+          )}
+        </div>
+      )}
+
       {gelenler.length > 0 && (
         <div className="friend-list">
           {gelenler.map((a) => (
@@ -230,30 +297,6 @@ export default function FriendsSection() {
             </div>
           ))}
         </div>
-      )}
-
-      {engelliler.length > 0 && (
-        <>
-          <p className="hint-line">{ceviri('Engellediklerin')}</p>
-          <div className="friend-list">
-            {engelliler.map((k) => (
-              <div key={k.id} className="friend-row muted-row">
-                <Avatar kisi={k} sonuk />
-                <div className="info">
-                  <b>{k.ad}</b>
-                  <small>{ceviri('sana mesaj gönderemez')}</small>
-                </div>
-                <button
-                  className="btn btn-sm btn-ghost"
-                  disabled={islemdeki === k.id}
-                  onClick={() => void sarmala(k.id, () => engeliKaldir(k.id))}
-                >
-                  {ceviri('Engeli kaldır')}
-                </button>
-              </div>
-            ))}
-          </div>
-        </>
       )}
 
       {oneriler.length > 0 && (

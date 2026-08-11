@@ -1005,3 +1005,64 @@ $$;
 
 revoke all on function public.hesabi_sil() from public;
 grant execute on function public.hesabi_sil() to authenticated;
+
+-- ---------------------------------------------------------------- kişi arama
+
+/*
+  Ada göre kişi arama.
+
+  profiles üzerindeki select politikası yalnızca arkadaşları ve birlikte
+  oynadıklarını gösteriyor (profil_gorunur). Arkadaş eklemenin tek yolu
+  "birlikte oynamış olmak" kalmasın diye arama gerekiyordu; politikayı
+  gevşetmek yerine security definer bir fonksiyon açıyoruz: yalnızca ad,
+  kimlik ve fotoğraf dönüyor — doğum yılı, cinsiyet ve son görülme dışarıda.
+
+  En az üç harf isteniyor: tek harfle bütün kullanıcı listesi dökülmesin.
+  Her iki yönde engel süzülüyor; engellediğin kişi aramada çıkmaz, seni
+  engelleyen kişinin aramasında sen çıkmazsın.
+*/
+create or replace function public.kisi_ara(p_sorgu text)
+returns table (id uuid, display_name text, avatar_path text)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select p.id, p.display_name, p.avatar_path
+  from public.profiles p
+  where auth.uid() is not null
+    and length(btrim(coalesce(p_sorgu, ''))) >= 3
+    and p.id <> auth.uid()
+    and p.display_name ilike '%' || btrim(p_sorgu) || '%'
+    and not public.engel_var_mi(p.id)
+  order by p.display_name
+  limit 10;
+$$;
+
+revoke all on function public.kisi_ara(text) from public;
+grant execute on function public.kisi_ara(text) to authenticated;
+
+/*
+  Engellediklerin — adlarıyla birlikte.
+
+  profil_gorunur engeli çift yönlü uyguluyor, yani engellediğin kişinin adı
+  sana da kapanıyordu ve liste "Engellenen kişi, Engellenen kişi…" diye
+  çıkıyordu; birkaç kişiyi engelleyen doğru olanın engelini kaldıramıyordu.
+  Engeli koyan kişinin kimi engellediğini görmesi gerekiyor.
+*/
+create or replace function public.engellediklerim()
+returns table (id uuid, display_name text, avatar_path text)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select p.id, p.display_name, p.avatar_path
+  from public.blocks b
+  join public.profiles p on p.id = b.blocked
+  where b.blocker = auth.uid()
+  order by p.display_name;
+$$;
+
+revoke all on function public.engellediklerim() from public;
+grant execute on function public.engellediklerim() to authenticated;

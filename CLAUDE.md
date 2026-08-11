@@ -141,6 +141,12 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
   - 700 px altında oda paneli kameradan geri kalana göre daralıyor
     (`min(320px, calc(62vw - 32px))`). Öncesinde 390 px'te 98 piksel üst üste
     biniyorlardı. Kamera 38vw; birini değiştirirsen diğerinin payı bozulur.
+- **Ekranda kalması gereken pay panelin kavranabileceği kadar olmalı.**
+  `surukle.ts`'te önce 24 px'ti ve panel gerçekten kaybediliyordu: kenarda
+  kalan şeritte ne tutamağın boş yeri ne de ↺ düğmesi oluyordu, kenara itilen
+  panel bir daha geri çekilemiyordu. Bugün yatayda 140, dikeyde 44 px
+  (`YATAY_PAY` / `DIKEY_PAY`) — başlık çubuğunun çizgisi ve düğmeleri hep
+  içeride. Panelden dar ekranda tamamı görünür.
 - **Panel yeri açılışta değil, kullanıcı taşıyınca belirlenir.** Taşınana kadar
   satır içi stil verilmiyor; duyarlı CSS kuralları böylece çalışmaya devam
   ediyor. Taşındığı an `left/top`'a geçiliyor ve `puzzle:panel:<ad>` altında
@@ -224,6 +230,17 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
 - **Satır düzeyi politika sütunu korumaz.** "Bu satırı güncelleyebilir" demek
   "her sütunu değiştirebilir" demektir. Sütun kısıtı için trigger yaz;
   örnek desen: `puzzle_guncelleme_kontrol`, `friendship_guncelleme_kontrol`.
+- **`profiles`'ı okumanın iki yolu var, ikisini karıştırma.** Politika
+  (`profil_gorunur`) yalnızca arkadaşları ve birlikte oynadıklarını gösteriyor
+  ve engeli **çift yönlü** uyguluyor. Bunun dışında bir şey gerekiyorsa
+  politikayı gevşetme, dar kapsamlı `security definer` fonksiyon aç: arkadaş
+  arama `kisi_ara` (yalnızca id/ad/fotoğraf, en az 3 harf, 10 sonuç),
+  engellediklerinin adları `engellediklerim`. İkincisi olmadan liste
+  "Engellenen kişi, Engellenen kişi…" diye çıkıyordu — engeli koyan kişi kimi
+  engellediğini göremiyordu.
+- **Yeni RPC eklerken istemcide geri düşüş bırak.** Kullanıcı şemayı yeniden
+  çalıştırmadan sürüm canlıya çıkabiliyor; `engellenenler()` fonksiyon yoksa
+  eski yola düşüyor, `kisiAra()` boş dönüyor. Kırılma yok, yalnızca eksik veri.
 - **Supabase, SQL'den `storage.objects` silmeye izin vermiyor.** Dosya silme
   istemciden Storage API ile yapılır (`hesabiSil` içindeki `klasoruBosalt`).
 - İstemcide tolerans: yeni sütun eksikse kayıt tamamen başarısız olmasın
@@ -267,6 +284,14 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
     import modülü açılışa çeker.
   - Yeni satıcı paketi eklersen `vite.config.ts`'teki `manualChunks`'a bak:
     yalnızca açılışta gereken şeyler oraya yazılır.
+- **Açık oyun sekmede not ediliyor** (`src/acikOyun.ts`). Oyunun ortasında
+  yenileme ana ekrana atıyordu. sessionStorage bilerek: yenileme aynı sekmede
+  olur, sekme kapanınca yarım oyun günler sonra kendiliğinden açılmaz.
+  Kayda **fotoğraf ve parça durumu yazılmıyor** — ikisi de `puzzle:<id>`
+  altındaki asıl kayıttan okunuyor ve oradaki hep daha güncel. Ekran
+  değişimini tek bir effect izliyor; ekran üç ayrı yoldan değişebiliyor
+  (setScreen · geri tuşu · davetten dönüş), her birine ayrı satır yazmak
+  birini unutmak demekti.
 - **`detectSessionInUrl: false`** — adres çubuğundaki `#room=` ile çakışıyor.
   Şifre sıfırlama jetonu bu yüzden elle okunuyor (`kurtarmaJetonu`).
 - **Ses dosyası yok, Web Audio ile üretiliyor** (`src/audio.ts`). Paket
@@ -408,8 +433,15 @@ tarihi yaz. "Herhalde çalışır" diye sessizce geçme — denenmemiş iş bitm
 sayılmıyor.
 
 **Kullanıcıda (kod işi değil)**
-- [ ] SMTP sağlayıcısı bağla (Resend/Brevo) — şifre sıfırlama bunsuz çalışmıyor
-- [ ] Supabase → URL Configuration → izinli yönlendirmelere site adresini ekle
+- [ ] **`supabase/schema.sql`'i yeniden çalıştır** — 2026-08-11'de `kisi_ara`
+      ve `engellediklerim` eklendi. Çalıştırılmadan arkadaş arama kutusu hep
+      "kimse bulunamadı" der ve engellediklerin listesi adsız kalır (ikisi de
+      geri düşüşle sessizce idare ediyor, uygulama kırılmıyor).
+- [ ] **Şifre sıfırlama şimdilik ertelendi** (2026-08-11 kararı). Kod tarafı
+      hazır; canlıya almadan önce ikisi birden gerekiyor:
+      SMTP sağlayıcısı (Resend/Brevo) ve Supabase → URL Configuration →
+      izinli yönlendirmelere site adresi. E-posta doğrulaması bilerek kapalı
+      (Supabase'in gönderim sınırı).
 - [ ] Depolama kotası kararı: 1 GB ≈ 200-700 fotoğraf, dolunca ne olacak.
       **Canlıya almadan hemen önce konuşulacak** (2026-08-11 kararı); şimdiden
       kod yazma, seçenek kullanıcıda.
@@ -462,25 +494,18 @@ denenmedi. Parantez içi, denemek için gereken şey.
       kullanıcı "sesler iyi" dedi; geriye yalnızca yukarıdaki tablet maddesi
       kaldı.
 
+*Şema çalıştırılmadan denenemez*
+- [ ] **Arkadaş arama ve engellediklerin listesi.** `kisi_ara` ve
+      `engellediklerim` 2026-08-11'de yazıldı; şema henüz çalıştırılmadığı için
+      istemci geri düşüşle çalışıyor (arama boş dönüyor). Arayüz denendi:
+      kutu çıkıyor, 3 harften kısa yazınca sorgu atılmıyor, sonuç yoksa
+      "Bu adla kimse bulunamadı." yazıyor. Gerçek sonuç görülmedi.
+
 *İki hesap gerekiyor* — **hepsi 2026-08-11'de a/b hesaplarıyla yapıldı.**
 Kalan tek şey:
 - [ ] Mesaj hız sınırı (saatte 60) gerçekten tetikleniyor mu. Tetikleyici ve
       metni yerinde (`mesaj_hiz_siniri`, `hata.test.ts` eşlemeyi tutuyor) ama
       60 gerçek mesaj gönderilmedi — veritabanını çöple doldurmamak için.
-
-**Karar bekleyen davranışlar** — 2026-08-11'de a/b testinde görüldü, ikisi de
-bilinçli tercihin sonucu ama sonuçları kullanıcıya söylenmedi.
-
-- [ ] **Engellediğin kişinin adı sana da görünmüyor.** `profil_gorunur`
-      engellemeyi çift yönlü uyguluyor; "Engellediklerin" listesinde herkes
-      "Engellenen kişi / EK" diye çıkıyor. Bir kişide sorun değil, birkaç
-      kişide doğru olanın engelini kaldırmak imkânsız.
-- [ ] **Engelleme arkadaşlığı siliyor ve geri yolu yok.** Onay penceresi bunu
-      yazıyor ("Aranızdaki arkadaşlık da kalkar") ama engeli kaldırınca
-      arkadaşlık geri gelmiyor ve arkadaş eklemenin tek yolu *birlikte
-      oynamış olmak* (`birlikteOynananlar`) — arama/e-postayla ekleme yok.
-      Testte a ile b'nin yeniden arkadaş olabilmesi için yeni bir odaya
-      birlikte girmeleri gerekti.
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)

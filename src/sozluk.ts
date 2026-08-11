@@ -295,6 +295,13 @@ export const SOZLUK: Record<string, string> = {
   Engellediklerin: 'People you blocked',
   'sana mesaj gönderemez': 'cannot message you',
   'Engeli kaldır': 'Unblock',
+  'Sana mesaj gönderemezler ve profilini göremezler.':
+    'They cannot message you or see your profile.',
+  'Engeli kaldırmak arkadaşlığı geri getirmez; yeniden arkadaş olmak için birinizin istek göndermesi gerekir.':
+    'Unblocking does not restore the friendship; one of you has to send a request again.',
+  'Arkadaş ara': 'Find a friend',
+  'Adının en az {n} harfi': 'At least {n} letters of their name',
+  'Bu adla kimse bulunamadı.': 'Nobody found with that name.',
   'Birlikte puzzle çözdüklerin': 'People you solved puzzles with',
   Ekle: 'Add',
 
