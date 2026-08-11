@@ -39,6 +39,7 @@ import {
   sesiKapat,
   tik,
 } from '../audio'
+import { kabaMi } from '../kufur'
 import { parcaBul } from '../muzik'
 import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
@@ -654,6 +655,17 @@ export default function GameScreen({ config, onExit }: Props) {
         break
       }
       case 'chat': {
+        /*
+          Gelen mesaj da süzülüyor, yalnızca gönderilen değil. Karşı taraf
+          bizim kodumuzu çalıştırmak zorunda değil (konsoldan elle mesaj
+          gönderilebiliyor); ne göreceğime kendi cihazım karar vermeli.
+          Sessizce yutulmuyor — bir şeyin süzüldüğü yazılıyor, yoksa "mesajım
+          gitmedi mi" belirsizliği çıkıyor.
+        */
+        if (kabaMi(msg.metin)) {
+          sistemSatiri(c('{ad} adlı kişinin bir mesajı küfür içerdiği için gösterilmedi.', { ad: msg.ad }))
+          break
+        }
         setChat((l) => [...l.slice(-99), { ad: msg.ad, metin: msg.metin, ts: msg.ts, benMi: false }])
         setChatAcik((acik) => {
           if (!acik) setOkunmamis((n) => n + 1)
@@ -1016,6 +1028,11 @@ export default function GameScreen({ config, onExit }: Props) {
   const chatGonder = (metin: string) => {
     const temiz = metin.trim().slice(0, 300)
     if (!temiz) return
+    if (kabaMi(temiz)) {
+      // Kutuyu boşaltmıyoruz: kullanıcı yazdığını düzeltebilsin
+      sistemSatiri(c('Bu mesaj gönderilmedi: küfür ya da tehdit içeriyor.'))
+      return
+    }
     const ad = benimAdim
     const ts = Date.now()
     refs.current.room?.send({ t: 'chat', ad, metin: temiz, ts })

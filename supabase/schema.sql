@@ -780,17 +780,23 @@ create trigger on_puzzle_hiz
   Kelime başı sınırı (\m) var, kelime sonu sınırı yok: Türkçe ek alıyor
   ("orospusun", "gebertirim"). Buna karşılık kısa kökler tam yazılıyor —
   "göt" yalnızca kendi başınayken eşleşiyor, yoksa "götürmek" de takılırdı.
+
+  Aynı sözlüğün bir kopyası `src/kufur.ts`'te: oyun içi sohbet P2P, oradan
+  geçen metin sunucuya hiç uğramıyor. `kufur.test.ts` iki listeyi karşılaştırıp
+  ayrıştıklarında düşüyor — birini değiştirirsen ötekini de değiştir.
 */
 create or replace function public.kaba_mi(p_metin text)
 returns boolean
 language sql
 immutable
 as $$
-  select coalesce(p_metin, '') ~* (
+  -- translate: 'İ' ve 'I' lower() ile kalıba uymayan biçimlere dönüşüyor,
+  -- büyük harfle yazılmış küfür ("SİKTİR") süzgeçten geçiyordu
+  select translate(coalesce(p_metin, ''), 'İI', 'iı') ~* (
     '\m(' ||
     -- hakaret
     'orospu|piç|yarra|amc[ıi][kğ]|am[ıi]na|sikey|siktir|sikik|siker|sikm|' ||
-    'ibne|kahpe|pezevenk|gavat|sürtük|yavşak|şerefsiz|puşt|kaltak|' ||
+    'ibne|kahpe|pezevenk|gavat|sürtük|yavşak|şerefsiz|puşt|kaltak|göt\M|' ||
     'fuck|shit|bitch|asshole|cunt|whore|bastard|dickhead|' ||
     -- tehdit
     'öldürece|öldürürüm|öldürürüz|gebert|geber\M|canına oku|' ||

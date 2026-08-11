@@ -302,6 +302,8 @@ export const SOZLUK: Record<string, string> = {
   'Engeli kaldırmak arkadaşlığı geri getirmez; yeniden arkadaş olmak için birinizin istek göndermesi gerekir.':
     'Unblocking does not restore the friendship; one of you has to send a request again.',
   'Şu an kimseyi engellemiyorsun.': 'You are not blocking anyone right now.',
+  '{ad} adlı kişinin bir mesajı küfür içerdiği için gösterilmedi.':
+    'A message from {ad} was hidden because it contains abusive language.',
   'Arkadaş ara': 'Find a friend',
   'Adının en az {n} harfi': 'At least {n} letters of their name',
   'Bu adla kimse bulunamadı.': 'Nobody found with that name.',

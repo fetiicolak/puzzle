@@ -239,10 +239,19 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   eleme sessiz değil, kullanıcı mesajının gitmediğini görüyor. Kelime **başı**
   sınırı var, sonu yok (Türkçe ek alıyor); kısa kökler tam yazılıyor — "göt"
   kelime sonu sınırıyla, yoksa "götürmek" de takılırdı.
-- **Süzgeç yalnızca `messages` tablosuna işliyor.** Oyun içi sohbet P2P; oradan
-  geçen metin sunucuya hiç uğramıyor, süzülmüyor. Orada denetim istenirse yol
-  ayrı: ya sohbeti sunucuya taşımak ya istemcide süzmek (karşı taraf bizim
-  kodumuzu çalıştırmak zorunda olmadığı için ikincisi zayıf).
+- **Aynı sözlük iki dosyada: `src/kufur.ts` ve `kaba_mi()`.** Mesajlaşma
+  sunucudan geçiyor, oyun içi sohbet P2P — ikisini tek yerden süzmenin yolu
+  sohbeti sunucuya taşımak, o da her satır için veritabanı yazması demek
+  (masraf + gecikme). Kopya bilinçli; `kufur.test.ts` iki listeyi karşılaştırıp
+  ayrıştıklarında düşüyor, **birini değiştirince ötekini de değiştir.**
+- **Sohbette süzgeç iki uçta da çalışır, asıl iş alıcı tarafta.** Karşı taraf
+  bizim kodumuzu çalıştırmak zorunda değil; yalnızca gönderirken süzmek kodu
+  değiştiren birinin karşısında hiçbir şey ifade etmezdi. Ne göreceğine
+  kullanıcının kendi cihazı karar veriyor. Süzülen mesaj sessizce yutulmuyor,
+  yerine sistem satırı düşüyor — yoksa "mesajım gitti mi" belirsizliği çıkıyor.
+- **Türkçe büyük harf süzgeci deliyordu.** `toLowerCase()` 'İ'yi 'i' + birleşen
+  nokta yapıyor, 'I'yı 'i'; "SİKTİR" kalıba uymuyordu. İki tarafta da elle
+  eşleniyor: JS'te `replace`, SQL'de `translate(..., 'İI', 'iı')`.
 - **`profiles`'ı okumanın iki yolu var, ikisini karıştırma.** Politika
   (`profil_gorunur`) yalnızca arkadaşları ve birlikte oynadıklarını gösteriyor
   ve engeli **çift yönlü** uyguluyor. Bunun dışında bir şey gerekiyorsa
@@ -529,8 +538,8 @@ Kalan tek şey:
       ayıklamanın resmî yolu yok. Ancak girişi geciktirerek çözülür.
 - [ ] Test kapsamı: `net/peer.ts` (WebRTC), `engine/board.ts` (tuval) ve
       bileşenler hâlâ test edilmiyor — üçü de sahte ortam gerektiriyor.
-      Şu an 125 test: `engine` 41 + `protocol` 28 + `muzik` 14 + `puzzles` 15
-      + `Linkli` 12 + `ad`/`odakodu` 9 + `hata` 6.
+      Şu an 138 test: `engine` 41 + `protocol` 28 + `muzik` 20 + `puzzles` 15
+      + `Linkli` 12 + `ad`/`odakodu` 9 + `kufur` 7 + `hata` 6.
 - [ ] Erişilebilirlik kalanı: renk karşıtlığı ölçülmedi, `canvas` üzerindeki
       oyun klavyeyle oynanamıyor.
 
@@ -542,7 +551,7 @@ Kalan tek şey:
 
 ```bash
 npm run dev      # http://localhost:5173
-npm test         # Vitest — 125 test
+npm test         # Vitest — 138 test
 npm run lint     # ESLint (flat config, tip denetimli kurallar açık)
 npm run build    # tsc -b && vite build
 ```
