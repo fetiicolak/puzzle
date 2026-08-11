@@ -268,12 +268,20 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
               )}
             </small>
 
-            {engelliler.length > 0 && (
-              <div className="profil-bolum">
-                <b>{ceviri('Engellediklerin')}</b>
-                <small className="muted">
-                  {ceviri('Sana mesaj gönderemezler ve profilini göremezler.')}
-                </small>
+            {/*
+              Bölüm kimseyi engellememişken de duruyor. Önce yalnızca dolu
+              olduğunda çiziliyordu ve "engellediklerimi nerede görürüm"
+              sorusunun cevabı hiçbir yerde yazmıyordu: boş liste ile
+              "bu özellik yok" ayırt edilemiyordu.
+            */}
+            <div className="profil-bolum">
+              <b>{ceviri('Engellediklerin')}</b>
+              <small className="muted">
+                {engelliler.length > 0
+                  ? ceviri('Sana mesaj gönderemezler ve profilini göremezler.')
+                  : ceviri('Şu an kimseyi engellemiyorsun.')}
+              </small>
+              {engelliler.length > 0 && (
                 <div className="friend-list">
                   {engelliler.map((k) => {
                     const url = k.avatarPath ? engelAvatarlari.get(k.avatarPath) : null
@@ -297,13 +305,15 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
                     )
                   })}
                 </div>
+              )}
+              {engelliler.length > 0 && (
                 <small className="muted">
                   {ceviri(
                     'Engeli kaldırmak arkadaşlığı geri getirmez; yeniden arkadaş olmak için birinizin istek göndermesi gerekir.',
                   )}
                 </small>
-              </div>
-            )}
+              )}
+            </div>
 
             <div className="tehlike-bolge">
               <b>{ceviri('Hesabı sil')}</b>

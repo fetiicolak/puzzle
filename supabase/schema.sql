@@ -769,6 +769,45 @@ create trigger on_puzzle_hiz
   before insert on public.puzzles
   for each row execute function public.puzzle_hiz_siniri();
 
+/*
+  Küfür / tehdit süzgeci.
+
+  Bilerek dar: sözlük yalnızca bağlamı ne olursa olsun hakaret ya da tehdit
+  sayılan kalıpları içeriyor. Geniş bir liste, normal cümleleri de eleyip
+  insanların mesajlaşmasını bozuyor — burada yanlış pozitif, kaçırılan bir
+  küfürden daha pahalı.
+
+  Kelime başı sınırı (\m) var, kelime sonu sınırı yok: Türkçe ek alıyor
+  ("orospusun", "gebertirim"). Buna karşılık kısa kökler tam yazılıyor —
+  "göt" yalnızca kendi başınayken eşleşiyor, yoksa "götürmek" de takılırdı.
+*/
+create or replace function public.kaba_mi(p_metin text)
+returns boolean
+language sql
+immutable
+as $$
+  select coalesce(p_metin, '') ~* (
+    '\m(' ||
+    -- hakaret
+    'orospu|piç|yarra|amc[ıi][kğ]|am[ıi]na|sikey|siktir|sikik|siker|sikm|' ||
+    'ibne|kahpe|pezevenk|gavat|sürtük|yavşak|şerefsiz|puşt|kaltak|' ||
+    'fuck|shit|bitch|asshole|cunt|whore|bastard|dickhead|' ||
+    -- tehdit
+    'öldürece|öldürürüm|öldürürüz|gebert|geber\M|canına oku|' ||
+    'kill you|i will kill' ||
+    ')'
+  );
+$$;
+
+/*
+  Mesaj süzgeci: ani yağmur ve küfür.
+
+  Eskiden tek kural vardı — saatte 60 mesaj. Yanlış ölçek: hızlı yazışan iki
+  kişi bir saati doldurup susturuluyor, buna karşılık dakikada bir küfür
+  gönderen hiç takılmıyordu. Sınır artık ani yağmura bakıyor (10 saniyede 5,
+  dakikada 20); normal sohbet bunları görmez, arka arkaya yapıştırılan spam
+  ilk saniyede durur. Saatlik tavan bilerek kaldırıldı.
+*/
 create or replace function public.mesaj_hiz_siniri()
 returns trigger
 language plpgsql
@@ -777,9 +816,16 @@ set search_path = public
 as $$
 begin
   if (select count(*) from public.messages
-      where sender = new.sender and created_at > now() - interval '1 hour') >= 60 then
+      where sender = new.sender and created_at > now() - interval '10 seconds') >= 5
+  or (select count(*) from public.messages
+      where sender = new.sender and created_at > now() - interval '1 minute') >= 20 then
     raise exception 'cok hizli mesaj gonderiyorsun, biraz bekle';
   end if;
+
+  if public.kaba_mi(new.body) then
+    raise exception 'mesajinda kufur ya da tehdit var';
+  end if;
+
   return new;
 end;
 $$;

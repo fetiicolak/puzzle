@@ -70,6 +70,8 @@ export const SOZLUK: Record<string, string> = {
     'You have reached today’s limit for creating puzzles. Try again tomorrow.',
   'Çok hızlı mesaj gönderiyorsun. Biraz bekleyip tekrar dene.':
     'You are sending messages too quickly. Wait a moment and try again.',
+  'Bu mesaj gönderilmedi: küfür ya da tehdit içeriyor.':
+    'This message was not sent: it contains abusive or threatening language.',
   'Bugünlük arkadaşlık isteği sınırına ulaştın. Yarın tekrar dene.':
     'You have reached today’s limit for friend requests. Try again tomorrow.',
   'Bugünlük şikayet sınırına ulaştın.': 'You have reached today’s report limit.',
@@ -299,6 +301,7 @@ export const SOZLUK: Record<string, string> = {
     'They cannot message you or see your profile.',
   'Engeli kaldırmak arkadaşlığı geri getirmez; yeniden arkadaş olmak için birinizin istek göndermesi gerekir.':
     'Unblocking does not restore the friendship; one of you has to send a request again.',
+  'Şu an kimseyi engellemiyorsun.': 'You are not blocking anyone right now.',
   'Arkadaş ara': 'Find a friend',
   'Adının en az {n} harfi': 'At least {n} letters of their name',
   'Bu adla kimse bulunamadı.': 'Nobody found with that name.',

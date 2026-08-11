@@ -33,6 +33,7 @@ const SUNUCU_METINLERI = [
   'mesaj icerigi degistirilemez',
   'gunluk puzzle sinirina ulastin',
   'cok hizli mesaj gonderiyorsun, biraz bekle',
+  'mesajinda kufur ya da tehdit var',
   'gunluk arkadaslik istegi sinirina ulastin',
   'gunluk sikayet sinirina ulastin',
   'oturum yok',

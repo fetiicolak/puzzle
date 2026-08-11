@@ -212,6 +212,10 @@ const SUNUCU_HATALARI: [string, string][] = [
   ],
   ['cok hizli mesaj gonderiyorsun', 'Çok hızlı mesaj gönderiyorsun. Biraz bekleyip tekrar dene.'],
   [
+    'mesajinda kufur ya da tehdit var',
+    'Bu mesaj gönderilmedi: küfür ya da tehdit içeriyor.',
+  ],
+  [
     'gunluk arkadaslik istegi sinirina ulastin',
     'Bugünlük arkadaşlık isteği sınırına ulaştın. Yarın tekrar dene.',
   ],

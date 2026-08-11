@@ -230,6 +230,19 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
 - **Satır düzeyi politika sütunu korumaz.** "Bu satırı güncelleyebilir" demek
   "her sütunu değiştirebilir" demektir. Sütun kısıtı için trigger yaz;
   örnek desen: `puzzle_guncelleme_kontrol`, `friendship_guncelleme_kontrol`.
+- **Mesaj sınırı ani yağmura bakar, saatlik toplama değil.** Eskiden tek kural
+  vardı (saatte 60) ve yanlış ölçekteydi: hızlı yazışan iki kişi susturuluyor,
+  dakikada bir küfür gönderen hiç takılmıyordu. Bugün 10 saniyede 5 · dakikada
+  20 (`mesaj_hiz_siniri`) ve ayrı bir içerik süzgeci (`kaba_mi`).
+- **Küfür sözlüğü bilerek dar.** Yalnızca bağlamı ne olursa olsun hakaret ya da
+  tehdit sayılan kalıplar var. Yanlış pozitif burada kaçırılan küfürden pahalı:
+  eleme sessiz değil, kullanıcı mesajının gitmediğini görüyor. Kelime **başı**
+  sınırı var, sonu yok (Türkçe ek alıyor); kısa kökler tam yazılıyor — "göt"
+  kelime sonu sınırıyla, yoksa "götürmek" de takılırdı.
+- **Süzgeç yalnızca `messages` tablosuna işliyor.** Oyun içi sohbet P2P; oradan
+  geçen metin sunucuya hiç uğramıyor, süzülmüyor. Orada denetim istenirse yol
+  ayrı: ya sohbeti sunucuya taşımak ya istemcide süzmek (karşı taraf bizim
+  kodumuzu çalıştırmak zorunda olmadığı için ikincisi zayıf).
 - **`profiles`'ı okumanın iki yolu var, ikisini karıştırma.** Politika
   (`profil_gorunur`) yalnızca arkadaşları ve birlikte oynadıklarını gösteriyor
   ve engeli **çift yönlü** uyguluyor. Bunun dışında bir şey gerekiyorsa
@@ -503,9 +516,11 @@ denenmedi. Parantez içi, denemek için gereken şey.
 
 *İki hesap gerekiyor* — **hepsi 2026-08-11'de a/b hesaplarıyla yapıldı.**
 Kalan tek şey:
-- [ ] Mesaj hız sınırı (saatte 60) gerçekten tetikleniyor mu. Tetikleyici ve
-      metni yerinde (`mesaj_hiz_siniri`, `hata.test.ts` eşlemeyi tutuyor) ama
-      60 gerçek mesaj gönderilmedi — veritabanını çöple doldurmamak için.
+- [ ] **Mesaj süzgeci gerçekten tetikleniyor mu** (2026-08-11'de yeniden
+      yazıldı: 10 sn'de 5 / dakikada 20, artı `kaba_mi` küfür-tehdit süzgeci).
+      Tetikleyici ve metinler yerinde, `hata.test.ts` eşlemeyi tutuyor; şema
+      çalıştırılmadığı için canlıda hiç denenmedi. Denemesi kolay: arka arkaya
+      beş mesaj, sonra listedeki bir kelimeyi içeren tek mesaj.
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)
