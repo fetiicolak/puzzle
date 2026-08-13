@@ -267,6 +267,13 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   istemciden Storage API ile yapılır (`hesabiSil` içindeki `klasoruBosalt`).
 - İstemcide tolerans: yeni sütun eksikse kayıt tamamen başarısız olmasın
   (`createRemotePuzzle` içindeki `eksikSutun` geri düşüşü).
+- **Fotoğraf küçültme yükleme anında değil, seçim anında yapılıyor** —
+  `toPuzzleImage` (`storage.ts`), en uzun kenar 1600 px, JPEG 0.85. Üç giriş
+  yolu da (dosya seçme · sürükle-bırak · hazır eser) `HomeScreen`'deki `pick`
+  üzerinden buradan geçiyor, o yüzden depoya / `localStorage`'a / P2P'ye giden
+  hep aynı küçük kopya. `createRemotePuzzle`'a bakıp "küçültme yok" sanmak
+  kolay; **oraya ikinci bir küçültme ekleme**, ölü katman olur. Ölçüldü
+  (2026-08-13): 4032x3024 / 5,94 MB kaynak → 1600x1200 / 363 KB.
 
 ## P2P
 
@@ -468,12 +475,10 @@ sayılmıyor.
       sil, Pages'in dört A kaydı + `www` CNAME'i gir, depoya `public/CNAME`
       ekle, Pages'te Enforce HTTPS. Sonrasında Supabase → URL Configuration
       (Site URL + Redirect URLs) ve Resend'de alan adı doğrulaması.
-- [ ] **Puzzle fotoğrafını yüklemeden önce küçült** (`createRemotePuzzle`,
-      `src/supabase/puzzles.ts`); desen `avatarHazirla`. En uzun kenar
-      ~1600 px, JPEG. Kotayı geciktirmenin yanında P2P aktarımı da hızlandırır.
-- [ ] Depolama kotası kararı: 1 GB ≈ 200-700 fotoğraf, dolunca ne olacak.
-      Ara paket yok, sonraki basamak doğrudan Pro 25 $/ay. Free katmanın asıl
-      riski depolama değil, **7 gün hareketsizlikte projenin duraklatılması**.
+- [ ] Depolama kotası kararı: 1 GB ≈ 2.500-3.000 fotoğraf (aşağıdaki ölçüme
+      göre), dolunca ne olacak. Ara paket yok, sonraki basamak doğrudan Pro
+      25 $/ay. Free katmanın asıl riski depolama değil, **7 gün
+      hareketsizlikte projenin duraklatılması**.
 - [ ] `reports` tablosunu görecek bir arayüz yok, şikâyetlere SQL'den elle
       bakılıyor. İlk sürüm için kabul edilebilir ama bilerek kabul edilmeli.
 
