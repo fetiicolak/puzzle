@@ -134,6 +134,46 @@ export class PuzzleBoard {
 
   private detachFns: (() => void)[] = []
 
+  /*
+    Tanılama sayaçları.
+
+    Zayıf cihazdaki takılma aylarca ölçülemedi: `__puzzle` yalnızca dev
+    derlemesinde tanımlı, Android Chrome'da konsol yok ve asıl sorun tam da
+    canlıdaki gerçek telefonda yaşanıyor. Sayaç burada tutulup `tani()` ile
+    dışarı veriliyor; masrafı kare başına iki `performance.now()` çağrısı.
+  */
+  private kareSuresi = 0
+  private kareSayisi = 0
+  private sonOlcum = 0
+
+  /** Cihazda gerçekten ne olduğunu okumak için — tanılama katmanı kullanıyor */
+  tani(): {
+    dpr: number
+    zayif: boolean
+    hafifMod: boolean
+    parca: number
+    ortRender: number
+    fps: number
+  } {
+    const simdi = performance.now()
+    const gecen = this.sonOlcum ? simdi - this.sonOlcum : 0
+    const ort = this.kareSayisi > 0 ? this.kareSuresi / this.kareSayisi : 0
+    const fps = gecen > 0 ? (this.kareSayisi * 1000) / gecen : 0
+    // okunduktan sonra sıfırla: gösterilen değer hep son aralığa ait olsun,
+    // yoksa oyunun başındaki ağır kareler ortalamayı sonsuza kadar bozuyor
+    this.kareSuresi = 0
+    this.kareSayisi = 0
+    this.sonOlcum = simdi
+    return {
+      dpr: this.dpr,
+      zayif: this.zayif,
+      hafifMod: this.hafifMod,
+      parca: this.state.pieces.length,
+      ortRender: ort,
+      fps,
+    }
+  }
+
   constructor(
     canvas: HTMLCanvasElement,
     state: GameState,
@@ -656,6 +696,7 @@ export class PuzzleBoard {
    * imleçleri çiz.
    */
   private render(): void {
+    const baslangic = performance.now()
     const { ctx, canvas, state } = this
     const hareketli = this.hareketliGruplar()
     if (this.statikKirli) {
@@ -729,5 +770,7 @@ export class PuzzleBoard {
     }
 
     ctx.restore()
+    this.kareSuresi += performance.now() - baslangic
+    this.kareSayisi++
   }
 }

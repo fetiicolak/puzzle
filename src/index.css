@@ -2237,6 +2237,29 @@ button {
   içeriğin üstüne biniyor, düğmelere basmak imkânsız hâle geliyordu. Tarayıcı
   sekmesinde bu değerler 0 — orada hiçbir şey değişmiyor.
 */
+/*
+  Cihaz tanılama katmanı (#tani). Geliştirme aracı: bilerek süssüz.
+  Tuvalin üstünde duruyor ama backdrop-filter yok — altındaki tuval her karede
+  değişiyor, bulanıklık ölçtüğümüz şeyi bozardı.
+  En alta yapışık: üst çubuk dar ekranda ikinci satıra sarıyor ve panellerin
+  varsayılan yerleri dört köşede; alt orta hiçbiriyle çakışmıyor.
+*/
+.tani-paneli {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  max-width: calc(100% - 16px);
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(10, 8, 16, 0.92);
+  color: #7ee08a;
+  font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: center;
+  pointer-events: none;
+}
+
 .game-topbar {
   display: flex;
   align-items: center;

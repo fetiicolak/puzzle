@@ -213,6 +213,19 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   hesaplanıyor ve canvas'ta en pahalı işlerden biri.
 - Ölçmeden "iyileştirdim" deme. Konsoldan: `__puzzle.board` üzerinde
   `statikKirli` kurup `render()` süresini karşılaştır (dev derlemede açık).
+- **Gerçek cihazda ölçmek için adres sonuna `#tani` ekle.** Ekranın altında
+  parça sayısı · `dpr` · zayıf mı · `hafifMod` · ortalama `render` süresi ·
+  fps yazan bir şerit çıkıyor (`TaniPaneli`). `__puzzle` yalnızca dev
+  derlemesinde tanımlı ve Android Chrome'da konsol yok; sorun da tam olarak
+  canlıdaki gerçek telefonda yaşandığı için ölçüm aylarca yapılamamıştı.
+  - Oda kodu da hash'te durduğundan `#room=ABC&tani` biçiminde birlikte yazılır.
+  - **Boştayken "boşta" yazar, sayı değil.** Hiçbir şey değişmiyorken kare
+    çizilmiyor; orada `0.00 ms · 0 fps` göstermek paneli bozuk gösteriyordu.
+    Ölçüm yalnızca parça sürüklenirken anlamlı.
+  - Sayaç okununca sıfırlanıyor: gösterilen değer hep son yarım saniyeye ait.
+    Yoksa açılıştaki ağır kareler ortalamayı sonsuza kadar bozuyor.
+  - Referans (masaüstü, 294 parça, `dpr` 1.25, `hafifMod` açık): sürükleme
+    sırasında 2,5-3,1 ms / 94-100 fps. Telefon bunun neresinde, ölçülecek.
 
 ## Sunucu ve güvenlik
 

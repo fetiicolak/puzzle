@@ -44,6 +44,7 @@ import { parcaBul } from '../muzik'
 import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
 import PanelBaslik from './PanelBaslik'
+import TaniPaneli from './TaniPaneli'
 import { useSurukle, useYakinlastir } from './surukle'
 import {
   baglantiTesti,
@@ -185,9 +186,20 @@ const STATUS_COLOR: Record<RoomStatus, string> = {
   error: '#eb5757',
 }
 
+/*
+  Tanılama katmanı yalnızca adreste `tani` geçiyorsa çizilir. Açılışta bir kez
+  okunuyor: oyun ortasında açılıp kapanması gerekmiyor, sabit olması ölçümün
+  kendi maliyetini de sabit tutuyor.
+
+  Oda kodu da `#` parçasında durduğu için `#room=...&tani` biçiminde birlikte
+  yazılabiliyor.
+*/
+const TANI_ACIK = /(^|[#&?])tani\b/.test(location.hash + location.search)
+
 export default function GameScreen({ config, onExit }: Props) {
   const auth = useAuth()
   const { ceviri } = useDil()
+  const [taniBoard, setTaniBoard] = useState<PuzzleBoard | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [phase, setPhase] = useState<'loading' | 'playing' | 'done'>('loading')
   const [loadText, setLoadText] = useState(
@@ -482,6 +494,7 @@ export default function GameScreen({ config, onExit }: Props) {
       // dev'de konsoldan/testten erişim için
       ;(window as unknown as Record<string, unknown>).__puzzle = { game, board, refs: r }
     }
+    if (TANI_ACIK) setTaniBoard(board)
     setProg(progress(game))
     setPhase(game.pieces.length > 0 && progressDone(game) ? 'done' : 'playing')
     // hiç parça oynatılmadan çıkılsa bile geçmişte görünsün
@@ -1196,6 +1209,7 @@ export default function GameScreen({ config, onExit }: Props) {
 
   return (
     <div className="game-root" ref={oyunKokRef}>
+      {TANI_ACIK && <TaniPaneli board={taniBoard} />}
       <div className="game-topbar" ref={ustCubukRef}>
         <button
           className="icon-btn"
