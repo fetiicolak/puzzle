@@ -419,6 +419,19 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
     - Kısılma 0,25 sn ve arkasından `kaynaklariSustur()`; ileriye planlanmış
       notalar (ambiyansta 8+ sn süren döngü) yoksa ekran kapandıktan sonra
       da çalmaya devam ediyor.
+  - **Uygulama arka plana alınınca bağlamın tamamı askıya alınıyor**
+    (`visibilitychange` + `pagehide`, `audio.ts`). Web Audio kendiliğinden
+    susmuyor: kurulu uygulamada ana ekrana dönüldüğünde ve telefon
+    kilitlendiğinde müzik çalmaya devam ediyordu. Sekmede tarayıcı bazen askıya
+    alıyor, kurulu uygulamada almıyor — davranışa güvenme. Ayara **dokunma**,
+    kullanıcı müziği kapatmadı.
+    - **Askıya almak tek başına yetmiyor.** Efektler `uyandir()`i çağırıyor, o
+      da bağlamı geri uyandırıyordu: karşı taraf oynamaya devam ettiği için
+      gelen her `tik`/`birlesme` sesi geri getiriyordu. `uyandir` arka planda
+      `null` dönüyor.
+    - **`uyandir()`in döndürdüğü değere bak.** `.then(() => nota(...))`
+      sonucu yok sayıyordu; notalar donmuş saate planlanıyor ve öne dönüldüğü
+      anda hepsi birden çalıyordu. Ölçüldü: arka planda 16 osilatör → 0.
   - Efekt ve müzik ayrı kazanç yollarından geçiyor; seviye (0-1) bu yolların
     üstüne **çarpan** olarak biniyor. Seviye 1 iken ses eski davranışla birebir
     aynı — yeni ayar hiçbir şeyi sessizce değiştirmiyor.

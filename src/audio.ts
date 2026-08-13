@@ -145,6 +145,12 @@ function kur(): AudioContext | null {
 async function uyandir(): Promise<AudioContext | null> {
   const c = kur()
   if (!c) return null
+  /*
+    Uygulama arka plandayken sesi geri açma. Tek başına `suspend` yetmiyordu:
+    karşı taraf oynamaya devam ediyor ve gelen her `tik`/`birlesme` burada
+    bağlamı yeniden uyandırıp sesi geri getiriyordu.
+  */
+  if (arkaPlandaMi()) return null
   if (c.state === 'suspended') {
     try {
       await c.resume()
@@ -153,6 +159,67 @@ async function uyandir(): Promise<AudioContext | null> {
     }
   }
   return c
+}
+
+// ------------------------------------------------- arka planda sus
+
+/**
+ * Uygulama arka plana alınınca sesi kes.
+ *
+ * Web Audio kendiliğinden susmuyor: kurulu uygulamada ana ekrana dönüldüğünde
+ * (ve telefon kilitlendiğinde) müzik çalmaya devam ediyordu. Tarayıcı sekmesi
+ * bazen askıya alıyor, kurulu uygulama almıyor — davranışa güvenilemez, elle
+ * yönetiliyor.
+ *
+ * Ayara **dokunulmuyor**: kullanıcı müziği kapatmadı, uygulamadan çıktı.
+ * Bütün bağlam askıya alındığı için efektler de susuyor ve planlayıcı
+ * kendiliğinden boşa düşüyor — `planla()` `currentTime`a bakıyor, o da
+ * askıdayken ilerlemiyor.
+ */
+function arkaPlandaMi(): boolean {
+  return typeof document !== 'undefined' && document.visibilityState === 'hidden'
+}
+
+/** Askıya alan biz miyiz: geri dönünce yalnızca kendi askımızı çözüyoruz */
+let arkaPlandaAskida = false
+
+function arkaPlanaGec(): void {
+  const c = ctx
+  if (!c || c.state !== 'running') return
+  arkaPlandaAskida = true
+  void c.suspend().catch(() => {
+    arkaPlandaAskida = false
+  })
+}
+
+function oneGel(): void {
+  const c = ctx
+  if (!c || !arkaPlandaAskida) return
+  arkaPlandaAskida = false
+  void c.resume().catch(() => {
+    // Safari askıdan çıkmak için kullanıcı hareketi isteyebiliyor;
+    // ilk dokunuşta bir kez daha dene.
+    window.addEventListener(
+      'pointerdown',
+      () => {
+        void c.resume().catch(() => {
+          // yoksay
+        })
+      },
+      { once: true },
+    )
+  })
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (arkaPlandaMi()) arkaPlanaGec()
+    else oneGel()
+  })
+  // iOS uygulamayı arka plana atarken visibilitychange yerine yalnızca
+  // pagehide gönderebiliyor; ikisi de aynı işi yapıyor, ikinci çağrı zararsız.
+  window.addEventListener('pagehide', arkaPlanaGec)
+  window.addEventListener('pageshow', oneGel)
 }
 
 // ----------------------------------------------------------------- efektler
@@ -192,16 +259,28 @@ function nota(
   osc.stop(t + sure + 0.05)
 }
 
+/*
+  Efektlerde `uyandir()`in **döndürdüğü değere bakmak zorunlu**. Önce
+  `.then(() => nota(...))` yazıyordu ve sonucu yok sayıyordu: bağlam
+  uyandırılamasa bile notalar yine planlanıyordu. Uygulama arka plandayken
+  bunun bedeli somut — karşı taraf oynamaya devam ediyor, gelen her hamle
+  donmuş saate nota yazıyor ve hepsi öne dönüldüğü anda birden çalıyordu.
+  Ölçüldü: arka planda 16 osilatör kuruluyordu, şimdi 0.
+*/
+
 /** Parça çerçeveye oturdu: kısa, yumuşak bir "tık" */
 export function tik(): void {
   if (!sesAcikMi()) return
-  void uyandir().then(() => nota(660, 0.09, 'triangle', 0.14))
+  void uyandir().then((c) => {
+    if (c) nota(660, 0.09, 'triangle', 0.14)
+  })
 }
 
 /** İki parça birleşti: tıktan biraz daha tatlı, iki notalı */
 export function birlesme(): void {
   if (!sesAcikMi()) return
-  void uyandir().then(() => {
+  void uyandir().then((c) => {
+    if (!c) return
     nota(587.33, 0.11, 'triangle', 0.13)
     nota(880, 0.16, 'sine', 0.1, 0.055)
   })
@@ -210,7 +289,8 @@ export function birlesme(): void {
 /** Puzzle bitti: küçük bir kutlama ezgisi */
 export function kutlama(): void {
   if (!sesAcikMi()) return
-  void uyandir().then(() => {
+  void uyandir().then((c) => {
+    if (!c) return
     // Do-Mi-Sol-Do (majör arpej), yukarı doğru
     const notalar = [523.25, 659.25, 783.99, 1046.5]
     notalar.forEach((f, i) => nota(f, 0.5, 'triangle', 0.13, i * 0.11))
