@@ -436,14 +436,23 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
 - **`concurrency: cancel-in-progress: true` var**: yeni bir push, devam eden
   dağıtımı iptal ediyor. Bir çalıştırmanın "cancelled" görünmesi hata değil,
   ardından push yaptığın anlamına gelir.
+- **Şifremi unuttum akışı canlıda çalışıyor** (2026-08-13, gerçek e-postayla
+  uçtan uca denendi). SMTP Resend üzerinden: `smtp.resend.com:465`, kullanıcı
+  adı sabit `resend`, şifre API anahtarı. Gönderen şimdilik
+  `onboarding@resend.dev` — Resend doğrulanmış alan adı olmadan yalnızca bu
+  göndericiye ve **yalnızca hesabı açan adrese** izin veriyor. Alan adı
+  alınınca Resend'de alan doğrulanıp gönderen `noreply@<alanadi>` yapılacak;
+  Supabase'de değişen tek alan bu.
+- **Özel SMTP açılınca Supabase'in e-posta sınırı 2/saat'ten 30/saat'e
+  çıkıyor.** Sıfırlamanın öncesinde hiç çalışmamasının sebebi buydu.
+- **Auth bağlantısı hata döndürdüğünde onu da okumak gerekiyor.** Supabase
+  başarısızlığı jetonla aynı yerden bildiriyor (`#error=...&error_code=...`).
+  Kod önce yalnızca başarılı jetonu okuyordu; hata gelince kullanıcı sessizce
+  giriş ekranına düşüyor ve sebebini hiç göremiyordu — "sıfırlama çalışmıyor"
+  diye görünen şey buydu. `kurtarmaHatasi()` (`client.ts`) bunu bilgi
+  kutusuna basıyor. Yeni bir e-posta akışı eklersen aynı yolu kullan.
 - Kullanıcının Supabase panelinden yapması gerekenler (kod işi değil):
-  SMTP sağlayıcısı, e-posta doğrulama, izinli yönlendirme adresleri.
-- **Şifremi unuttum akışı kod tarafında tam** (2026-08-06 doğrulandı: `tsc -b`
-  ve testler temiz, uçtan uca akış — link → oturum → yeni şifre — kod
-  seviyesinde eksiksiz). Gerçek e-postayla denenmedi; panelde SMTP sağlayıcısı
-  bağlanmadan ve site adresi izinli yönlendirmelere eklenmeden e-posta hiç
-  gitmez veya bağlantı çalışmaz. Bu ikisi yapılmadıysa akış hâlâ "tamamlanmadı"
-  sayılır — kod değil, panel eksik.
+  e-posta doğrulama (bilerek kapalı), izinli yönlendirme adresleri.
 
 ## Açık işler
 
@@ -454,19 +463,19 @@ Bittikçe buradan sil. Sıra kabaca öncelik sırası.
 tarihi yaz. "Herhalde çalışır" diye sessizce geçme — denenmemiş iş bitmiş
 sayılmıyor.
 
-**Kullanıcıda (kod işi değil)**
-- [ ] **`supabase/schema.sql`'i yeniden çalıştır** — 2026-08-11'de `kisi_ara`
-      ve `engellediklerim` eklendi. Çalıştırılmadan arkadaş arama kutusu hep
-      "kimse bulunamadı" der ve engellediklerin listesi adsız kalır (ikisi de
-      geri düşüşle sessizce idare ediyor, uygulama kırılmıyor).
-- [ ] **Şifre sıfırlama şimdilik ertelendi** (2026-08-11 kararı). Kod tarafı
-      hazır; canlıya almadan önce ikisi birden gerekiyor:
-      SMTP sağlayıcısı (Resend/Brevo) ve Supabase → URL Configuration →
-      izinli yönlendirmelere site adresi. E-posta doğrulaması bilerek kapalı
-      (Supabase'in gönderim sınırı).
+**Canlıya alma — kalan adımlar** (yol haritasının tamamı ayrı planda)
+- [ ] **Alan adı**: Turhost'tan `.com` al, park sayfasının varsayılan A kaydını
+      sil, Pages'in dört A kaydı + `www` CNAME'i gir, depoya `public/CNAME`
+      ekle, Pages'te Enforce HTTPS. Sonrasında Supabase → URL Configuration
+      (Site URL + Redirect URLs) ve Resend'de alan adı doğrulaması.
+- [ ] **Puzzle fotoğrafını yüklemeden önce küçült** (`createRemotePuzzle`,
+      `src/supabase/puzzles.ts`); desen `avatarHazirla`. En uzun kenar
+      ~1600 px, JPEG. Kotayı geciktirmenin yanında P2P aktarımı da hızlandırır.
 - [ ] Depolama kotası kararı: 1 GB ≈ 200-700 fotoğraf, dolunca ne olacak.
-      **Canlıya almadan hemen önce konuşulacak** (2026-08-11 kararı); şimdiden
-      kod yazma, seçenek kullanıcıda.
+      Ara paket yok, sonraki basamak doğrudan Pro 25 $/ay. Free katmanın asıl
+      riski depolama değil, **7 gün hareketsizlikte projenin duraklatılması**.
+- [ ] `reports` tablosunu görecek bir arayüz yok, şikâyetlere SQL'den elle
+      bakılıyor. İlk sürüm için kabul edilebilir ama bilerek kabul edilmeli.
 
 **Doğrulanmamış** — kod yazıldı, `tsc`/test/build temiz, ama şu koşulda hiç
 denenmedi. Parantez içi, denemek için gereken şey.
@@ -516,20 +525,19 @@ denenmedi. Parantez içi, denemek için gereken şey.
       kullanıcı "sesler iyi" dedi; geriye yalnızca yukarıdaki tablet maddesi
       kaldı.
 
-*Şema çalıştırılmadan denenemez*
-- [ ] **Arkadaş arama ve engellediklerin listesi.** `kisi_ara` ve
-      `engellediklerim` 2026-08-11'de yazıldı; şema henüz çalıştırılmadığı için
-      istemci geri düşüşle çalışıyor (arama boş dönüyor). Arayüz denendi:
-      kutu çıkıyor, 3 harften kısa yazınca sorgu atılmıyor, sonuç yoksa
-      "Bu adla kimse bulunamadı." yazıyor. Gerçek sonuç görülmedi.
-
-*İki hesap gerekiyor* — **hepsi 2026-08-11'de a/b hesaplarıyla yapıldı.**
-Kalan tek şey:
-- [ ] **Mesaj süzgeci gerçekten tetikleniyor mu** (2026-08-11'de yeniden
-      yazıldı: 10 sn'de 5 / dakikada 20, artı `kaba_mi` küfür-tehdit süzgeci).
-      Tetikleyici ve metinler yerinde, `hata.test.ts` eşlemeyi tutuyor; şema
-      çalıştırılmadığı için canlıda hiç denenmedi. Denemesi kolay: arka arkaya
-      beş mesaj, sonra listedeki bir kelimeyi içeren tek mesaj.
+*İki hesap gerekiyor* — şema 2026-08-13'te çalıştırıldı, artık denenebilirler.
+- [ ] **Arkadaş arama ve engellediklerin listesi.** `kisi_ara` /
+      `engellediklerim` artık canlıda. Arayüz denenmişti (3 harften kısa yazınca
+      sorgu atılmıyor, sonuç yoksa "Bu adla kimse bulunamadı."); gerçek sonuç
+      hâlâ görülmedi.
+- [ ] **Mesaj süzgeci gerçekten tetikleniyor mu** (10 sn'de 5 / dakikada 20,
+      artı `kaba_mi` küfür-tehdit süzgeci). Denemesi kolay: arka arkaya beş
+      mesaj, sonra listedeki bir kelimeyi içeren tek mesaj.
+- [ ] **Profilden e-posta ve şifre değiştirme** (2026-08-13). Yerleşim 783 ve
+      390 px'te doğrulandı, formlar açılıyor, düğme boş alanla kapalı kalıyor.
+      Gerçek değişiklik denenmedi: şifre için mevcut şifre, e-posta için ikinci
+      bir adres gerekiyor. E-posta değişikliğinde onay bağlantısına tıklandıktan
+      sonra eski adresle girişin kapandığı da görülmeli.
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)
