@@ -47,8 +47,8 @@ export default function SesAyarlari({
   const [muzikSes, setMuzikSes] = useState(() => Math.round(muzikSeviyesi() * 100))
 
   return (
-    <aside ref={kokRef} style={stil} className="ses-panel">
-      <PanelBaslik baslik={ceviri('Ses')} tutamac={tutamac}>
+    <aside ref={kokRef} style={stil} className="ses-panel panel-tasinabilir" {...tutamac}>
+      <PanelBaslik baslik={ceviri('Ses')}>
         {tasindi && (
           <button
             className="icon-btn"

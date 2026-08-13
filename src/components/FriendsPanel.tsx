@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import MessageBox from './MessageBox'
+import PanelBaslik from './PanelBaslik'
+import { useSurukle } from './surukle'
 import { basHarfler } from '../ad'
 import { useDil } from '../dil'
 import { hataMetni } from '../supabase/client'
@@ -27,6 +29,9 @@ interface Props {
  */
 export default function FriendsPanel({ davetLinki, onKapat }: Props) {
   const { ceviri } = useDil()
+  // Bu panel taşınabilir değildi ve `.oda-panel` sınıfını Odadakiler ile
+  // paylaştığı için ikisi aynı köşede üst üste biniyordu.
+  const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLElement>('arkadaslar')
   const [arkadaslar, setArkadaslar] = useState<Kisi[]>([])
   const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
   const [okunmamis, setOkunmamis] = useState<Map<string, number>>(new Map())
@@ -71,10 +76,18 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
   }
 
   return (
-    <aside className="oda-panel">
-      <header className="chat-head">
-        <b>{ceviri('Arkadaşlar')}</b>
-        <span className="spacer" />
+    <aside ref={kokRef} style={stil} className="oda-panel panel-tasinabilir" {...tutamac}>
+      <PanelBaslik baslik={ceviri('Arkadaşlar')}>
+        {tasindi && (
+          <button
+            className="icon-btn"
+            onClick={sifirla}
+            aria-label={ceviri('Yerine döndür')}
+            title={ceviri('Yerine döndür')}
+          >
+            ↺
+          </button>
+        )}
         <button
           className="icon-btn"
           onClick={onKapat}
@@ -83,7 +96,7 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
         >
           ✕
         </button>
-      </header>
+      </PanelBaslik>
 
       {acikSohbet && (
         <MessageBox
@@ -95,7 +108,7 @@ export default function FriendsPanel({ davetLinki, onKapat }: Props) {
         />
       )}
 
-      <div className="oda-liste">
+      <div className="oda-liste panel-kaydir">
         {yukleniyor && <p className="muted chat-bos">{ceviri('Yükleniyor…')}</p>}
 
         {!yukleniyor && arkadaslar.length === 0 && (

@@ -1900,15 +1900,40 @@ button {
   pointer-events: none;
 }
 
-.panel-tutamac {
+/*
+  Taşınabilir panel. Tutamak panelin tamamı: başlık çubuğu tek tutamakken
+  panel sol kenara itildiğinde ekranda kalan şeritte yalnızca kapat/↺
+  düğmeleri kalıyordu ve düğmeler sürüklemeden muaf olduğu için panel bir
+  daha geri çekilemiyordu.
+
+  `touch-action: none` şart, yoksa dokunmatikte tarayıcı hareketi kaydırma
+  sanıp `pointermove`'ları kesiyor.
+*/
+.panel-tasinabilir {
   cursor: move;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
 }
-/* düğmeler tutamağın içinde de olsa kendi imleçlerini korusun */
-.panel-tutamac button {
+/* düğme, kutu ve kaydırma alanları kendi imleçlerini korusun */
+.panel-tasinabilir button {
   cursor: pointer;
+}
+.panel-tasinabilir input,
+.panel-tasinabilir textarea {
+  cursor: auto;
+  user-select: text;
+}
+/*
+  Panel içindeki kaydırılabilir listeler (sohbet gövdesi, oda listesi).
+  Panelin `touch-action: none`'ı buraya da miras kalıyor ve parmakla kaydırmayı
+  öldürüyor; burada geri açılıyor. `pan-y` yatayı bırakmıyor — panel kaydırma
+  alanının üstünden de yana doğru taşınabilsin diye.
+*/
+.panel-kaydir {
+  touch-action: pan-y;
+  cursor: auto;
+  user-select: text;
 }
 
 /*
@@ -2383,9 +2408,11 @@ button {
   Taşındığı anda left/top satır içi stille veriliyor; ortalayan transform
   kalırsa panel imlecin yarım boy soluna kayar.
 */
-.ses-panel[style*='left'] {
-  transform: none;
-}
+/*
+  Taşındığında transform'u `useSurukle` satır içi `transform: none` ile
+  kaldırıyor. Burada bir `[style*='left']` kuralı vardı ve hiç eşleşmiyordu:
+  tarayıcı left/top/right/bottom'ı öznitelikte `inset:` kısayoluna topluyor.
+*/
 .ses-satir {
   display: grid;
   grid-template-columns: auto 1fr auto;

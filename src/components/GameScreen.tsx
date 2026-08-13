@@ -45,6 +45,7 @@ import Tutorial from './Tutorial'
 import VideoPanel from './VideoPanel'
 import PanelBaslik from './PanelBaslik'
 import TaniPaneli from './TaniPaneli'
+import { taniAcikMi } from '../tani'
 import { useSurukle, useYakinlastir } from './surukle'
 import {
   baglantiTesti,
@@ -187,14 +188,11 @@ const STATUS_COLOR: Record<RoomStatus, string> = {
 }
 
 /*
-  Tanılama katmanı yalnızca adreste `tani` geçiyorsa çizilir. Açılışta bir kez
-  okunuyor: oyun ortasında açılıp kapanması gerekmiyor, sabit olması ölçümün
-  kendi maliyetini de sabit tutuyor.
-
-  Oda kodu da `#` parçasında durduğu için `#room=...&tani` biçiminde birlikte
-  yazılabiliyor.
+  Tanılama katmanı yalnızca `#tani` ile açılır. Bayrağın kendisi `tani.ts`'te,
+  açılışta okunuyor: adres çubuğunun # parçası oyuna girerken temizleniyor ve
+  bu modül gecikmeli yüklendiği için burada okumak "hep kapalı" demek oluyordu.
 */
-const TANI_ACIK = /(^|[#&?])tani\b/.test(location.hash + location.search)
+const TANI_ACIK = taniAcikMi()
 
 export default function GameScreen({ config, onExit }: Props) {
   const auth = useAuth()
@@ -1657,9 +1655,10 @@ function OrijinalPanel({
       style={stil}
       // kaydir yalnızca dar ekranda iş görüyor: geniş ekranda sohbet sağ
       // altta, önizleme sol altta duruyor ve çakışmıyorlar
-      className={`peek ${chatAcik && !tasindi ? 'kaydir' : ''}`}
+      className={`peek panel-tasinabilir ${chatAcik && !tasindi ? 'kaydir' : ''}`}
+      {...tutamac}
     >
-      <PanelBaslik baslik={ceviri('Orijinal')} tutamac={tutamac}>
+      <PanelBaslik baslik={ceviri('Orijinal')}>
         {(tasindi || yakin) && (
           <button
             className="icon-btn"
@@ -1716,8 +1715,8 @@ function ChatPanel({
   }, [satirlar.length])
 
   return (
-    <aside ref={kokRef} style={stil} className="chat">
-      <PanelBaslik baslik={ceviri('Sohbet')} tutamac={tutamac}>
+    <aside ref={kokRef} style={stil} className="chat panel-tasinabilir" {...tutamac}>
+      <PanelBaslik baslik={ceviri('Sohbet')}>
         {tasindi && (
           <button
             className="icon-btn"
@@ -1738,7 +1737,7 @@ function ChatPanel({
         </button>
       </PanelBaslik>
 
-      <div className="chat-body">
+      <div className="chat-body panel-kaydir">
         {satirlar.length === 0 && (
           <p className="muted chat-bos">
             {bagli ? ceviri('Henüz mesaj yok.') : ceviri('Karşı taraf bağlanınca yazabilirsin.')}

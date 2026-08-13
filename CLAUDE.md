@@ -161,12 +161,30 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
 - Tutamağa `touch-action: none` gerekiyor, yoksa dokunmatikte tarayıcı hareketi
   kaydırma sanıp `pointermove`'ları kesiyor. Sürükleme düğme/kutu üstünden
   başlamaz (`closest('button, input, …')`).
-- **Taşıma tutamağı `PanelBaslik`'tir, panelin tamamı değil.** Önce panelin
-  kendisi tutamak yapılmıştı; sürükleme düğme/video/kutu üstünden başlamadığı
-  için görüşme penceresinde iki kamera açıkken tutulacak boş yer kalmıyor,
-  panel dokunmatikte hiç taşınamıyordu. Her yüzen panel `PanelBaslik` ile
-  başlar: soldaki çift çizgi "buradan tut" işareti, çubuk en az 40 px.
-  Kapatma/geri döndürme düğmeleri de orada — içeriğin üstüne binmiyorlar.
+- **Tutamak panelin tamamı; `PanelBaslik` yalnızca işaret.** Tarih önemli,
+  çünkü iki kez değişti:
+  1. Önce panelin kendisi tutamaktı → görüşme penceresinde iki kamera açıkken
+     tutulacak boş yer kalmıyordu (video sürüklemeden muaf).
+  2. Sonra yalnızca `PanelBaslik` tutamak yapıldı → panel **sol** kenara
+     itildiğinde ekranda kalan 140 px'lik şeritte yalnızca kapat/↺ düğmeleri
+     kalıyor, düğmeler de muaf olduğu için panel bir daha geri çekilemiyordu.
+     Kullanıcı 2026-08-13'te gerçek cihazda bildirdi.
+  3. Bugün ikisi birden: olaylar panelin **kök** öğesinde, `PanelBaslik` yine
+     duruyor (çift çizgi "buradan tut" işareti + düğmelere içeriğe binmeyen
+     bir yer). Muaf olanlar `SURUKLENMEZ`'de: düğme/kutu/`video`/`img` ve
+     kaydırılabilir listeler (`.panel-kaydir`).
+  - **Panelin kökünde `touch-action: none` olmalı** (`.panel-tasinabilir`),
+    yoksa dokunmatikte tarayıcı hareketi kaydırma sanıp `pointermove`'ları
+    kesiyor. Panel içindeki kaydırılabilir listeye `.panel-kaydir` ver:
+    `touch-action: pan-y` ile kaydırma geri geliyor.
+- **Taşınan panele satır içi `transform: none` yazılıyor** (`surukle.ts`).
+  Varsayılan yerinde ortalanan panel (`.ses-panel`) `translateX(-50%)` ile
+  duruyor; taşındıktan sonra üstünde kalırsa panel bıraktığın yerin yarım boy
+  solunda çiziliyor ve sol sınıra dayandığında **tamamen ekran dışına
+  çıkıyor**. Bunu önce CSS `[style*='left']` seçicisi yapıyordu ve **hiç
+  eşleşmiyordu**: tarayıcı `left/top/right/bottom`'ı stil özniteliğinde
+  `inset:` kısayoluna topluyor, öznitelikte "left" diye bir metin kalmıyor.
+  **Satır içi stile öznitelik seçicisiyle bakma.**
 - **Panel içindeki görsel `useYakinlastir` ile büyür, panel büyümez**
   (`surukle.ts`). İki parmak · fare tekerleği · çift dokunuş (1 ↔ 2,5 kat).
   Önce paneli köşeden büyütmeyi denedik, kullanışlı bulunmadı.
@@ -213,12 +231,20 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   hesaplanıyor ve canvas'ta en pahalı işlerden biri.
 - Ölçmeden "iyileştirdim" deme. Konsoldan: `__puzzle.board` üzerinde
   `statikKirli` kurup `render()` süresini karşılaştır (dev derlemede açık).
-- **Gerçek cihazda ölçmek için adres sonuna `#tani` ekle.** Ekranın altında
+- **Gerçek cihazda ölçmek için adres sonuna `?tani` ekle.** Ekranın altında
   parça sayısı · `dpr` · zayıf mı · `hafifMod` · ortalama `render` süresi ·
   fps yazan bir şerit çıkıyor (`TaniPaneli`). `__puzzle` yalnızca dev
   derlemesinde tanımlı ve Android Chrome'da konsol yok; sorun da tam olarak
   canlıdaki gerçek telefonda yaşandığı için ölçüm aylarca yapılamamıştı.
-  - Oda kodu da hash'te durduğundan `#room=ABC&tani` biçiminde birlikte yazılır.
+  - **Bayrak `tani.ts`'te, açılışta okunup sessionStorage'a yazılıyor.**
+    `GameScreen` gecikmeli yüklendiği ve adres çubuğunun `#` parçası oyuna
+    girerken temizlendiği için orada okumak "hep kapalı" demekti — katman hiç
+    çıkmıyordu. `?tani` sorgu dizisinde durduğu için hash temizliğinden de,
+    tarayıcı panelinin hash düşürmesinden de etkilenmiyor.
+  - Davet bağlantısıyla birlikte: `.../puzzle/?tani#room=ABC`.
+  - Güvenli alan payları da yazılıyor (`ü/a/s/sğ`) ve kurulu uygulama mı sekme
+    mi olduğu görünüyor. iPhone'da üst çubuk sorunu bununla ölçülecek;
+    sekmede bütün paylar 0 çıkar, bu normal.
   - **Boştayken "boşta" yazar, sayı değil.** Hiçbir şey değişmiyorken kare
     çizilmiyor; orada `0.00 ms · 0 fps` göstermek paneli bozuk gösteriyordu.
     Ölçüm yalnızca parça sürüklenirken anlamlı.
@@ -525,47 +551,32 @@ denenmedi. Parantez içi, denemek için gereken şey.
       `__puzzle.board.hafifMod` ve `dpr` değerlerine bakmak, `render()`
       süresini ölçmek. Şüpheliler: zayıf cihazda `dpr` tavanı hâlâ 1.5,
       `hafifMod` ölçütü kaba (`hardwareConcurrency<=4 || deviceMemory<=4`).
-- [ ] Odadan çıkınca kameranın gerçekten bırakılması — cihazın ışığı sönüyor
-      mu? Tarayıcı paneli `getUserMedia`'yı engellediği için tuvalden üretilen
-      sahte akışla denendi, gerçek kamerayla denenmedi. (2026-08-06)
-- [ ] Panellerin başlık çubuğundan parmakla sürüklenmesi ve orijinal görselde
-      iki parmakla yakınlaştırma. Sentetik `pointerType: 'touch'` olaylarıyla
-      dördü de taşınıyor, kıskaç oranı birebir çıkıyor; gerçek dokunmatikte
-      `touch-action: none` yeterli mi, sürükleme sayfayı kaydırıyor mu
-      görülmedi. (2026-08-10)
-- [ ] **Güvenli alan dolgusu.** Tarayıcıda `env(safe-area-inset-*)` hep 0
-      olduğu için düzeltmenin işe yaradığı yalnızca gerçek cihazda, kurulu
-      uygulamada görülür. Beklenen: üst çubuk saatin/bildirimlerin altına
-      inmiyor. (2026-08-10)
-- [ ] **Android'de galeriye yönlenme.** `accept="image/*"` zaten doğruydu;
-      girdi `hidden` yerine ekran dışına alındı (bazı Android sürümleri
-      `display: none` girdide accept'i yok sayıyor). Tahmin — düzelmezse
-      seçici uygulamayı işletim sistemi belirliyor, cihazda "Dosyalar"
-      varsayılan yapılmış olabilir. (2026-08-10)
+- [ ] **iPhone'da güvenli alan dolgusu çalışmıyor.** 2026-08-13'te gerçek
+      cihazda denendi: **Android'de düzgün, iPhone'da üst çubuk hâlâ saatin
+      altına giriyor.** Sebep bilinmiyor — tahminle düzeltme yazma. Ölçüm yolu
+      hazır: kurulu uygulamada `?tani` ile açıp şeritteki `güvenli alan ü… a…`
+      değerlerine ve "kurulu/sekme" yazısına bak. `ü` 0 geliyorsa iOS payı hiç
+      bildirmiyor demektir (o zaman şüpheli `viewport-fit` /
+      `apple-mobile-web-app-status-bar-style`); sıfırdan büyükse dolgu
+      uygulanmıyor demektir ve sorun CSS tarafındadır.
+- [ ] **Panellerin gerçek dokunmatikte parmakla taşınması.** 2026-08-13'te
+      kullanıcı "belli bir noktadan taşınıyor, her yerden değil" dedi; tutamak
+      panelin tamamına yayıldı ve `transform` hatası düzeltildi (yukarıya bak),
+      ama düzeltmeler yalnızca sentetik `pointerType: 'touch'` olaylarıyla
+      doğrulandı. Cihazda tekrar denenmeli: panel gövdesinden taşınıyor mu,
+      sohbet/oda listesi hâlâ parmakla kaydırılıyor mu.
 - [ ] `hafifMod`'un doğru cihazlarda açılması. Ölçüt `hardwareConcurrency` ve
       `deviceMemory`; ikisi de kaba ipuçları, gerçek telefonlarda ne dediği
-      bilinmiyor. Konsoldan `__puzzle.board.hafifMod` ile bakılır.
-- [ ] Ses kaydırıcılarının parmakla sürüklenmesi. Kazanç değerleri ölçülerek
-      doğrulandı (%40 → 0.36, %25 → 0.25, %0 → tam sessiz) ama kimse kulakla
-      dinlemedi ve dokunmatikte `input[type=range]` sürüklenmesi denenmedi.
-      (2026-08-09)
-- [ ] **Tablette müziğin duyulup duyulmadığı.** 2026-08-11'de kullanıcı
-      "sesler iyi ama tablette müziğin sesi gelmiyor" dedi. Sebep ölçüldü:
-      müzik notalarının tepe kazançları çok küçük (0,03-0,06) ve hepsi pes
-      (piyano 130-330 Hz, gece 49-110 Hz); küçük hoparlörler o bandı kesiyor,
-      efektler ise 590-1300 Hz'de ve iki katı yüksek olduğu için duyuluyordu.
-      Müzik yoluna `MUZIK_TAVAN = 2,5` çarpanı kondu (`audio.ts`), kırpılmaya
-      gitmediği testle bağlandı. **Tablette tekrar dinlenmeli.** "Gece"
-      49-110 Hz'de kaldığı için orada hâlâ zayıf duyulabilir — öyleyse
-      çözüm çarpan değil, `PARCALAR`'da oktavı yükseltmek.
-- [ ] **Müzik parçaları kulakla dinlenmedi.** (2026-08-10) → 2026-08-11:
-      kullanıcı "sesler iyi" dedi; geriye yalnızca yukarıdaki tablet maddesi
-      kaldı.
+      bilinmiyor. Cihazda `?tani` şeridinde "zayıf/normal cihaz" yazıyor.
 
 *İki hesap gerekiyor* — şema 2026-08-13'te çalıştırıldı, artık denenebilirler.
 - [ ] **Engellediklerin listesinde gerçek ad.** `engellediklerim` canlıda ve
       200 dönüyor (2026-08-13) ama liste hep boştu — dolu hâli görülmedi.
       Denemek arkadaşlığı silmek demek: engeli kaldırmak geri getirmiyor.
+      - **Engelleme yalnızca mesajlaşma penceresindeki `⋯` menüsünde**
+        (`MessageBox`). Arkadaş listesinden ya da profilden erişilemiyor;
+        kullanıcı 2026-08-13'te "engelleme seçeneği yok" diye bildirdi.
+        Keşfedilebilirlik sorunu, eksik özellik değil.
 - [ ] **Profilden e-posta ve şifre değiştirme** (2026-08-13). Yerleşim 783 ve
       390 px'te doğrulandı, formlar açılıyor, düğme boş alanla kapalı kalıyor.
       Gerçek değişiklik denenmedi: şifre için mevcut şifre, e-posta için ikinci

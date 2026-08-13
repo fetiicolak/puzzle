@@ -135,8 +135,13 @@ export default function VideoPanel({
   */
   const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLElement>('video')
   return (
-    <aside ref={kokRef} style={stil} className={`video-panel ${sadeceSes ? 'sesli' : ''}`}>
-      <PanelBaslik baslik={ceviri('Görüşme')} tutamac={tutamac}>
+    <aside
+      ref={kokRef}
+      style={stil}
+      className={`video-panel panel-tasinabilir ${sadeceSes ? 'sesli' : ''}`}
+      {...tutamac}
+    >
+      <PanelBaslik baslik={ceviri('Görüşme')}>
         {tasindi && (
           <button
             className="icon-btn"

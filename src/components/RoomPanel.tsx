@@ -103,8 +103,8 @@ export default function RoomPanel({
   const { kokRef, stil, tutamac, tasindi, sifirla } = useSurukle<HTMLElement>('oda')
 
   return (
-    <aside ref={kokRef} style={stil} className="oda-panel">
-      <PanelBaslik baslik={ceviri('Odadakiler')} tutamac={tutamac}>
+    <aside ref={kokRef} style={stil} className="oda-panel panel-tasinabilir" {...tutamac}>
+      <PanelBaslik baslik={ceviri('Odadakiler')}>
         {tasindi && (
           <button
             className="icon-btn"
@@ -150,7 +150,7 @@ export default function RoomPanel({
         />
       )}
 
-      <div className="oda-liste">
+      <div className="oda-liste panel-kaydir">
         {yukleniyor && <p className="muted chat-bos">{ceviri('Yükleniyor…')}</p>}
 
         {kisiler.map((k) => {

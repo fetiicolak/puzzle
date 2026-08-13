@@ -75,12 +75,29 @@ function sinirla(x: number, y: number, en: number): Konum {
   }
 }
 
+/*
+  Sürüklemenin başlamadığı yerler.
+
+  Düğme/kutu kendi işini yapmalı; `video` ve `img` üstünde tarayıcının kendi
+  sürüklemesi devreye giriyor. `.panel-kaydir` ise panel içindeki kaydırılabilir
+  listeler (sohbet gövdesi, oda listesi): orada parmak hareketi kaydırmak
+  demek, paneli taşımak değil.
+*/
+const SURUKLENMEZ = 'button, input, textarea, select, a, video, img, .panel-kaydir'
+
 export interface SurukleDurumu<T extends HTMLElement> {
   /** Panelin kök öğesine verilir */
   kokRef: React.RefObject<T | null>
   /** Panelin kök öğesine verilir; taşınmadıysa boş */
   stil: CSSProperties
-  /** Tutamağa (başlık ya da panelin tamamı) yayılır */
+  /**
+   * Panelin **kök** öğesine yayılır — başlığa değil.
+   *
+   * Başlık çubuğu tek tutamakken panel sol kenara itildiğinde ekranda kalan
+   * şeritte yalnızca kapat/↺ düğmeleri kalıyordu; düğmeler sürüklemeden muaf
+   * olduğu için panel bir daha geri çekilemiyordu. Artık panelin her boş yeri
+   * tutamak, başlıktaki çift çizgi de "buradan tut" işareti olarak duruyor.
+   */
   tutamac: {
     onPointerDown: (e: ReactPointerEvent) => void
     onPointerMove: (e: ReactPointerEvent) => void
@@ -132,9 +149,7 @@ export function useSurukle<T extends HTMLElement>(ad: string): SurukleDurumu<T> 
   const onPointerDown = useCallback((e: ReactPointerEvent) => {
     const kok = kokRef.current
     if (!kok) return
-    // Düğme, kutu ve yazı alanlarının üstünden sürükleme başlamasın; oradaki
-    // dokunuş kendi işini yapmalı.
-    if ((e.target as HTMLElement).closest('button, input, textarea, select, a, video')) return
+    if ((e.target as HTMLElement).closest(SURUKLENMEZ)) return
     const r = kok.getBoundingClientRect()
     kavramaRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top }
     try {
@@ -172,7 +187,20 @@ export function useSurukle<T extends HTMLElement>(ad: string): SurukleDurumu<T> 
 
   return {
     kokRef,
-    stil: konum ? { left: konum.x, top: konum.y, right: 'auto', bottom: 'auto' } : {},
+    /*
+      `transform: none` şart. Varsayılan yerinde ortalanan panel (`.ses-panel`)
+      `translateX(-50%)` ile duruyor; taşındıktan sonra da üstünde kalırsa
+      panel bıraktığın yerin yarım panel boyu solunda çiziliyor ve sol sınıra
+      dayandığında tamamen ekran dışına çıkıyor — geri çekilemiyordu.
+
+      Önce bunu CSS `[style*='left']` seçicisi yapıyordu ama **hiç
+      eşleşmiyordu**: tarayıcı left/top/right/bottom'ı stil özniteliğinde
+      `inset:` kısayoluna topluyor, öznitelikte "left" diye bir metin kalmıyor.
+      Satır içi stil olarak vermek bu tuzağı tamamen atlıyor.
+    */
+    stil: konum
+      ? { left: konum.x, top: konum.y, right: 'auto', bottom: 'auto', transform: 'none' }
+      : {},
     tutamac: {
       onPointerDown,
       onPointerMove,
