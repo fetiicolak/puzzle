@@ -643,7 +643,9 @@ button {
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
-.sohbet-menu .tehlike-yazi {
+/* Yıkıcı işlemin yazısı kırmızı. Bölüme değil işleve bağlı: aynı düğme
+   arkadaş listesindeki eylem şeridinde de kullanılıyor. */
+.tehlike-yazi {
   color: var(--err);
 }
 .sikayet-form {
@@ -2165,6 +2167,37 @@ button {
   color: var(--muted);
   font-size: 0.79rem;
 }
+/*
+  Arkadaş satırına tıklanınca altında açılan eylem şeridi.
+
+  Engelleme daha önce yalnızca mesajlaşma penceresindeki `⋯` menüsündeydi;
+  kullanıcı "engelleme seçeneği yok" diye bildirdi. Özellik vardı, ulaşılmıyordu.
+*/
+.friend-blok {
+  display: flex;
+  flex-direction: column;
+}
+.friend-row.secilebilir {
+  cursor: pointer;
+}
+.friend-row.secilebilir.acik {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  border-bottom-color: transparent;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.friend-eylem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
 .friend-row .del {
   flex: none;
   width: 30px;

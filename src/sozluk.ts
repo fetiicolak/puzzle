@@ -332,6 +332,7 @@ export const SOZLUK: Record<string, string> = {
     'Everyone found with that name is already in your friend list.',
   'Birlikte puzzle çözdüklerin': 'People you solved puzzles with',
   Ekle: 'Add',
+  'Seçenekler için kişiye dokun': 'Tap a person for options',
 
   // ------------------------------------------------------------ mesaj kutusu
   'Mesaj gönderilemedi': 'Could not send the message',

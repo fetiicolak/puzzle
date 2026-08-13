@@ -592,10 +592,10 @@ denenmedi. Parantez içi, denemek için gereken şey.
 - [ ] **Engellediklerin listesinde gerçek ad.** `engellediklerim` canlıda ve
       200 dönüyor (2026-08-13) ama liste hep boştu — dolu hâli görülmedi.
       Denemek arkadaşlığı silmek demek: engeli kaldırmak geri getirmiyor.
-      - **Engelleme yalnızca mesajlaşma penceresindeki `⋯` menüsünde**
-        (`MessageBox`). Arkadaş listesinden ya da profilden erişilemiyor;
-        kullanıcı 2026-08-13'te "engelleme seçeneği yok" diye bildirdi.
-        Keşfedilebilirlik sorunu, eksik özellik değil.
+      - Engelleme artık **arkadaş satırına tıklayınca** açılan şeritte
+        (`FriendsSection`); mesajlaşma penceresindeki `⋯` menüsü de duruyor.
+        Önce yalnızca `MessageBox`'taydı ve kullanıcı "engelleme seçeneği yok"
+        diye bildirdi — özellik vardı, ulaşılmıyordu.
 - [ ] **Profilden e-posta değiştirme.** Şifre değiştirme 2026-08-13'te gerçek
       hesapla denendi ve çalışıyor; e-posta tarafı denenmedi, ikinci bir adres
       gerekiyor. Onay bağlantısına tıklandıktan sonra eski adresle girişin

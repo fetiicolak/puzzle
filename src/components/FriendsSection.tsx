@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
 import { basHarfler } from '../ad'
 import { useDil } from '../dil'
+import { tiklanabilirTus } from '../erisim'
 import { hataMetni } from '../supabase/client'
 import { avatarUrlleri } from '../supabase/profile'
 import {
@@ -12,6 +13,7 @@ import {
   arkadasliklariGetir,
   birlikteOynananlar,
   cevrimiciMi,
+  engelle,
   kisiAra,
   type Arkadaslik,
   type Kisi,
@@ -25,6 +27,14 @@ export default function FriendsSection() {
   const [islemdeki, setIslemdeki] = useState<string | null>(null)
   /** Arkadaşlıktan çıkarılmak üzere onay bekleyen kişi */
   const [cikarilacak, setCikarilacak] = useState<Arkadaslik | null>(null)
+  /** Engellenmek üzere onay bekleyen kişi */
+  const [engellenecek, setEngellenecek] = useState<Arkadaslik | null>(null)
+  /*
+    Satırına tıklanıp eylemleri açılan arkadaşlık. Engelleme daha önce yalnızca
+    mesajlaşma penceresindeki `⋯` menüsünde duruyordu; kullanıcı "engelleme
+    seçeneği yok" diye bildirdi — özellik vardı, bulunamıyordu.
+  */
+  const [eylemAcik, setEylemAcik] = useState<string | null>(null)
   /** Başlığa tıklanınca liste açılır; sayfa uzamasın diye kapalı başlar */
   const [acik, setAcik] = useState(false)
   const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
@@ -192,6 +202,26 @@ export default function FriendsSection() {
         />
       )}
 
+      {/* Metni mesaj kutusundakiyle aynı — anahtar Türkçe cümlenin kendisi */}
+      {engellenecek && (
+        <ConfirmDialog
+          baslik="Engelle"
+          mesaj={ceviri(
+            '{ad} sana mesaj gönderemeyecek ve profilini göremeyecek. Aranızdaki arkadaşlık da kalkar. İstediğin zaman engeli kaldırabilirsin.',
+            { ad: engellenecek.kisi.ad },
+          )}
+          onayYazisi="Engelle"
+          tehlikeli
+          onIptal={() => setEngellenecek(null)}
+          onOnayla={async () => {
+            const kimlik = engellenecek.kisi.id
+            setEngellenecek(null)
+            setEylemAcik(null)
+            await sarmala(kimlik, () => engelle(kimlik))
+          }}
+        />
+      )}
+
       {acik && (
         <>
       <label className="field">
@@ -262,29 +292,63 @@ export default function FriendsSection() {
       )}
 
       {arkadaslar.length > 0 && (
+        <p className="hint-line">{ceviri('Seçenekler için kişiye dokun')}</p>
+      )}
+
+      {arkadaslar.length > 0 && (
         <div className="friend-list">
-          {arkadaslar.map((a) => (
-            <div key={a.id} className="friend-row">
-              <Avatar kisi={a.kisi} isik />
-              <div className="info">
-                <b>{a.kisi.ad}</b>
-                <small>
-                  {cevrimiciMi(a.kisi.sonGorulme)
-                    ? ceviri('şu an sitede')
-                    : ceviri('çevrimdışı')}
-                </small>
+          {arkadaslar.map((a) => {
+            const acikMi = eylemAcik === a.id
+            /* Satırın kendi düğmeleri (✕) satırı açıp kapatmasın */
+            const sec = (e: { target: unknown }) => {
+              if ((e.target as HTMLElement).closest('button')) return
+              setEylemAcik((v) => (v === a.id ? null : a.id))
+            }
+            return (
+              <div key={a.id} className="friend-blok">
+                <div
+                  className={`friend-row secilebilir ${acikMi ? 'acik' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={acikMi}
+                  onClick={sec}
+                  onKeyDown={tiklanabilirTus(() =>
+                    setEylemAcik((v) => (v === a.id ? null : a.id)),
+                  )}
+                >
+                  <Avatar kisi={a.kisi} isik />
+                  <div className="info">
+                    <b>{a.kisi.ad}</b>
+                    <small>
+                      {cevrimiciMi(a.kisi.sonGorulme)
+                        ? ceviri('şu an sitede')
+                        : ceviri('çevrimdışı')}
+                    </small>
+                  </div>
+                  <button
+                    className="del"
+                    aria-label={ceviri('Arkadaşlıktan çıkar')}
+                    title={ceviri('Arkadaşlıktan çıkar')}
+                    disabled={islemdeki === a.id}
+                    onClick={() => setCikarilacak(a)}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {acikMi && (
+                  <div className="friend-eylem">
+                    <button
+                      className="btn btn-ghost btn-sm tehlike-yazi"
+                      onClick={() => setEngellenecek(a)}
+                    >
+                      🚫 {ceviri('Engelle')}
+                    </button>
+                  </div>
+                )}
               </div>
-              <button
-                className="del"
-                aria-label={ceviri('Arkadaşlıktan çıkar')}
-                title={ceviri('Arkadaşlıktan çıkar')}
-                disabled={islemdeki === a.id}
-                onClick={() => setCikarilacak(a)}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
