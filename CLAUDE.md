@@ -475,6 +475,22 @@ sayılmıyor.
       sil, Pages'in dört A kaydı + `www` CNAME'i gir, depoya `public/CNAME`
       ekle, Pages'te Enforce HTTPS. Sonrasında Supabase → URL Configuration
       (Site URL + Redirect URLs) ve Resend'de alan adı doğrulaması.
+      - **`index.html`'de repo adını içeren iki yer var, ikisi de kırılacak**
+        (2026-08-13 tarandı). `apple-touch-icon` yolları `/puzzle/...` diye
+        **kök-göreli**; kendi alan adında site kökte sunulacağı için beş ikon
+        birden 404 verir — iOS'ta ana ekran simgesi sessizce boş çıkar, hata
+        yok. Ayrıca `og:url` / `og:image` tam adres yazıyor. Bunlar bilerek
+        göreli değil (Safari göreli `apple-touch-icon`'u bulamıyordu), yani
+        "olduğu gibi bırak" seçeneği yok.
+      - **Sıra önemli: `public/CNAME` DNS oturmadan gönderilmez.** Dosya
+        depoya girdiği an Pages yalnızca yeni alan adından sunmaya geçiyor;
+        DNS hazır değilse site hiçbir adresten açılmaz. Aynı commit eski
+        `github.io/puzzle/` adresini de kırıyor (ikon yolları). Önce DNS,
+        sonra tek commit: `CNAME` + `og:*` + ikon yolları + `sw.js` `CACHE`
+        sürümü (kabuk dosyası `index.html` değiştiği için).
+      - Temiz olduğu doğrulananlar: `vite.config.ts` `base: './'`, `sw.js`
+        tamamen göreli, `manifest.webmanifest` `start_url: "."`, hukuki dört
+        sayfada adres geçmiyor (yalnızca `mailto:`).
 - [ ] Depolama kotası kararı: 1 GB ≈ 2.500-3.000 fotoğraf (aşağıdaki ölçüme
       göre), dolunca ne olacak. Ara paket yok, sonraki basamak doğrudan Pro
       25 $/ay. Free katmanın asıl riski depolama değil, **7 gün
@@ -531,13 +547,9 @@ denenmedi. Parantez içi, denemek için gereken şey.
       kaldı.
 
 *İki hesap gerekiyor* — şema 2026-08-13'te çalıştırıldı, artık denenebilirler.
-- [ ] **Arkadaş arama ve engellediklerin listesi.** `kisi_ara` /
-      `engellediklerim` artık canlıda. Arayüz denenmişti (3 harften kısa yazınca
-      sorgu atılmıyor, sonuç yoksa "Bu adla kimse bulunamadı."); gerçek sonuç
-      hâlâ görülmedi.
-- [ ] **Mesaj süzgeci gerçekten tetikleniyor mu** (10 sn'de 5 / dakikada 20,
-      artı `kaba_mi` küfür-tehdit süzgeci). Denemesi kolay: arka arkaya beş
-      mesaj, sonra listedeki bir kelimeyi içeren tek mesaj.
+- [ ] **Engellediklerin listesinde gerçek ad.** `engellediklerim` canlıda ve
+      200 dönüyor (2026-08-13) ama liste hep boştu — dolu hâli görülmedi.
+      Denemek arkadaşlığı silmek demek: engeli kaldırmak geri getirmiyor.
 - [ ] **Profilden e-posta ve şifre değiştirme** (2026-08-13). Yerleşim 783 ve
       390 px'te doğrulandı, formlar açılıyor, düğme boş alanla kapalı kalıyor.
       Gerçek değişiklik denenmedi: şifre için mevcut şifre, e-posta için ikinci

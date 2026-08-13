@@ -328,6 +328,8 @@ export const SOZLUK: Record<string, string> = {
   'Arkadaş ara': 'Find a friend',
   'Adının en az {n} harfi': 'At least {n} letters of their name',
   'Bu adla kimse bulunamadı.': 'Nobody found with that name.',
+  'Bu adla bulunan herkes zaten arkadaş listende.':
+    'Everyone found with that name is already in your friend list.',
   'Birlikte puzzle çözdüklerin': 'People you solved puzzles with',
   Ekle: 'Add',
 

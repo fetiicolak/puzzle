@@ -152,6 +152,12 @@ export default function FriendsSection() {
   /** Aramada çıkan ama zaten listende olan kişileri gösterme */
   const tanidik = new Set(arkadasliklar.map((a) => a.kisi.id))
   const bulunanlar = (sonuclar ?? []).filter((k) => !tanidik.has(k.id))
+  /*
+    Eleme yüzünden liste boş kaldıysa "bulunamadı" demek yanlış: kişi bulundu,
+    zaten arkadaşın. Arkadaşının adını aramak aramayı denemenin en doğal yolu
+    ve tam orada "kimse bulunamadı" çıkıyordu — arama bozuk görünüyordu.
+  */
+  const hepsiTanidik = (sonuclar ?? []).length > 0 && bulunanlar.length === 0
 
   return (
     <section className="block">
@@ -218,7 +224,11 @@ export default function FriendsSection() {
             </div>
           ))}
           {bulunanlar.length === 0 && !araniyor && (
-            <p className="hint-line">{ceviri('Bu adla kimse bulunamadı.')}</p>
+            <p className="hint-line">
+              {hepsiTanidik
+                ? ceviri('Bu adla bulunan herkes zaten arkadaş listende.')
+                : ceviri('Bu adla kimse bulunamadı.')}
+            </p>
           )}
         </div>
       )}
