@@ -708,6 +708,39 @@ button {
   min-height: 84px;
 }
 
+/*
+  Şifre kutusu + göz düğmesi. Düğme kutunun içinde durduğu için girdiye
+  sağdan yer açılıyor; yoksa uzun şifre düğmenin altına giriyor.
+*/
+.sifre-kutusu {
+  position: relative;
+  display: flex;
+}
+.sifre-kutusu .input {
+  padding-right: 46px;
+}
+.sifre-goz {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.sifre-goz:hover {
+  opacity: 1;
+}
+
 .auth-form {
   display: flex;
   flex-direction: column;

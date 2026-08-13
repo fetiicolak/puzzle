@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import SifreKutusu from './SifreKutusu'
 import { useDil } from '../dil'
 import { useAuth } from '../supabase/auth'
 
@@ -50,25 +51,18 @@ export default function NewPasswordScreen({ onBitti, onVazgec }: Props) {
       </header>
 
       <form className="auth-form" onSubmit={gonder}>
-        <input
-          className="input"
-          type="password"
+        <SifreKutusu
           autoComplete="new-password"
           placeholder={ceviri('Yeni şifre (en az 6 karakter)')}
           value={sifre}
-          minLength={6}
-          required
           autoFocus
-          onChange={(e) => setSifre(e.target.value)}
+          onChange={setSifre}
         />
-        <input
-          className="input"
-          type="password"
+        <SifreKutusu
           autoComplete="new-password"
           placeholder={ceviri('Yeni şifre (tekrar)')}
           value={tekrar}
-          required
-          onChange={(e) => setTekrar(e.target.value)}
+          onChange={setTekrar}
         />
 
         {uyusmuyor && <div className="form-error">{ceviri('Şifreler aynı değil.')}</div>}

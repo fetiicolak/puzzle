@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import DilSecici from './DilSecici'
+import SifreKutusu from './SifreKutusu'
 import { useDil } from '../dil'
 import { beniHatirla, beniHatirlaAyarla, hatirlananEposta } from '../supabase/client'
 import { useAuth } from '../supabase/auth'
@@ -143,15 +144,11 @@ export default function AuthScreen({
           onChange={(e) => setEmail(e.target.value)}
         />
         {mod !== 'sifirla' && (
-          <input
-            className="input"
-            type="password"
+          <SifreKutusu
             autoComplete={mod === 'giris' ? 'current-password' : 'new-password'}
             placeholder={ceviri('Şifre')}
             value={sifre}
-            minLength={6}
-            required
-            onChange={(e) => setSifre(e.target.value)}
+            onChange={setSifre}
           />
         )}
 

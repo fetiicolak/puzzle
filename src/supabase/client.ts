@@ -94,6 +94,37 @@ export function kurtarmaJetonu(): { access_token: string; refresh_token: string 
   }
 }
 
+/**
+ * Sıfırlama bağlantısı jeton yerine hata döndürdü mü.
+ *
+ * Supabase başarısızlığı da aynı yerden bildiriyor:
+ * #error=access_denied&error_code=otp_expired&error_description=...
+ * Bu okunmazsa kullanıcı sessizce giriş ekranına düşüyor ve bağlantının
+ * neden işe yaramadığını hiç öğrenemiyor. En sık iki sebep: bağlantının
+ * süresi dolmuş / bir kez kullanılmış (Gmail'in bağlantı tarayıcısı da
+ * tüketebiliyor) ve dönüş adresinin izinli listede olmaması.
+ */
+export function kurtarmaHatasi(): string | null {
+  try {
+    const h = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash
+    const p = new URLSearchParams(h)
+    const kod = p.get('error_code')
+    const aciklama = p.get('error_description')
+    if (!kod && !aciklama) return null
+    if (kod === 'otp_expired') {
+      return cevir(
+        suankiDil(),
+        'Sıfırlama bağlantısının süresi dolmuş ya da daha önce kullanılmış. Yeni bir bağlantı iste.',
+      )
+    }
+    return aciklama
+      ? hataMetni(aciklama.replace(/\+/g, ' '))
+      : cevir(suankiDil(), 'Sıfırlama bağlantısı geçersiz.')
+  } catch {
+    return null
+  }
+}
+
 /** Kurtarma jetonunu adres çubuğundan temizle (geçmişe yazmadan) */
 export function kurtarmaJetonunuTemizle(): void {
   try {

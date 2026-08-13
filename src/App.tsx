@@ -25,7 +25,12 @@ const GameScreen = lazy(() => import('./components/GameScreen'))
 import { useDil } from './dil'
 import { savePuzzle, type SavedPuzzle } from './storage'
 import { useAuth } from './supabase/auth'
-import { kurtarmaJetonu, kurtarmaJetonunuTemizle, supabase } from './supabase/client'
+import {
+  kurtarmaHatasi,
+  kurtarmaJetonu,
+  kurtarmaJetonunuTemizle,
+  supabase,
+} from './supabase/client'
 import { createRemotePuzzle } from './supabase/puzzles'
 
 type Screen =
@@ -120,15 +125,6 @@ export default function App() {
    */
   const [sifreYenileme, setSifreYenileme] = useState(false)
 
-  useEffect(() => {
-    const jeton = kurtarmaJetonu()
-    if (!jeton || !supabase) return
-    setSifreYenileme(true)
-    void supabase.auth.setSession(jeton).finally(() => {
-      // Jeton adres çubuğunda kalmasın
-      kurtarmaJetonunuTemizle()
-    })
-  }, [])
   const [saklaniyor, setSaklaniyor] = useState(false)
   /** Bilgi/hata kutusu — tarayıcının alert'i yerine */
   const [bilgi, setBilgi] = useState<{
@@ -137,6 +133,28 @@ export default function App() {
     /** Kutu kapanınca çalışacak iş */
     sonra?: () => void
   } | null>(null)
+
+  useEffect(() => {
+    // Bağlantı jeton yerine hata döndürdüyse sebebini göster. Yoksa kullanıcı
+    // sessizce giriş ekranına düşüyor ve bağlantının neden işe yaramadığını
+    // hiç öğrenemiyor — "sıfırlama çalışmıyor" diye görünen şey buydu.
+    const kurtarmaHata = kurtarmaHatasi()
+    if (kurtarmaHata) {
+      setBilgi({ baslik: ceviri('Şifre sıfırlama'), mesaj: kurtarmaHata })
+      kurtarmaJetonunuTemizle()
+      return
+    }
+    const jeton = kurtarmaJetonu()
+    if (!jeton || !supabase) return
+    setSifreYenileme(true)
+    void supabase.auth.setSession(jeton).finally(() => {
+      // Jeton adres çubuğunda kalmasın
+      kurtarmaJetonunuTemizle()
+    })
+    // Yalnızca açılışta bir kez: adres çubuğu okunup temizleniyor. Dile
+    // bağlanırsa dil değişiminde kutu yeniden açılır.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const goHome = () => {
     if (location.hash) history.replaceState(null, '', location.pathname + location.search)

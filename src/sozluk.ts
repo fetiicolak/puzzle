@@ -112,6 +112,10 @@ export const SOZLUK: Record<string, string> = {
   'Hesap aç': 'Create account',
   'Bir saniye…': 'One moment…',
   'Şifremi unuttum': 'Forgot my password',
+  'Şifre sıfırlama': 'Password reset',
+  'Sıfırlama bağlantısının süresi dolmuş ya da daha önce kullanılmış. Yeni bir bağlantı iste.':
+    'The reset link has expired or was already used. Request a new one.',
+  'Sıfırlama bağlantısı geçersiz.': 'The reset link is not valid.',
   'Girişe dön': 'Back to sign in',
   'Sıfırlama bağlantısı gönder': 'Send reset link',
   'E-postanı yaz, sana yeni şifre belirleyebileceğin bir bağlantı gönderelim.':
@@ -135,6 +139,8 @@ export const SOZLUK: Record<string, string> = {
   'Yeni şifre (tekrar)': 'New password (again)',
   'Şifreler aynı değil.': 'The passwords do not match.',
   'Şifreyi değiştir': 'Change password',
+  'Şifreyi göster': 'Show password',
+  'Şifreyi gizle': 'Hide password',
 
   // ------------------------------------------------------------ hata ekranı
   'Bir şeyler ters gitti': 'Something went wrong',
