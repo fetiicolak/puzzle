@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
+import MessageBox from './MessageBox'
 import { basHarfler } from '../ad'
 import { useDil } from '../dil'
 import { tiklanabilirTus } from '../erisim'
@@ -35,6 +36,8 @@ export default function FriendsSection() {
     seçeneği yok" diye bildirdi — özellik vardı, bulunamıyordu.
   */
   const [eylemAcik, setEylemAcik] = useState<string | null>(null)
+  /** Açık yazışma penceresi */
+  const [acikSohbet, setAcikSohbet] = useState<Kisi | null>(null)
   /** Başlığa tıklanınca liste açılır; sayfa uzamasın diye kapalı başlar */
   const [acik, setAcik] = useState(false)
   const [avatarlar, setAvatarlar] = useState<Map<string, string>>(new Map())
@@ -202,6 +205,17 @@ export default function FriendsSection() {
         />
       )}
 
+      {acikSohbet && (
+        <MessageBox
+          kisi={acikSohbet}
+          onKapat={() => {
+            setAcikSohbet(null)
+            // Pencereden engellenmiş olabilir: liste tazelensin
+            void tazele()
+          }}
+        />
+      )}
+
       {/* Metni mesaj kutusundakiyle aynı — anahtar Türkçe cümlenin kendisi */}
       {engellenecek && (
         <ConfirmDialog
@@ -338,6 +352,13 @@ export default function FriendsSection() {
 
                 {acikMi && (
                   <div className="friend-eylem">
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setAcikSohbet(a.kisi)}
+                    >
+                      💬 {ceviri('Mesaj yaz')}
+                    </button>
+                    {/* Yıkıcı olan en sonda, kazara basılmasın */}
                     <button
                       className="btn btn-ghost btn-sm tehlike-yazi"
                       onClick={() => setEngellenecek(a)}

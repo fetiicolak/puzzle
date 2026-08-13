@@ -573,33 +573,17 @@ sayılmıyor.
 - [ ] `reports` tablosunu görecek bir arayüz yok, şikâyetlere SQL'den elle
       bakılıyor. İlk sürüm için kabul edilebilir ama bilerek kabul edilmeli.
 
-**Doğrulanmamış** — kod yazıldı, `tsc`/test/build temiz, ama şu koşulda hiç
-denenmedi. Parantez içi, denemek için gereken şey.
+**Doğrulanmamış**
 
-*Gerçek cihaz gerekiyor (tarayıcı paneli yetmiyor)*
-- [ ] **Zayıf cihazda kalan takılma.** 2026-08-11'de gerçek cihazda denendi:
-      kasma azalmış ama **tamamen bitmemiş**. Hangi parça sayısında, kamera
-      açık mıydı, hangi cihaz — bilinmiyor; ölçüm yapılmadan yeni "iyileştirme"
-      yazma (bkz. *Çizim başarımı*). Sıradaki adım: cihazda
-      `__puzzle.board.hafifMod` ve `dpr` değerlerine bakmak, `render()`
-      süresini ölçmek. Şüpheliler: zayıf cihazda `dpr` tavanı hâlâ 1.5,
-      `hafifMod` ölçütü kaba (`hardwareConcurrency<=4 || deviceMemory<=4`).
-- [ ] `hafifMod`'un doğru cihazlarda açılması. Ölçüt `hardwareConcurrency` ve
-      `deviceMemory`; ikisi de kaba ipuçları, gerçek telefonlarda ne dediği
-      bilinmiyor. Cihazda `?tani` şeridinde "zayıf/normal cihaz" yazıyor.
+Şu an boş. 2026-08-14'te kullanıcı gerçek cihazda ve iki hesapla kalan
+maddeleri denedi: iPhone'da güvenli alan dolgusu, panellerin parmakla
+taşınması, arka planda sesin susması, zayıf cihaz başarımı / `hafifMod`,
+engelleme listesi ve profilden e-posta değiştirme — hepsi çalışıyor.
 
-*İki hesap gerekiyor* — şema 2026-08-13'te çalıştırıldı, artık denenebilirler.
-- [ ] **Engellediklerin listesinde gerçek ad.** `engellediklerim` canlıda ve
-      200 dönüyor (2026-08-13) ama liste hep boştu — dolu hâli görülmedi.
-      Denemek arkadaşlığı silmek demek: engeli kaldırmak geri getirmiyor.
-      - Engelleme artık **arkadaş satırına tıklayınca** açılan şeritte
-        (`FriendsSection`); mesajlaşma penceresindeki `⋯` menüsü de duruyor.
-        Önce yalnızca `MessageBox`'taydı ve kullanıcı "engelleme seçeneği yok"
-        diye bildirdi — özellik vardı, ulaşılmıyordu.
-- [ ] **Profilden e-posta değiştirme.** Şifre değiştirme 2026-08-13'te gerçek
-      hesapla denendi ve çalışıyor; e-posta tarafı denenmedi, ikinci bir adres
-      gerekiyor. Onay bağlantısına tıklandıktan sonra eski adresle girişin
-      kapandığı da görülmeli.
+Buraya yeni madde eklerken kuralı hatırla: kod yazıldı, `tsc`/test/build
+temiz, ama denenmediyse **bitmiş sayılmaz**; neyin eksik olduğunu ve
+denemek için neyin gerektiğini (gerçek cihaz · iki hesap · ikinci e-posta
+adresi) yaz.
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur).
