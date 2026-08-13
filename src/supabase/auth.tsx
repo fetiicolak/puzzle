@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import { cevir, suankiDil } from '../dil'
 import { oturumVerisiniTemizle } from '../storage'
 import { nabizAt } from './profile'
 import {
@@ -36,6 +37,10 @@ interface AuthState {
   sifreSifirla: (email: string) => Promise<string | null>
   /** Kurtarma bağlantısıyla gelindikten sonra yeni şifreyi yaz */
   sifreyiDegistir: (yeniSifre: string) => Promise<string | null>
+  /** Profilden şifre değiştir — mevcut şifre doğrulanır */
+  sifreyiGuncelle: (mevcutSifre: string, yeniSifre: string) => Promise<string | null>
+  /** E-posta değiştir; yeni adrese onay bağlantısı gider */
+  epostayiDegistir: (yeniEposta: string) => Promise<string | null>
 }
 
 const Ctx = createContext<AuthState | null>(null)
@@ -169,6 +174,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async sifreyiDegistir(yeniSifre) {
         if (!supabase) return 'Sunucu bağlantısı yapılandırılmamış.'
         const { error } = await supabase.auth.updateUser({ password: yeniSifre })
+        return error ? hataMetni(error.message) : null
+      },
+
+      /*
+        Profilden şifre değiştirme. Sıfırlama akışından farkı, mevcut şifrenin
+        sorulması: Supabase açık oturumda eski şifreyi istemiyor, yani açık
+        unutulmuş bir cihazın başına geçen kişi hesabı devralabiliyordu.
+        Doğrulamayı signInWithPassword ile yapıyoruz — sunucuya soruyor.
+      */
+      async sifreyiGuncelle(mevcutSifre, yeniSifre) {
+        if (!supabase) return 'Sunucu bağlantısı yapılandırılmamış.'
+        const eposta = session?.user?.email
+        if (!eposta) return cevir(suankiDil(), 'Oturum bulunamadı, yeniden giriş yap.')
+        const { error: dogrulama } = await supabase.auth.signInWithPassword({
+          email: eposta,
+          password: mevcutSifre,
+        })
+        if (dogrulama) return cevir(suankiDil(), 'Mevcut şifren yanlış.')
+        const { error } = await supabase.auth.updateUser({ password: yeniSifre })
+        if (!error) etkinligiDamgala()
+        return error ? hataMetni(error.message) : null
+      },
+
+      /*
+        E-posta değişikliği hemen olmuyor: Supabase yeni adrese (ve "secure
+        email change" açıksa eskisine de) onay bağlantısı gönderiyor, adres
+        ancak tıklandıktan sonra değişiyor. Arayüz bunu böyle anlatmalı,
+        yoksa kullanıcı değişti sanıp eski adresiyle giriş yapamıyor.
+      */
+      async epostayiDegistir(yeniEposta) {
+        if (!supabase) return 'Sunucu bağlantısı yapılandırılmamış.'
+        const { error } = await supabase.auth.updateUser(
+          { email: yeniEposta.trim() },
+          { emailRedirectTo: location.origin + location.pathname },
+        )
         return error ? hataMetni(error.message) : null
       },
 

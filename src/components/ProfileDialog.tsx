@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
+import HesapBolumu from './HesapBolumu'
 import Select from './Select'
 import { basHarfler } from '../ad'
 import { useDil } from '../dil'
@@ -267,6 +268,8 @@ export default function ProfileDialog({ onKapat, onKaydedildi }: Props) {
                 'Bu bilgileri yalnızca birlikte puzzle çözdüğün ve arkadaş olduğun kişiler görebilir.',
               )}
             </small>
+
+            <HesapBolumu />
 
             {/*
               Bölüm kimseyi engellememişken de duruyor. Önce yalnızca dolu

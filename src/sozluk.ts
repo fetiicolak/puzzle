@@ -113,6 +113,21 @@ export const SOZLUK: Record<string, string> = {
   'Bir saniye…': 'One moment…',
   'Şifremi unuttum': 'Forgot my password',
   'Şifre sıfırlama': 'Password reset',
+  Hesap: 'Account',
+  'Giriş adresin: {eposta}': 'You sign in with: {eposta}',
+  'E-postamı değiştir': 'Change my email',
+  'Şifremi değiştir': 'Change my password',
+  'Yeni e-posta adresin': 'Your new email address',
+  'Yeni adrese bir onay bağlantısı gönderilir; adres ancak tıklandıktan sonra değişir.':
+    'A confirmation link is sent to the new address; it only changes once you click it.',
+  'Onay bağlantısı gönder': 'Send confirmation link',
+  'Gönderiliyor…': 'Sending…',
+  'Onay bağlantısı {eposta} adresine gönderildi. Bağlantıya tıklayana kadar eski adresinle giriş yapmaya devam et.':
+    'A confirmation link was sent to {eposta}. Keep signing in with your old address until you click it.',
+  'Mevcut şifren': 'Your current password',
+  'Mevcut şifren yanlış.': 'Your current password is wrong.',
+  'Şifren değiştirildi.': 'Your password has been changed.',
+  'Oturum bulunamadı, yeniden giriş yap.': 'Session not found, please sign in again.',
   'Sıfırlama bağlantısının süresi dolmuş ya da daha önce kullanılmış. Yeni bir bağlantı iste.':
     'The reset link has expired or was already used. Request a new one.',
   'Sıfırlama bağlantısı geçersiz.': 'The reset link is not valid.',
