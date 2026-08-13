@@ -584,15 +584,6 @@ denenmedi. Parantez içi, denemek için gereken şey.
       `__puzzle.board.hafifMod` ve `dpr` değerlerine bakmak, `render()`
       süresini ölçmek. Şüpheliler: zayıf cihazda `dpr` tavanı hâlâ 1.5,
       `hafifMod` ölçütü kaba (`hardwareConcurrency<=4 || deviceMemory<=4`).
-- [ ] **iPhone'da güvenli alan dolgusu — sebep bulundu, cihazda doğrulanmadı.**
-      Dar ekran kuralı `.game-topbar` dolgusunu kısayolla eziyordu (ayrıntısı
-      *Arayüz kuralları*'nda). Payı taklit ederek masaüstünde ölçüldü: 375 px'te
-      dolgu 7 → 54 px, düğmeler 47 px'lik durum çubuğunun altına indi. Gerçek
-      iPhone'da **kurulu uygulamada** `?tani` ile bakılacak: şeritte artık
-      `güvenli alan ü… · çubuk …px · kurulu` yazıyor ve iki sayı iki ayrı
-      arızayı ayırıyor — `ü` 0 ise cihaz payı hiç bildirmiyor (şüpheli
-      `viewport-fit` / `apple-mobile-web-app-status-bar-style`), `ü` doluyken
-      `çubuk` küçükse dolgu uygulanmıyor demektir.
 - [ ] `hafifMod`'un doğru cihazlarda açılması. Ölçüt `hardwareConcurrency` ve
       `deviceMemory`; ikisi de kaba ipuçları, gerçek telefonlarda ne dediği
       bilinmiyor. Cihazda `?tani` şeridinde "zayıf/normal cihaz" yazıyor.
@@ -605,11 +596,10 @@ denenmedi. Parantez içi, denemek için gereken şey.
         (`MessageBox`). Arkadaş listesinden ya da profilden erişilemiyor;
         kullanıcı 2026-08-13'te "engelleme seçeneği yok" diye bildirdi.
         Keşfedilebilirlik sorunu, eksik özellik değil.
-- [ ] **Profilden e-posta ve şifre değiştirme** (2026-08-13). Yerleşim 783 ve
-      390 px'te doğrulandı, formlar açılıyor, düğme boş alanla kapalı kalıyor.
-      Gerçek değişiklik denenmedi: şifre için mevcut şifre, e-posta için ikinci
-      bir adres gerekiyor. E-posta değişikliğinde onay bağlantısına tıklandıktan
-      sonra eski adresle girişin kapandığı da görülmeli.
+- [ ] **Profilden e-posta değiştirme.** Şifre değiştirme 2026-08-13'te gerçek
+      hesapla denendi ve çalışıyor; e-posta tarafı denenmedi, ikinci bir adres
+      gerekiyor. Onay bağlantısına tıklandıktan sonra eski adresle girişin
+      kapandığı da görülmeli.
 
 **Teknik borç**
 - [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur).
