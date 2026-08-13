@@ -491,10 +491,13 @@ sayılmıyor.
       - Temiz olduğu doğrulananlar: `vite.config.ts` `base: './'`, `sw.js`
         tamamen göreli, `manifest.webmanifest` `start_url: "."`, hukuki dört
         sayfada adres geçmiyor (yalnızca `mailto:`).
-- [ ] Depolama kotası kararı: 1 GB ≈ 2.500-3.000 fotoğraf (aşağıdaki ölçüme
-      göre), dolunca ne olacak. Ara paket yok, sonraki basamak doğrudan Pro
-      25 $/ay. Free katmanın asıl riski depolama değil, **7 gün
-      hareketsizlikte projenin duraklatılması**.
+- [x] **Depolama kotası kararı verildi (2026-08-13).** 1 GB ≈ 2.800 fotoğraf.
+      Şimdi hiçbir şey yapılmıyor; Storage kullanımı %50'yi geçince sırayla:
+      yetim dosya temizliği → saklama süresi → gerekirse Cloudflare R2
+      (ücretsiz katman 10 GB, çıkış trafiği bedava). **Supabase Pro (25 $/ay)
+      alınmayacak** ve **kodlama sıkılmayacak** (WebP / daha düşük çözünürlük
+      masada değil) — kullanıcı kararı. 7 günlük duraklama sorun değil,
+      kullanıcı ve çevresi düzenli giriyor.
 - [ ] `reports` tablosunu görecek bir arayüz yok, şikâyetlere SQL'den elle
       bakılıyor. İlk sürüm için kabul edilebilir ama bilerek kabul edilmeli.
 
@@ -557,7 +560,20 @@ denenmedi. Parantez içi, denemek için gereken şey.
       sonra eski adresle girişin kapandığı da görülmeli.
 
 **Teknik borç**
-- [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur)
+- [ ] Yetim depo dosyası temizleyicisi (satır silinip dosya kalırsa erişilemez olur).
+      Kota %50'yi geçince yapılacak ilk iş bu — ne kadarının ölü dosya olduğu
+      bilinmeden saklama süresi tartışmak erken.
+- [ ] **Saklama süresi: silme değil, arşivle.** 90 gündür dokunulmamış puzzle'ın
+      fotoğrafı ~320 px'lik kopyayla değiştirilir, büyüğü silinir (~363 KB →
+      ~25 KB, kazancın %93'ü). **Dosyayı gerçekten silmek geri dönüşsüzdür:**
+      sunucuda tek kopya var (`puzzles.image_path`), başka kaynak yok — "sonra
+      tekrar indirilsin" diye bir yol yok, yalnızca oynayanların cihazındaki
+      `localStorage` kopyası kalır. Arşivleme istenen sonucu veriyor: tablo
+      kütüphanede duruyor, tıklanınca açılıyor ve oynanabiliyor, yalnızca
+      netliği düşük.
+      - **`unlock_at` dolu (kilitli özel gün) puzzle'lar muaf tutulmalı.**
+        Tek dayanakları depo — kurucu çevrimdışıyken açılıyorlar; sürpriz
+        günü bulanık çıkarsa özelliğin anlamı kalmaz.
 - [ ] Supabase paketi 215 KB ile en büyük parça ve açılışta iniyor (oturum
       kontrolü ilk iş). Realtime istemcisi kullanılmadığı hâlde içinde;
       ayıklamanın resmî yolu yok. Ancak girişi geciktirerek çözülür.
