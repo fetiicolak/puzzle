@@ -154,7 +154,8 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
 - **Panelleri `top: 64px` gibi sabit değerle konumlandırma.** Üst çubuk dar
   ekranda ikinci satıra sarıyor (tablette 99px oluyor). Gerçek boyu GameScreen
   bir `ResizeObserver` ile `--ust-cubuk` değişkenine yazıyor; `top:
-  calc(var(--ust-cubuk) + 8px)` kullan.
+  calc(var(--ust-cubuk) + 8px)` kullan. Gözlemci `border-box` izlemek zorunda —
+  gerekçesi güvenli alan maddesinde.
 - **Sağ üst + sağ alt panellerin yükseklik toplamı ekranı taşmamalı.**
   `.video-panel` 45vh, `.chat` 55vh ile sınırlı; kamera sayısı artınca panel
   uzayıp sohbetin üstüne biniyordu.
@@ -198,13 +199,32 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
     `[en - en*ölçek, 0]` aralığında.
   - ↺ hem yeri hem yakınlaştırmayı sıfırlıyor; kullanıcı için tek bir "eski
     hâline dön" var.
-- **Cihazın durum çubuğu için `env(safe-area-inset-*)` bırak.** `index.html`'de
+- **Cihazın durum çubuğu için güvenli alan payı bırak.** `index.html`'de
   `viewport-fit=cover` var; kurulu uygulamada (ve Android 15'in kenardan kenara
   kipinde) saat ve bildirim simgeleri üst çubuğun üstüne biniyordu, düğmelere
   basmak imkânsızdı. `.game-topbar` ve `.screen` üst dolgularını `calc(... +
-  env(safe-area-inset-top, 0px))` ile, yanları `max(..., env(...))` ile veriyor.
-  Tarayıcı sekmesinde bu değerler 0 — orada hiçbir şey değişmiyor, o yüzden
-  masaüstünde denemek bu hatayı **göstermez**.
+  var(--guvenli-ust))` ile, yanları `max(..., var(--guvenli-sag))` ile veriyor.
+  - **Kurallara doğrudan `env()` yazma, `--guvenli-ust/alt/sol/sag`
+    değişkenlerini kullan** (`:root`, `index.css`). Sebebi ölçüm: `env()`
+    masaüstünde hep 0 ve taklit edilemiyor, yani dolgunun uygulanıp
+    uygulanmadığı yalnızca gerçek telefonda görülebiliyordu. Değişken olunca
+    `document.documentElement.style.setProperty('--guvenli-ust','47px')` ile
+    aynısı tarayıcı panelinde denenebiliyor — hata buradan çıktı.
+  - **Dolguyu `padding:` kısayoluyla ezme.** Dar ekran kuralında
+    (`@media (max-width: 420px)`) `.game-topbar` için `padding: 7px 8px`
+    yazıyordu ve üstteki kuralın çentik payını **tamamen** siliyordu. Yalnızca
+    iPhone'da görünüyordu: iOS `black-translucent` ile içeriği durum çubuğunun
+    altına alıyor, Android'de pay zaten 0 olduğu için silinecek bir şey yok.
+    Telefonların mantıksal genişliği 375-430 px, yani hata tam da hedef
+    cihazlarda açılıyordu. Ölçüldü (375 px, pay 47): eski kural 7 px, doğrusu
+    54 px.
+  - **`--ust-cubuk`u yazan `ResizeObserver` `{ box: 'border-box' }` istiyor.**
+    Varsayılan content-box ve çubuğun boyunu değiştiren şey **dolgu**: ekran
+    döndürülünce pay 47'den 0'a iniyor, içerik boyu aynı kalıyor, olay hiç
+    tetiklenmiyor ve değişken eski değerde donuyordu.
+  - Tarayıcı sekmesinde paylar 0; iOS'ta yalnızca **kurulu** uygulamada dolu
+    geliyor. Sekmede ölçüm almak bir şey kanıtlamaz — `?tani` şeridindeki
+    `kurulu/sekme` kelimesi tam bunun için var.
 
 ## Çizim başarımı
 
@@ -551,20 +571,15 @@ denenmedi. Parantez içi, denemek için gereken şey.
       `__puzzle.board.hafifMod` ve `dpr` değerlerine bakmak, `render()`
       süresini ölçmek. Şüpheliler: zayıf cihazda `dpr` tavanı hâlâ 1.5,
       `hafifMod` ölçütü kaba (`hardwareConcurrency<=4 || deviceMemory<=4`).
-- [ ] **iPhone'da güvenli alan dolgusu çalışmıyor.** 2026-08-13'te gerçek
-      cihazda denendi: **Android'de düzgün, iPhone'da üst çubuk hâlâ saatin
-      altına giriyor.** Sebep bilinmiyor — tahminle düzeltme yazma. Ölçüm yolu
-      hazır: kurulu uygulamada `?tani` ile açıp şeritteki `güvenli alan ü… a…`
-      değerlerine ve "kurulu/sekme" yazısına bak. `ü` 0 geliyorsa iOS payı hiç
-      bildirmiyor demektir (o zaman şüpheli `viewport-fit` /
-      `apple-mobile-web-app-status-bar-style`); sıfırdan büyükse dolgu
-      uygulanmıyor demektir ve sorun CSS tarafındadır.
-- [ ] **Panellerin gerçek dokunmatikte parmakla taşınması.** 2026-08-13'te
-      kullanıcı "belli bir noktadan taşınıyor, her yerden değil" dedi; tutamak
-      panelin tamamına yayıldı ve `transform` hatası düzeltildi (yukarıya bak),
-      ama düzeltmeler yalnızca sentetik `pointerType: 'touch'` olaylarıyla
-      doğrulandı. Cihazda tekrar denenmeli: panel gövdesinden taşınıyor mu,
-      sohbet/oda listesi hâlâ parmakla kaydırılıyor mu.
+- [ ] **iPhone'da güvenli alan dolgusu — sebep bulundu, cihazda doğrulanmadı.**
+      Dar ekran kuralı `.game-topbar` dolgusunu kısayolla eziyordu (ayrıntısı
+      *Arayüz kuralları*'nda). Payı taklit ederek masaüstünde ölçüldü: 375 px'te
+      dolgu 7 → 54 px, düğmeler 47 px'lik durum çubuğunun altına indi. Gerçek
+      iPhone'da **kurulu uygulamada** `?tani` ile bakılacak: şeritte artık
+      `güvenli alan ü… · çubuk …px · kurulu` yazıyor ve iki sayı iki ayrı
+      arızayı ayırıyor — `ü` 0 ise cihaz payı hiç bildirmiyor (şüpheli
+      `viewport-fit` / `apple-mobile-web-app-status-bar-style`), `ü` doluyken
+      `çubuk` küçükse dolgu uygulanmıyor demektir.
 - [ ] `hafifMod`'un doğru cihazlarda açılması. Ölçüt `hardwareConcurrency` ve
       `deviceMemory`; ikisi de kaba ipuçları, gerçek telefonlarda ne dediği
       bilinmiyor. Cihazda `?tani` şeridinde "zayıf/normal cihaz" yazıyor.

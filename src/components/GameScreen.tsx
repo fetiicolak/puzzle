@@ -224,8 +224,15 @@ export default function GameScreen({ config, onExit }: Props) {
     const olc = () =>
       kok.style.setProperty('--ust-cubuk', `${Math.round(cubuk.getBoundingClientRect().height)}px`)
     olc()
+    /*
+      `border-box` şart. ResizeObserver varsayılan olarak content-box izliyor
+      ve çubuğun boyunu değiştiren şeylerden biri **dolgu**: güvenli alan payı
+      (`--guvenli-ust`) ekran döndürülünce 47 px'ten 0'a iniyor, içerik boyu
+      ise aynı kalıyor. Content-box ile olay hiç tetiklenmiyor, --ust-cubuk
+      eski değerde donuyor ve paneller çubuğun altına/üstüne kayıyordu.
+    */
     const ro = new ResizeObserver(olc)
-    ro.observe(cubuk)
+    ro.observe(cubuk, { box: 'border-box' })
     return () => ro.disconnect()
   }, [])
 

@@ -32,6 +32,19 @@
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
 
+  /*
+    Cihazın çentik / durum çubuğu payları. Kurallara doğrudan `env()` yazmak
+    yerine buradan geçiriliyor, çünkü `env()` masaüstünde hep 0 ve taklit
+    edilemiyor: dolgunun gerçekten uygulanıp uygulanmadığı ancak gerçek
+    telefonda görülebiliyordu. Değişken olunca konsoldan
+    `document.documentElement.style.setProperty('--guvenli-ust','47px')`
+    yazıp aynısı masaüstünde denenebiliyor.
+  */
+  --guvenli-ust: env(safe-area-inset-top, 0px);
+  --guvenli-alt: env(safe-area-inset-bottom, 0px);
+  --guvenli-sol: env(safe-area-inset-left, 0px);
+  --guvenli-sag: env(safe-area-inset-right, 0px);
+
   color-scheme: dark;
 }
 
@@ -223,8 +236,8 @@ button {
   max-width: 760px;
   margin: 0 auto;
   /* üstteki durum çubuğu ve alttaki gezinme çubuğu için pay — bkz. .game-topbar */
-  padding: calc(22px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px))
-    calc(64px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  padding: calc(22px + var(--guvenli-ust)) max(20px, var(--guvenli-sag))
+    calc(64px + var(--guvenli-alt)) max(20px, var(--guvenli-sol));
 }
 .screen-center {
   justify-content: center;
@@ -1853,7 +1866,7 @@ button {
 .chat {
   position: absolute;
   right: 12px;
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(12px + var(--guvenli-alt));
   width: min(88vw, 320px);
   /* kameralarla toplamı ekranı taşmasın — bkz. .video-panel */
   max-height: min(calc(55vh - 45px), 460px);
@@ -2273,7 +2286,7 @@ button {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(6px + var(--guvenli-alt));
   z-index: 60;
   max-width: calc(100% - 16px);
   padding: 5px 10px;
@@ -2289,8 +2302,8 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: calc(9px + env(safe-area-inset-top, 0px)) max(11px, env(safe-area-inset-right, 0px))
-    9px max(11px, env(safe-area-inset-left, 0px));
+  padding: calc(9px + var(--guvenli-ust)) max(11px, var(--guvenli-sag)) 9px
+    max(11px, var(--guvenli-sol));
   background: rgba(18, 14, 26, 0.82);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -2453,7 +2466,7 @@ button {
 .peek {
   position: absolute;
   left: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(14px + var(--guvenli-alt));
   width: min(30vw, 230px);
   padding: 0;
   border-radius: var(--radius);
@@ -2696,13 +2709,23 @@ button {
 
 @media (max-width: 420px) {
   .screen {
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 15px
-      calc(52px + env(safe-area-inset-bottom, 0px));
+    padding: calc(16px + var(--guvenli-ust)) max(15px, var(--guvenli-sag))
+      calc(52px + var(--guvenli-alt)) max(15px, var(--guvenli-sol));
     gap: 15px;
   }
+  /*
+    Güvenli alan payı burada da olmak zorunda. Önce `padding: 7px 8px` yazıyordu
+    ve kısayol olduğu için üstteki kuralın çentik payını **tamamen** siliyordu.
+    Etkisi yalnızca iPhone'da görünüyordu: iOS kurulu uygulamada
+    `black-translucent` ile içeriği durum çubuğunun altına alıyor, Android'de
+    ise pay zaten 0 olduğu için silinen bir şey yok. Telefonların mantıksal
+    genişliği 375-430 px, yani hata tam da hedef cihazlarda açılıyordu.
+    Dolguyu kısayolla ezme.
+  */
   .game-topbar {
     gap: 5px;
-    padding: 7px 8px;
+    padding: calc(7px + var(--guvenli-ust)) max(8px, var(--guvenli-sag)) 7px
+      max(8px, var(--guvenli-sol));
   }
   .game-topbar .stat {
     font-size: 0.8rem;

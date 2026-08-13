@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { PuzzleBoard } from '../engine/board'
 
 /**
- * Cihaz tanılama katmanı — adres sonuna `#tani` yazınca çıkar.
+ * Cihaz tanılama katmanı — adres sonuna `?tani` yazınca çıkar.
  *
  * Neden var: zayıf cihazdaki takılma aylarca ölçülemedi. `__puzzle` yalnızca
  * dev derlemesinde tanımlı, Android Chrome'da konsol yok ve sorun tam da
@@ -13,40 +13,53 @@ import type { PuzzleBoard } from '../engine/board'
  * çevrilmiyor — okuyan kişi biziz.
  */
 /**
- * Cihazın bildirdiği güvenli alan payları.
+ * Cihazın bildirdiği güvenli alan payları ve üst çubuğun bunu uygulayıp
+ * uygulamadığı.
  *
- * iPhone'da üst çubuk saatin altına giriyor ama Android'de sorun yok; sebebi
- * ölçmeden bilinemez. `env(safe-area-inset-*)` doğrudan JS'ten okunamıyor,
- * bir öğeye yazdırıp hesaplanmış değerine bakmak gerekiyor.
+ * İki sayı birden gerekiyor, çünkü iki ayrı arıza aynı belirtiyi veriyor:
+ * cihaz payı hiç bildirmiyorsa `ü` sıfır çıkar, bildirip de dolgu
+ * uygulanmıyorsa `ü` doluyken `çubuk` küçük kalır. Bir kez tam olarak ikincisi
+ * oldu: dar ekran kuralı `.game-topbar` dolgusunu kısayolla eziyordu.
+ *
+ * Paylar `--guvenli-*` değişkenlerinden okunuyor, doğrudan `env()`'den değil —
+ * düzenin gerçekten kullandığı değer bu, ayrıca değişken masaüstünde elle
+ * ayarlanıp sınanabiliyor.
  */
 function guvenliAlan(): string {
   const olcek = document.createElement('div')
   olcek.style.cssText =
     'position:fixed;visibility:hidden;pointer-events:none;' +
-    'top:env(safe-area-inset-top,0px);left:env(safe-area-inset-left,0px);' +
-    'bottom:env(safe-area-inset-bottom,0px);right:env(safe-area-inset-right,0px)'
+    'top:var(--guvenli-ust);left:var(--guvenli-sol);' +
+    'bottom:var(--guvenli-alt);right:var(--guvenli-sag)'
   document.body.appendChild(olcek)
   const h = getComputedStyle(olcek)
-  const yuvarla = (d: string) => Math.round(parseFloat(d) || 0)
+  const yuvarla = (d: string | undefined) => Math.round(parseFloat(d ?? '') || 0)
   const metin = `güvenli alan ü${yuvarla(h.top)} a${yuvarla(h.bottom)} s${yuvarla(h.left)} sğ${yuvarla(h.right)}`
   olcek.remove()
+
+  const cubuk = document.querySelector('.game-topbar')
+  const dolgu = cubuk ? yuvarla(getComputedStyle(cubuk).paddingTop) : null
+
   // Kurulu uygulamada mı, sekmede mi: iOS'ta pay yalnızca kurulu uygulamada gelir
   const kurulu =
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as unknown as { standalone?: boolean }).standalone === true
-  return `${metin} · ${kurulu ? 'kurulu' : 'sekme'}`
+  return `${metin} · çubuk ${dolgu === null ? '—' : `${dolgu}px`} · ${kurulu ? 'kurulu' : 'sekme'}`
 }
 
 export default function TaniPaneli({ board }: { board: PuzzleBoard | null }) {
   const [satir, setSatir] = useState('')
-  const [alan] = useState(guvenliAlan)
+  // Üst çubuk gecikmeli çiziliyor ve ekran döndürülünce paylar değişiyor;
+  // tek seferlik ölçüm ikisini de kaçırıyordu.
+  const [alan, setAlan] = useState(guvenliAlan)
 
   useEffect(() => {
-    if (!board) return
     // Yarım saniye: sayaç okunduğunda sıfırlandığı için değer hep son
     // aralığa ait. Daha sık okumak fps'i gürültülü, daha seyrek okumak
     // takılmanın olduğu anı kaçırır hâle getiriyor.
     const zamanlayici = setInterval(() => {
+      setAlan(guvenliAlan())
+      if (!board) return
       const t = board.tani()
       /*
         Boştayken hiç kare çizilmiyor (tasarım gereği: değişen bir şey yok).
