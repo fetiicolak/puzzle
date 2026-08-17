@@ -226,6 +226,33 @@ tutar. Genel iyi kodlama tavsiyeleri burada yok.
     geliyor. Sekmede ölçüm almak bir şey kanıtlamaz — `?tani` şeridindeki
     `kurulu/sekme` kelimesi tam bunun için var.
 
+## Tuvalin zemin rengi
+
+- **Zemin sabit değil, fotoğraftan türetiliyor** (`src/engine/palet.ts`).
+  `board.ts` içine sabit renk yazma; çerçeve, tepsi ayracı, hayalet ızgara ve
+  imleç konturu de paletten geliyor. Palet `PuzzleBoard`'a kurucudan veriliyor.
+  Sebebi: koyu fotoğrafta koyu zemin parçayı yutuyordu (kullanıcı bildirdi).
+- **Palet ağdan gönderilmiyor**, iki taraf da aynı hesabı kendisi yapıyor.
+  Bu yüzden `paletCikar` **saf ve belirlenimci** kalmalı — rastgelelik, saat,
+  cihaz özelliği karıştırma, yoksa oda ortağı başka bir zemin görür.
+- **Örnekleme kesim ızgarasında** (`gorseldenPalet(img, cut.cols, cut.rows)`):
+  her örnek kabaca **bir parçanın ortalaması**. Tam çözünürlükte örneklerken
+  tek bir koyu gölge bütün zemini ağartıyordu — Mona Lisa'da zemin bembeyaz
+  çıkıyordu. Görünürlüğü belirleyen parçanın bütünü, en koyu birkaç pikseli
+  değil.
+- **Eşik (`ESIK`) ölçülerek seçildi, gözle değil.** 14 hazır eser, 4.200 parça,
+  ölçüt "kontrastı 1,5'in altında kalan parça sayısı": sabit zemin 956 ·
+  eşik 2 → 136 · 2,5 → 107 · 3 → 107. 3'ün getirdiği bir kazanç yok, buna
+  karşılık iki eserde zemini boş yere ağartıyor. Sabitleri değiştireceksen
+  aynı ölçümü tekrarla.
+- **Açık zemin çıkabiliyor** (koyu ağırlıklı fotoğrafta). O zaman zeminin
+  üstündeki beyaz saydam katmanlar görünmez oluyor; `palet.acik` ile siyaha
+  dönüyorlar. Zemine yeni bir katman eklersen bu bayrağa bak.
+- Ölçüldü (Gece Devriyesi, 99 parça, tarayıcıda): tepsideki parça piksellerinin
+  zeminle kontrastı 1,5'in altında kalan oran **%70,9 → %7,3**, medyan kontrast
+  **1,09 → 5,40**. Açık fotoğrafta (Badem Çiçekleri) zemin koyu kalıyor ve
+  hiçbir şey değişmiyor — %2,3 → %2,2.
+
 ## Çizim başarımı
 
 Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
@@ -605,8 +632,8 @@ adresi) yaz.
       ayıklamanın resmî yolu yok. Ancak girişi geciktirerek çözülür.
 - [ ] Test kapsamı: `net/peer.ts` (WebRTC), `engine/board.ts` (tuval) ve
       bileşenler hâlâ test edilmiyor — üçü de sahte ortam gerektiriyor.
-      Şu an 138 test: `engine` 41 + `protocol` 28 + `muzik` 20 + `puzzles` 15
-      + `Linkli` 12 + `ad`/`odakodu` 9 + `kufur` 7 + `hata` 6.
+      Şu an 146 test: `engine` 41 + `protocol` 28 + `muzik` 20 + `puzzles` 15
+      + `Linkli` 12 + `ad`/`odakodu` 9 + `palet` 8 + `kufur` 7 + `hata` 6.
 - [ ] Erişilebilirlik kalanı: renk karşıtlığı ölçülmedi, `canvas` üzerindeki
       oyun klavyeyle oynanamıyor.
 
@@ -618,7 +645,7 @@ adresi) yaz.
 
 ```bash
 npm run dev      # http://localhost:5173
-npm test         # Vitest — 138 test
+npm test         # Vitest — 146 test
 npm run lint     # ESLint (flat config, tip denetimli kurallar açık)
 npm run build    # tsc -b && vite build
 ```

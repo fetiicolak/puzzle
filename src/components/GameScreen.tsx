@@ -1,6 +1,7 @@
 ﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { PuzzleBoard } from '../engine/board'
 import { generateCut, renderPieceBitmaps } from '../engine/cutter'
+import { gorseldenPalet } from '../engine/palet'
 import {
   arrangeTray,
   canSplit,
@@ -433,6 +434,9 @@ export default function GameScreen({ config, onExit }: Props) {
     if (r.destroyed || !canvasRef.current) return
     const cut = generateCut(img.naturalWidth, img.naturalHeight, pieceCount, seed)
     const bitmaps = renderPieceBitmaps(img, cut)
+    // Zemin rengi fotoğrafa göre seçiliyor; iki taraf da aynı hesabı yapıyor.
+    // Örnekleme kesim ızgarasında: her örnek kabaca bir parçanın ortalaması.
+    const palet = gorseldenPalet(img, cut.cols, cut.rows)
     const game = createGameState(cut, seed + 1, r.rotation)
     if (r.pendingSnap) {
       restore(game, r.pendingSnap)
@@ -493,7 +497,7 @@ export default function GameScreen({ config, onExit }: Props) {
           afterStateChange({ completed: false })
         }
       },
-    })
+    }, palet)
     r.board = board
     if (import.meta.env.DEV) {
       // dev'de konsoldan/testten erişim için

@@ -2,6 +2,7 @@
 // React'ten bağımsız; GameState'i çizer ve kullanıcı eylemlerini callback'lerle bildirir.
 
 import { pieceMargin, piecePath, type PieceBitmap } from './cutter'
+import { VARSAYILAN_PALET, type Palet } from './palet'
 import {
   bringToTop,
   isEdgePiece,
@@ -78,6 +79,8 @@ export class PuzzleBoard {
   private bitmaps: PieceBitmap[][]
   private paths: Path2D[] = []
   private callbacks: BoardCallbacks
+  /** Zemin ve üstündeki katman renkleri — fotoğraftan türetiliyor */
+  private palet: Palet
 
   // viewport
   private scale = 1
@@ -179,8 +182,10 @@ export class PuzzleBoard {
     state: GameState,
     bitmaps: PieceBitmap[][],
     callbacks: BoardCallbacks = {},
+    palet: Palet = VARSAYILAN_PALET,
   ) {
     this.canvas = canvas
+    this.palet = palet
     // alpha: false — tuvalin tamamı her karede zeminle doluyor. Saydamlık
     // olmadığını söylemek tarayıcıyı sayfa ile harmanlama işinden kurtarıyor.
     this.ctx = canvas.getContext('2d', { alpha: false })!
@@ -626,8 +631,9 @@ export class PuzzleBoard {
     ctx.save()
     ctx.scale(this.dpr, this.dpr)
 
-    // arka plan
-    ctx.fillStyle = '#1a1426'
+    // Arka plan. Renk sabit değil, fotoğraftan geliyor (`palet.ts`): koyu
+    // fotoğrafta koyu zemin parçaları yutuyordu. Buraya sabit renk yazma.
+    ctx.fillStyle = this.palet.zemin
     ctx.fillRect(0, 0, vw, vh)
 
     ctx.translate(this.tx, this.ty)
@@ -638,16 +644,16 @@ export class PuzzleBoard {
     const H = cut.rows * cut.cellH
 
     // çerçeve alanı
-    ctx.fillStyle = 'rgba(255,255,255,0.05)'
+    ctx.fillStyle = this.palet.cerceve
     ctx.fillRect(0, 0, W, H)
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'
+    ctx.strokeStyle = this.palet.kenar
     ctx.lineWidth = 2 / this.scale
     ctx.strokeRect(0, 0, W, H)
 
     // tepsi bölgeleri: çerçevenin iki yanı
     {
       const pay = Math.max(cut.cellW, cut.cellH) * 0.35
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+      ctx.strokeStyle = this.palet.cizgi
       ctx.setLineDash([12 / this.scale, 10 / this.scale])
       ctx.lineWidth = 1.5 / this.scale
       ctx.beginPath()
@@ -661,7 +667,7 @@ export class PuzzleBoard {
 
     // hayalet önizleme (grid çizgileri)
     if (this.showGhost) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+      ctx.strokeStyle = this.palet.cizgi
       ctx.lineWidth = 1 / this.scale
       for (let c = 1; c < cut.cols; c++) {
         ctx.beginPath()
@@ -746,7 +752,8 @@ export class PuzzleBoard {
       ctx.lineTo(x + s * 0.1, y + s * 1.35)
       ctx.closePath()
       ctx.fill()
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+      // İmleç oku açık zeminde beyaz konturla kayboluyordu
+      ctx.strokeStyle = this.palet.kontur
       ctx.lineWidth = 1.4 / this.scale
       ctx.stroke()
 
