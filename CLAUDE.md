@@ -570,26 +570,25 @@ tarihi yaz. "Herhalde çalışır" diye sessizce geçme — denenmemiş iş bitm
 sayılmıyor.
 
 **Canlıya alma — kalan adımlar** (yol haritasının tamamı ayrı planda)
-- [ ] **Alan adı**: Turhost'tan `.com` al, park sayfasının varsayılan A kaydını
-      sil, Pages'in dört A kaydı + `www` CNAME'i gir, depoya `public/CNAME`
-      ekle, Pages'te Enforce HTTPS. Sonrasında Supabase → URL Configuration
-      (Site URL + Redirect URLs) ve Resend'de alan adı doğrulaması.
-      - **`index.html`'de repo adını içeren iki yer var, ikisi de kırılacak**
-        (2026-08-13 tarandı). `apple-touch-icon` yolları `/puzzle/...` diye
-        **kök-göreli**; kendi alan adında site kökte sunulacağı için beş ikon
-        birden 404 verir — iOS'ta ana ekran simgesi sessizce boş çıkar, hata
-        yok. Ayrıca `og:url` / `og:image` tam adres yazıyor. Bunlar bilerek
-        göreli değil (Safari göreli `apple-touch-icon`'u bulamıyordu), yani
-        "olduğu gibi bırak" seçeneği yok.
-      - **Sıra önemli: `public/CNAME` DNS oturmadan gönderilmez.** Dosya
-        depoya girdiği an Pages yalnızca yeni alan adından sunmaya geçiyor;
-        DNS hazır değilse site hiçbir adresten açılmaz. Aynı commit eski
-        `github.io/puzzle/` adresini de kırıyor (ikon yolları). Önce DNS,
-        sonra tek commit: `CNAME` + `og:*` + ikon yolları + `sw.js` `CACHE`
-        sürümü (kabuk dosyası `index.html` değiştiği için).
-      - Temiz olduğu doğrulananlar: `vite.config.ts` `base: './'`, `sw.js`
-        tamamen göreli, `manifest.webmanifest` `start_url: "."`, hukuki dört
-        sayfada adres geçmiyor (yalnızca `mailto:`).
+- [ ] **Alan adı — kalan panel işleri.** `birliktepuzzle.com` alındı
+      (2026-09-02, Turhost). DNS oturdu: dört A kaydı + `www` CNAME yayında,
+      park kayıtları (A/MX/mail/ftp) silindi, NS `dns1/dns2.turhost.com`.
+      Depo tarafı bitti (`public/CNAME`, `og:*`, `apple-touch-icon` yolları,
+      `sw.js` v5). Kalanlar:
+      - [ ] GitHub → Settings → Pages → Custom domain + **Enforce HTTPS**
+            (sertifika birkaç dakika ile bir saat arasında çıkıyor)
+      - [ ] Supabase → Authentication → URL Configuration: Site URL ve
+            Redirect URLs'e `https://birliktepuzzle.com/**` (localhost kalsın)
+      - [ ] Resend'de alan adı doğrulaması, gönderen `noreply@birliktepuzzle.com`
+      - **`vite.config.ts` `base` artık `'/'`, `'./'` değil.** Zorunluydu:
+        Vite HTML'deki kök-göreli yolları base ile yeniden yazıyor ve `'./'`
+        altında `/apple-touch-icon.png` çıktıda `./apple-touch-icon.png`
+        oluyordu — Safari göreli apple-touch-icon'u bulamıyor, ikonlar
+        sessizce boş kalırdı. Build çıktısı kontrol edilmeseydi fark
+        edilmeyecekti. Alt yola dönülürse geri alınmalı.
+      - **Eski `github.io/puzzle/` adresi bu commit'le kırıldı**, bilerek:
+        varlık yolları artık kök-göreli. Pages eski adresi yeni alan adına
+        yönlendiriyor, paylaşılmış oda linkleri çalışmaya devam ediyor.
 - [x] **Depolama kotası kararı verildi (2026-08-13).** 1 GB ≈ 2.800 fotoğraf.
       Şimdi hiçbir şey yapılmıyor; Storage kullanımı %50'yi geçince sırayla:
       yetim dosya temizliği → saklama süresi → gerekirse Cloudflare R2

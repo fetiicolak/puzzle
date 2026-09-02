@@ -1,9 +1,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// base './' → GitHub Pages'te repo adı ne olursa olsun çalışır (hash routing kullanıyoruz)
+/*
+  base '/' → site kendi alan adının kökünde duruyor (birliktepuzzle.com).
+
+  Önceden './' idi ve repo alt yolunda (github.io/puzzle/) çalışması içindi.
+  Alan adına geçerken değiştirmek **zorunlu** oldu: Vite, HTML'deki kök-göreli
+  yolları base ile yeniden yazıyor ve './' altında `/apple-touch-icon.png`
+  çıktıda `./apple-touch-icon.png` oluyordu. Safari göreli apple-touch-icon'u
+  bulamıyor (166d628'de bir kez yaşandı), yani ikonlar sessizce boş kalırdı.
+  Alt yola geri dönülürse burası da geri alınmalı.
+*/
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [react()],
   build: {
     rollupOptions: {

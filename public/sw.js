@@ -5,7 +5,7 @@
 // Kabuk dosyalarının içeriği aynı adla değişirse sürümü artır: activate eski
 // önbelleği siliyor. Artırılmazsa kurulu uygulama eski ikonu göstermeye devam
 // ediyor (fetch stale-while-revalidate, yani ancak bir sonraki açılışta düzelir).
-const CACHE = 'birlikte-puzzle-v4'
+const CACHE = 'birlikte-puzzle-v5'
 const SHELL = [
   './',
   './index.html',
