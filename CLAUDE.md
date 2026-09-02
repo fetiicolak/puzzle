@@ -688,6 +688,22 @@ Google/Cloudflare/Quad9 hepsi ölçüldü. Arıza tek bir çözümleyicide.
       davet, senkron, sohbet, kamera ve hatıra kartını tek seferde sınayan
       test — canlıya alma listesindeki son madde.
 
+Host çevrimdışıyken oynama (2026-09-02) hesapsız sınanabildiği kadar
+sınandı: iki sekme, biri yerel oyunla oda açtı, öbürü misafir olarak
+katıldı (24 parça P2P'den geldi), sonra host kapatıldı — tam ekran katman
+**çıkmadı**, kapatılabilir şerit çıktı, sayaç işlemeye devam etti
+(01:59 → 02:02), şerit kapatılınca oyun sürdü. Kalan iki yol **giriş
+istiyor**, ikisi de denenmedi:
+- [ ] **Girişli misafir, host hiç açılmadan odaya girsin.** Beklenen:
+      puzzle sunucudan gelir, oynanır, çıkışta ilerleme kaydedilir; host
+      sonra girdiğinde onu görür. Dayandığı `join_puzzle` host'un varlığını
+      sormuyor (okundu), ama akış uçtan uca çalıştırılmadı. İki hesap
+      gerekiyor.
+- [ ] **Çakışma şeridi gerçekten çıksın.** İki hesapla aynı tabloyu sırayla
+      ilerletip, geride kalan tarafın "Güncel hâli getir" şeridini görmesi
+      ve basınca taze dizilimin gelmesi. `ilerlemeOlcusu`'nun testi var
+      (6 test), şeridin kendisi hiç ekranda görülmedi.
+
 Buraya yeni madde eklerken kuralı hatırla: kod yazıldı, `tsc`/test/build
 temiz, ama denenmediyse **bitmiş sayılmaz**; neyin eksik olduğunu ve
 denemek için neyin gerektiğini (gerçek cihaz · iki hesap · ikinci e-posta
