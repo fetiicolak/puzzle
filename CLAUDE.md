@@ -559,6 +559,21 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   kutusuna basıyor. Yeni bir e-posta akışı eklersen aynı yolu kullan.
 - Kullanıcının Supabase panelinden yapması gerekenler (kod işi değil):
   e-posta doğrulama (bilerek kapalı), izinli yönlendirme adresleri.
+- **Free katmanda proje 7 gün hareketsizlikte duraklıyor ve belirtisi DNS.**
+  Duraklayan projenin alan adı kayıttan düşüyor: `<ref>.supabase.co` yetkili
+  sunucudan (Cloudflare) **NXDOMAIN** dönüyor. Site açılır, hesap tarafı
+  ölüdür — "sunucuya ulaşılamıyor" diye görünen şey ağ değil ad çözümlemesi.
+  2026-09-02'de bir kez oldu (son kullanım 08-14), Dashboard → Restore ile
+  döndü. Kontrol:
+  `curl -s -H 'accept: application/dns-json' 'https://8.8.8.8/resolve?name=<ref>.supabase.co&type=A'`
+  → `"Status":3` duraklamış, `"Status":0` ayakta.
+- **`redirect_to` izinli listede değilse hata yok, sessiz geri düşüş var.**
+  `/auth/v1/recover` izinsiz adrese de **200** dönüyor; Supabase bağlantıyı
+  Site URL'e yazıyor. Yani yapılandırmanın doğruluğu dışarıdan sınanamaz,
+  gelen e-postadaki bağlantının hangi adrese gittiğine bakmak gerekiyor.
+- **Supabase REST'te CORS ayarı yok**, `Access-Control-Allow-Origin: *`
+  dönüyor. Yeni alan adı için yapılacak bir şey yok — planın "Storage/API
+  CORS" maddesi gereksizdi (ölçüldü 2026-09-02).
 
 ## Açık işler
 
@@ -578,9 +593,19 @@ sayılmıyor.
       onaylı (`birliktepuzzle.com` + `www`, 2026-12-01'e kadar). Kalanlar:
       - [ ] Supabase → Authentication → URL Configuration: Site URL ve
             Redirect URLs'e `https://birliktepuzzle.com/**` (localhost kalsın).
-            **Yapılmadan şifre sıfırlama bağlantısı ölür** — jeton yeni adrese
-            dönmüyor, kullanıcı "invalid redirect" görüyor.
-      - [ ] Resend'de alan adı doğrulaması, gönderen `noreply@birliktepuzzle.com`
+            Yapılmazsa sıfırlama bağlantısı **hata vermeden** eski Site URL'e
+            gider; dışarıdan sınanamıyor, e-postadaki bağlantıya bakılıyor.
+      - [ ] **Resend'de alan adı doğrulaması** (2026-09-02: hiç başlanmadı,
+            alan adında ne MX ne TXT var). Bugünkü gönderen
+            `onboarding@resend.dev` ve Resend bu göndericiyle **yalnızca hesabı
+            açan adrese** teslim ediyor: şifresini unutan başka bir kullanıcıya
+            posta gitmiyor, üstelik sessizce. Doğrulama üç kayıt istiyor ve
+            üçü de **alt alan adında** — apeksteki kayıtlarla çakışmıyor:
+            `send` MX → `feedback-smtp.<bölge>.amazonses.com` (öncelik 10),
+            `send` TXT → `v=spf1 include:amazonses.com ~all`,
+            `resend._domainkey` TXT → DKIM anahtarı. Turhost'ta ad alanına
+            alan adını yazma, yalnızca `send` / `resend._domainkey`.
+            Sonra gönderen `noreply@birliktepuzzle.com`.
       - **`public/CNAME` dosyası Pages'i tek başına yapılandırmıyor.** Depodan
         dallanan eski yöntemde yeterliydi; `actions/deploy-pages` ile dağıtımda
         alan adı **ayardan** giriliyor. Dosya varken bile
@@ -596,17 +621,6 @@ sayılmıyor.
       - **Eski `github.io/puzzle/` adresi bu commit'le kırıldı**, bilerek:
         varlık yolları artık kök-göreli. Pages eski adresi yeni alan adına
         yönlendiriyor, paylaşılmış oda linkleri çalışmaya devam ediyor.
-- [ ] **Supabase projesi duraklatılmış (2026-09-02).** Free katman 7 gün
-      hareketsizlikte projeyi duraklatıyor; son gerçek kullanım 2026-08-14.
-      Belirtisi ağ hatası değil, **DNS**: proje alan adı duraklayınca DNS'ten
-      düşüyor, `zthirhmesedquzkredfl.supabase.co` yetkili sunucudan NXDOMAIN
-      dönüyor (Cloudflare, `supabase.co`'nun NS'i). Bu hâlde giriş, kütüphane,
-      arkadaşlar ve mesajlar çalışmaz — site açılır, hesap tarafı ölüdür.
-      Dashboard → Restore. Kontrol tek satır:
-      `curl -s -H 'accept: application/dns-json' 'https://8.8.8.8/resolve?name=<ref>.supabase.co&type=A'`
-      → `"Status":3` duraklamış, `"Status":0` ayakta.
-      **Sıra önemli:** proje ayağa kalkmadan aşağıdaki Supabase panel işleri
-      (URL Configuration) yapılamaz.
 - [x] **Depolama kotası kararı verildi (2026-08-13).** 1 GB ≈ 2.800 fotoğraf.
       Şimdi hiçbir şey yapılmıyor; Storage kullanımı %50'yi geçince sırayla:
       yetim dosya temizliği → saklama süresi → gerekirse Cloudflare R2
