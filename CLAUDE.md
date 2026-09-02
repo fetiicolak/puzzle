@@ -595,17 +595,24 @@ sayılmıyor.
             Redirect URLs'e `https://birliktepuzzle.com/**` (localhost kalsın).
             Yapılmazsa sıfırlama bağlantısı **hata vermeden** eski Site URL'e
             gider; dışarıdan sınanamıyor, e-postadaki bağlantıya bakılıyor.
-      - [ ] **Resend'de alan adı doğrulaması** (2026-09-02: hiç başlanmadı,
-            alan adında ne MX ne TXT var). Bugünkü gönderen
-            `onboarding@resend.dev` ve Resend bu göndericiyle **yalnızca hesabı
-            açan adrese** teslim ediyor: şifresini unutan başka bir kullanıcıya
-            posta gitmiyor, üstelik sessizce. Doğrulama üç kayıt istiyor ve
-            üçü de **alt alan adında** — apeksteki kayıtlarla çakışmıyor:
-            `send` MX → `feedback-smtp.<bölge>.amazonses.com` (öncelik 10),
-            `send` TXT → `v=spf1 include:amazonses.com ~all`,
-            `resend._domainkey` TXT → DKIM anahtarı. Turhost'ta ad alanına
-            alan adını yazma, yalnızca `send` / `resend._domainkey`.
-            Sonra gönderen `noreply@birliktepuzzle.com`.
+      - [ ] Supabase → SMTP Settings → **Sender email** →
+            `noreply@birliktepuzzle.com`. Diğer alanlar aynı kalıyor
+            (`smtp.resend.com`, 465, kullanıcı `resend`, şifre API anahtarı).
+            Bu yapılmadan gönderen hâlâ `onboarding@resend.dev` ve Resend o
+            göndericiyle **yalnızca hesabı açan adrese** teslim ediyor:
+            şifresini unutan başka bir kullanıcıya posta gitmiyor, üstelik
+            sessizce.
+      - [x] **Resend alan adı doğrulandı (2026-09-02).** Not, bir daha
+            aranmasın diye: Resend artık **MX + SPF TXT istemiyor**, CNAME
+            tabanlı kuruluma geçti. Doğrulama için girilen dört kayıt —
+            `resend._domainkey` TXT (DKIM), `send` CNAME →
+            `send.forge.rmta.net`, `rsend` CNAME →
+            `rsend-<bölge>.forge.rmta.net`, `_dmarc` TXT `v=DMARC1; p=none;`.
+            SPF ve geri bildirim MX'i artık CNAME'in ucunda, Resend'in kendi
+            bölgesinde duruyor. Bölge Tokyo (`apne1`) seçildi; teslimatı
+            etkilemiyor, değiştirmek alan adını silip baştan kurmak demek.
+            Turhost'ta **ad alanına alan adı yazılmaz** (`send`, tam hâli
+            değil), değere ise tam adres yazılır — `www` kaydında ölçüldü.
       - **`public/CNAME` dosyası Pages'i tek başına yapılandırmıyor.** Depodan
         dallanan eski yöntemde yeterliydi; `actions/deploy-pages` ile dağıtımda
         alan adı **ayardan** giriliyor. Dosya varken bile
