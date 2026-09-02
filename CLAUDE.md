@@ -569,8 +569,14 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
   → `"Status":3` duraklamış, `"Status":0` ayakta.
 - **`redirect_to` izinli listede değilse hata yok, sessiz geri düşüş var.**
   `/auth/v1/recover` izinsiz adrese de **200** dönüyor; Supabase bağlantıyı
-  Site URL'e yazıyor. Yani yapılandırmanın doğruluğu dışarıdan sınanamaz,
-  gelen e-postadaki bağlantının hangi adrese gittiğine bakmak gerekiyor.
+  Site URL'e yazıyor. Yani `recover`'ın cevabına bakarak ayarı sınayamazsın.
+  - **Ama `verify` uç noktası sınanabiliyor**: bilerek geçersiz bir jetonla
+    git, `Location` başlığına bak. İzinliyse verdiğin adrese, değilse
+    **Site URL'e** düşüyor — tek istekte hem izinli liste hem Site URL
+    görünüyor, e-posta göndermeye gerek kalmıyor:
+    `curl -s -o /dev/null -w '%{redirect_url}' "https://<ref>.supabase.co/auth/v1/verify?token=gecersiz&type=recovery&redirect_to=<adres>" -H "apikey: <anon>"`
+    Ölçüldü 2026-09-02: apeks ve `localhost:5173` izinli, `www` izinli değil
+    (zararsız, apekse düşüyor).
 - **Supabase REST'te CORS ayarı yok**, `Access-Control-Allow-Origin: *`
   dönüyor. Yeni alan adı için yapılacak bir şey yok — planın "Storage/API
   CORS" maddesi gereksizdi (ölçüldü 2026-09-02).
