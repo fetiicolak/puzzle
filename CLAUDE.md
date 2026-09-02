@@ -597,17 +597,10 @@ sayılmıyor.
       Depo tarafı bitti (`public/CNAME`, `og:*`, `apple-touch-icon` yolları,
       `sw.js` v5); Pages'te özel alan adı ve **Enforce HTTPS** açık, sertifika
       onaylı (`birliktepuzzle.com` + `www`, 2026-12-01'e kadar). Kalanlar:
-      - [ ] Supabase → Authentication → URL Configuration: Site URL ve
-            Redirect URLs'e `https://birliktepuzzle.com/**` (localhost kalsın).
-            Yapılmazsa sıfırlama bağlantısı **hata vermeden** eski Site URL'e
-            gider; dışarıdan sınanamıyor, e-postadaki bağlantıya bakılıyor.
-      - [ ] Supabase → SMTP Settings → **Sender email** →
-            `noreply@birliktepuzzle.com`. Diğer alanlar aynı kalıyor
-            (`smtp.resend.com`, 465, kullanıcı `resend`, şifre API anahtarı).
-            Bu yapılmadan gönderen hâlâ `onboarding@resend.dev` ve Resend o
-            göndericiyle **yalnızca hesabı açan adrese** teslim ediyor:
-            şifresini unutan başka bir kullanıcıya posta gitmiyor, üstelik
-            sessizce.
+      - [x] Supabase → URL Configuration yapıldı; `verify` uç noktasıyla
+            ölçüldü: apeks ve `localhost:5173` izinli, Site URL yeni alan adı.
+      - [x] Supabase → SMTP Settings → Sender email yapıldı; gelen postanın
+            `noreply@birliktepuzzle.com`'dan geldiğini kullanıcı doğruladı.
       - [x] **Resend alan adı doğrulandı (2026-09-02).** Not, bir daha
             aranmasın diye: Resend artık **MX + SPF TXT istemiyor**, CNAME
             tabanlı kuruluma geçti. Doğrulama için girilen dört kayıt —
@@ -646,10 +639,24 @@ sayılmıyor.
 
 **Doğrulanmamış**
 
-Şu an boş. 2026-08-14'te kullanıcı gerçek cihazda ve iki hesapla kalan
-maddeleri denedi: iPhone'da güvenli alan dolgusu, panellerin parmakla
-taşınması, arka planda sesin susması, zayıf cihaz başarımı / `hafifMod`,
-engelleme listesi ve profilden e-posta değiştirme — hepsi çalışıyor.
+2026-08-14'te kullanıcı gerçek cihazda ve iki hesapla şunları denedi:
+iPhone'da güvenli alan dolgusu, panellerin parmakla taşınması, arka planda
+sesin susması, zayıf cihaz başarımı / `hafifMod`, engelleme listesi ve
+profilden e-posta değiştirme — hepsi çalışıyor.
+
+Alan adına geçtikten sonra iki madde açık kaldı (2026-09-02). İkisinin de
+takıldığı yer aynı: **kullanıcının kendi operatörünün çözümleyicisi
+`birliktepuzzle.com`'a SERVFAIL veriyor**, yani sahibi kendi sitesine
+giremiyor. Site yayında ve başkaları giriyor (üçüncü kişi doğruladı);
+alan adı kusursuz — delegasyon, iki NS'in EDNS uyumu, DNSSEC yokluğu ve
+Google/Cloudflare/Quad9 hepsi ölçüldü. Arıza tek bir çözümleyicide.
+- [ ] **Şifre sıfırlama, uçtan uca.** Posta gitti ve `noreply@` adresinden
+      geldiği doğrulandı; **bağlantıya tıklanamadı**. Kalan: bağlantının
+      `birliktepuzzle.com`'da şifre ekranını açtığını görmek. Çalışan bir
+      ağ gerekiyor (başka Wi-Fi ya da çözümleyici düzelmesi).
+- [ ] **İki cihaz + iki hesapla bir oda kurup puzzle bitirmek.** Giriş,
+      davet, senkron, sohbet, kamera ve hatıra kartını tek seferde sınayan
+      test — canlıya alma listesindeki son madde.
 
 Buraya yeni madde eklerken kuralı hatırla: kod yazıldı, `tsc`/test/build
 temiz, ama denenmediyse **bitmiş sayılmaz**; neyin eksik olduğunu ve
