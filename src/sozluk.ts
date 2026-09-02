@@ -84,11 +84,11 @@ export const SOZLUK: Record<string, string> = {
     'Someone invited you to solve a puzzle together. How would you like to continue?',
   oda: 'room',
   'Hesabımla gireyim': 'Sign in with my account',
-  'Çözdüğünüz tablo geçmişine kaydedilir, sonra kaldığın yerden devam edebilirsin. Arkadaş ekleyebilirsin.':
-    'The puzzle you solve is saved to your history so you can pick up where you left off. You can also add friends.',
+  'Çözdüğünüz tablo geçmişine kaydedilir, sonra kaldığın yerden devam edebilirsin. Arkadaş ekleyebilirsin. Seni çağıran kişi çevrimdışıyken de girip tek başına ilerleyebilirsin.':
+    'The puzzle you solve is saved to your history so you can pick up where you left off. You can also add friends. You can even join and play on your own while the person who invited you is offline.',
   'Misafir olarak devam et': 'Continue as a guest',
-  'Hemen oyuna girersin. Tablo kaydedilmez, geçmişinde görünmez.':
-    'You go straight into the game. The puzzle is not saved and will not appear in your history.',
+  'Hemen oyuna girersin. Tablo kaydedilmez, geçmişinde görünmez. Bu yolda seni çağıran kişinin sayfası açık olmalı — puzzle ondan geliyor.':
+    'You go straight into the game. The puzzle is not saved and will not appear in your history. This way the person who invited you must have the page open — the puzzle comes from them.',
   'Sana ne diyelim?': 'What should we call you?',
   Adın: 'Your name',
   'Misafir olarak gir': 'Enter as a guest',
@@ -548,6 +548,14 @@ export const SOZLUK: Record<string, string> = {
   'Deneniyor…': 'Testing…',
   'Bağlantıyı test et': 'Test the connection',
   'Tekrar dene': 'Try again',
+  'Tek başına oynuyorsun': 'You are playing on your own',
+  'Karşı taraf şu an çevrimdışı. Devam edebilirsin, ilerlemen kaydediliyor; o girdiğinde kaldığınız yerden buluşursunuz.':
+    'The other side is offline right now. Carry on — your progress is saved, and you will pick up where you left off when they join.',
+  'Bağlanmayı dene': 'Try to connect',
+  'Bu tabloda başkası da ilerlemiş': 'Someone else has moved this puzzle along',
+  'Sen oynarken karşı taraf da bu tabloyu ilerletmiş ve onunki daha ileride. Üstüne yazmadık; güncel hâli getirebilirsin.':
+    'While you were playing, the other side worked on this puzzle too and got further. We did not overwrite it — you can bring in the current state.',
+  'Güncel hâli getir': 'Bring in the current state',
   'Linki gönder': 'Send the link',
   Kopyala: 'Copy',
   Kopyalandı: 'Copied',

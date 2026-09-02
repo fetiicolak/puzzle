@@ -384,6 +384,36 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
 - Yeni mesaj tipi eklersen `dogrula`'ya alan doğrulaması ve gerekiyorsa
   `HOST_YETKILI` kaydını eklemeyi unutma; testi `protocol.test.ts`'e yaz.
 
+## Host çevrimdışıyken oynamak
+
+- **Davet edilen kişi host kapalıyken de girip ilerleyebilir** — ama yalnızca
+  **girişliyse**. `initGuest` (`GameScreen.tsx`) önce `joinRemotePuzzle` ile
+  satırı, sonra fotoğrafı depodan alıp tahtayı kuruyor; `Room.join` ondan
+  *sonra* çağrılıyor. `join_puzzle` host'un varlığını hiç sormuyor (yalnızca
+  oda var mı · özel gün kilidi · ban). Misafir olarak devam edende sunucuya
+  hiç dokunulmuyor, puzzle odadan geliyor — o yolda host'un sayfası açık olmalı
+  ve davet ekranı bunu yazıyor.
+- **Odanın sunucuda satırı yoksa bu çalışmaz.** `registerRemoteRoom` hesap
+  ister; host misafir olarak oynadıysa ortada kayıt yok.
+- **Bağlanamamak, puzzle yüklüyse ölümcül sayılmaz.** Bir tur boyunca öyleydi:
+  `peer-unavailable` gelince tam ekran `.overlay` açılıyor ve **altındaki
+  oynanabilir tahtanın üstünü kapatıyordu**. Bugün `r.game` doluysa yerine
+  kapatılabilir bir `.game-banner` çıkıyor. `error` yalnızca gerçekten oyun
+  kurulamadığında set edilmeli — `.overlay` `position: fixed; inset: 0`.
+- **Sunucuya yazarken iyimser kilit var** (`saveRemoteProgress`, üçüncü
+  parametre). Okurken aldığımız `updated_at` ile `.eq()` yapılıyor; araya
+  başka bir oturum girdiyse satır güncellenmiyor ve taze kayıt dönüyor.
+  Sırayla oynamak sıradanlaştığı için damgasız yazmak karşı tarafın
+  ilerlemesini sessizce siliyordu.
+  - Çakışmada **her zaman uyarı çıkmaz**: `ilerlemeOlcusu` (parça − grup)
+    ile karşılaştırılıyor. Canlı oynarken iki taraf da yazıyor ve durum aynı
+    oluyor; orada damgayı tazeleyip devam etmek doğru. Yalnızca karşı taraf
+    **bizden ileriyse** yazmayı durdurup "Güncel hâli getir" şeridi açılıyor.
+  - Taze hâl kullanıcı basmadan uygulanmıyor. Elindeki dizilimin habersiz
+    değişmesi, kaybettiği hamleden daha kötü.
+  - Ölçü **tek yönlü değil**: parça gruptan çıkarılabiliyor (`state.ts`).
+    Bilerek öyle — ölçü o anki dizilimi anlatmalı.
+
 ## Bilinçli tercihler (değiştirmeden önce düşün)
 
 - **StrictMode kapalı** (`src/main.tsx`). Çift effect, aynı oda kimliğiyle iki
@@ -683,7 +713,7 @@ adresi) yaz.
       ayıklamanın resmî yolu yok. Ancak girişi geciktirerek çözülür.
 - [ ] Test kapsamı: `net/peer.ts` (WebRTC), `engine/board.ts` (tuval) ve
       bileşenler hâlâ test edilmiyor — üçü de sahte ortam gerektiriyor.
-      Şu an 146 test: `engine` 41 + `protocol` 28 + `muzik` 20 + `puzzles` 15
+      Şu an 152 test: `engine` 41 + `protocol` 28 + `puzzles` 21 + `muzik` 20
       + `Linkli` 12 + `ad`/`odakodu` 9 + `palet` 8 + `kufur` 7 + `hata` 6.
 - [ ] Erişilebilirlik kalanı: renk karşıtlığı ölçülmedi, `canvas` üzerindeki
       oyun klavyeyle oynanamıyor.
@@ -696,7 +726,7 @@ adresi) yaz.
 
 ```bash
 npm run dev      # http://localhost:5173
-npm test         # Vitest — 146 test
+npm test         # Vitest — 152 test
 npm run lint     # ESLint (flat config, tip denetimli kurallar açık)
 npm run build    # tsc -b && vite build
 ```

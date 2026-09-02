@@ -361,6 +361,8 @@ export default function App() {
                 puzzleId: p.room_code,
                 mode: 'remote',
                 remoteId: p.id,
+                // İyimser kilidin dayanağı: bu damgayla okuduk, bununla yazacağız
+                updatedAt: p.updated_at,
                 roomCode: p.room_code,
                 title: p.title,
                 artist: p.artist ?? '',

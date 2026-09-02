@@ -43,7 +43,7 @@ export default function JoinChoiceScreen({ roomCode, onGiris, onMisafir }: Props
           <b>{ceviri('Hesabımla gireyim')}</b>
           <small>
             {ceviri(
-              'Çözdüğünüz tablo geçmişine kaydedilir, sonra kaldığın yerden devam edebilirsin. Arkadaş ekleyebilirsin.',
+              'Çözdüğünüz tablo geçmişine kaydedilir, sonra kaldığın yerden devam edebilirsin. Arkadaş ekleyebilirsin. Seni çağıran kişi çevrimdışıyken de girip tek başına ilerleyebilirsin.',
             )}
           </small>
         </button>
@@ -51,7 +51,9 @@ export default function JoinChoiceScreen({ roomCode, onGiris, onMisafir }: Props
         <div className="join-kart sade misafir-kart">
           <b>{ceviri('Misafir olarak devam et')}</b>
           <small>
-            {ceviri('Hemen oyuna girersin. Tablo kaydedilmez, geçmişinde görünmez.')}
+            {ceviri(
+              'Hemen oyuna girersin. Tablo kaydedilmez, geçmişinde görünmez. Bu yolda seni çağıran kişinin sayfası açık olmalı — puzzle ondan geliyor.',
+            )}
           </small>
           {/* Odadakiler listesinde "Misafir" yerine kendi adı görünsün */}
           <label className="field misafir-ad">

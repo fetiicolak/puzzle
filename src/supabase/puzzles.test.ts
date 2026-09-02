@@ -1,7 +1,13 @@
 // Sunucu kaydı üzerinde çalışan saf işlevler. Ağ yok: hepsi düz veri alıyor.
 
 import { describe, expect, it } from 'vitest'
-import { gercektenBitti, istatistikCikar, kilitliMi, type RemotePuzzle } from './puzzles'
+import {
+  gercektenBitti,
+  ilerlemeOlcusu,
+  istatistikCikar,
+  kilitliMi,
+  type RemotePuzzle,
+} from './puzzles'
 import { cevrimiciMi } from './friends'
 
 /** Testte okunabilir kalsın diye yalnızca ilgili alanlar veriliyor */
@@ -118,5 +124,44 @@ describe('cevrimiciMi', () => {
     // Saati ileri alınmış bir cihaz kendini sonsuza kadar çevrimiçi
     // gösterebilirdi; fark negatifse güvenmiyoruz.
     expect(cevrimiciMi(new Date(Date.now() + 10 * 60_000).toISOString())).toBe(false)
+  })
+})
+
+describe('ilerlemeOlcusu', () => {
+  /** Verilen grup numaralarından bir snapshot kur */
+  const snap = (gruplar: number[]) => ({
+    positions: gruplar.map((group) => ({ x: 0, y: 0, group })),
+  })
+
+  it('hiç birleşme yoksa sıfır', () => {
+    expect(ilerlemeOlcusu(snap([0, 1, 2, 3]))).toBe(0)
+  })
+
+  it('birleşen her parça ölçüyü bir artırır', () => {
+    expect(ilerlemeOlcusu(snap([0, 0, 2, 3]))).toBe(1)
+    expect(ilerlemeOlcusu(snap([0, 0, 0, 3]))).toBe(2)
+  })
+
+  it('tamamlanmış puzzle en yüksek değeri verir', () => {
+    expect(ilerlemeOlcusu(snap([7, 7, 7, 7]))).toBe(3)
+  })
+
+  it('daha ileri olanı ayırt eder — çakışma kararı buna dayanıyor', () => {
+    const bizim = snap([0, 0, 2, 3, 4])
+    const onlarin = snap([0, 0, 0, 0, 4])
+    expect(ilerlemeOlcusu(onlarin)).toBeGreaterThan(ilerlemeOlcusu(bizim))
+  })
+
+  it('parça gruptan çıkarılınca ölçü düşer — tek yönlü değil', () => {
+    // state.ts parçayı gruptan ayırabiliyor; ölçü o anki dizilimi anlatmalı,
+    // yapılmış en iyi dizilimi değil.
+    expect(ilerlemeOlcusu(snap([0, 0, 0]))).toBe(2)
+    expect(ilerlemeOlcusu(snap([0, 0, 5]))).toBe(1)
+  })
+
+  it('boş ya da eksik kayıtta sıfır', () => {
+    expect(ilerlemeOlcusu(null)).toBe(0)
+    expect(ilerlemeOlcusu(undefined)).toBe(0)
+    expect(ilerlemeOlcusu({ positions: [] })).toBe(0)
   })
 })

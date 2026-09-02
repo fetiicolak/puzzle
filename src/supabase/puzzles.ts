@@ -210,16 +210,66 @@ export async function puzzleImageUrl(imagePath: string): Promise<string | null> 
   return data.signedUrl
 }
 
-/** İlerlemeyi sunucuya yaz (katılımcıların hepsi güncelleyebilir) */
+/** Tek bir tabloyu kimliğiyle getir */
+export async function puzzleGetir(puzzleId: string): Promise<RemotePuzzle | null> {
+  if (!supabase) return null
+  // Ayrıştırarak değil bütün cevabı alarak okuyoruz: maybeSingle() `data`yı
+  // `any` veriyor ve destructuring lint'te hata seviyesinde (joinRemotePuzzle
+  // de aynı deseni kullanıyor).
+  const cevap = await supabase.from('puzzles').select('*').eq('id', puzzleId).maybeSingle()
+  if (cevap.error) return null
+  return (cevap.data ?? null) as RemotePuzzle | null
+}
+
+/**
+ * Kaydın ne kadar ilerlediği: yapılmış birleşme sayısı (parça − grup).
+ *
+ * İki oturum aynı tabloya ayrı ayrı yazdığında "hangisi daha ileride"
+ * sorusunu bu cevaplıyor. Tek yönlü **değil** — parça bir gruptan geri
+ * çıkarılabiliyor (`state.ts` içindeki ayırma) ve o zaman ölçü düşüyor;
+ * zaten istenen de bu, ölçü o anki dizilimi anlatmalı.
+ */
+export function ilerlemeOlcusu(snap: StateSnapshot | null | undefined): number {
+  const p = snap?.positions
+  if (!p || p.length === 0) return 0
+  return p.length - new Set(p.map((q) => q.group)).size
+}
+
+export type UzakKayitSonucu =
+  | { durum: 'yazildi'; damga: string }
+  | { durum: 'cakisma'; taze: RemotePuzzle }
+  | { durum: 'hata' }
+
+/**
+ * İlerlemeyi sunucuya yaz (katılımcıların hepsi güncelleyebilir).
+ *
+ * `bilinenDamga` verilirse iyimser kilit çalışır: satır yalnızca
+ * `updated_at` hâlâ bizim okuduğumuz değerdeyse güncellenir. Araya başka
+ * bir oturum girmişse hiçbir şey yazılmaz ve taze satır geri döner —
+ * host çevrimdışıyken oynanabildiği için iki tarafın sırayla oynaması
+ * artık sıradan bir durum ve damgasız yazmak diğerinin ilerlemesini
+ * sessizce siliyordu.
+ */
 export async function saveRemoteProgress(
   puzzleId: string,
   alanlar: { state?: StateSnapshot; elapsed?: number; completed?: boolean; title?: string },
-): Promise<void> {
-  if (!supabase) return
-  await supabase
+  bilinenDamga?: string | null,
+): Promise<UzakKayitSonucu> {
+  if (!supabase) return { durum: 'hata' }
+  const damga = new Date().toISOString()
+  let istek = supabase
     .from('puzzles')
-    .update({ ...alanlar, updated_at: new Date().toISOString() })
+    .update({ ...alanlar, updated_at: damga })
     .eq('id', puzzleId)
+  if (bilinenDamga) istek = istek.eq('updated_at', bilinenDamga)
+  const { data, error } = await istek.select('id')
+  if (error) return { durum: 'hata' }
+  if (data && data.length > 0) return { durum: 'yazildi', damga }
+  // Damgasız yazdık ve yine de satır güncellenmediyse sebep yetki ya da
+  // silinmiş kayıt; çakışma değil.
+  if (!bilinenDamga) return { durum: 'hata' }
+  const taze = await puzzleGetir(puzzleId)
+  return taze ? { durum: 'cakisma', taze } : { durum: 'hata' }
 }
 
 /** Kullanıcının katıldığı tüm tablolar — en yeni önce */

@@ -69,6 +69,7 @@ import {
 import { useAuth } from '../supabase/auth'
 import {
   createRemotePuzzle,
+  ilerlemeOlcusu,
   joinRemotePuzzle,
   kilitliMi,
   OdaHatasi,
@@ -102,6 +103,8 @@ export interface GameConfig {
   snap?: StateSnapshot | null
   /** Sunucudaki kayıt kimliği (ortak geçmişten devam ederken) */
   remoteId?: string | null
+  /** Sunucudaki kaydın `updated_at` damgası — iyimser kilidin dayanağı */
+  updatedAt?: string | null
   /** Döndürmeli zorluk */
   rotation?: boolean
   /** Özel gün: bu tarihe kadar kilitli (ISO) */
@@ -146,6 +149,19 @@ interface EngineRefs {
   lastChunkAt: number
   /** Sunucudaki puzzle kaydının kimliği (giriş yapılmışsa) */
   remoteId: string | null
+  /**
+   * Sunucudan okuduğumuz `updated_at`. Her başarılı yazmada yenilenir;
+   * iyimser kilit buna bakıyor (bkz. `saveRemoteProgress`).
+   */
+  uzakDamga: string | null
+  /**
+   * Sunucuda bizden daha ileri bir kayıt var ve kullanıcı henüz onu
+   * almadı. Doluyken sunucuya yazmayı durduruyoruz — yoksa her denemede
+   * aynı çakışmayı yaşayıp karşı tarafın ilerlemesini eziyoruz.
+   */
+  tazeSnap: StateSnapshot | null
+  /** `tazeSnap` ile birlikte gelen süre — taze hâl alınırsa o da uygulanır */
+  elapsedUzak: number
   /** Döndürmeli zorluk (misafirde meta ile gelir) */
   rotation: boolean
   lastRemoteSave: number
@@ -341,6 +357,13 @@ export default function GameScreen({ config, onExit }: Props) {
   const [surprise, setSurprise] = useState(config.message ?? '')
   const [title, setTitle] = useState(config.title ?? '')
   const [artist, setArtist] = useState(config.artist ?? '')
+  /**
+   * Odaya bağlanamadık ama puzzle sunucudan yüklendi: tek başına oynanıyor.
+   * Bağlanamamak burada ölümcül değil, bilgi — ilerleme sunucuya yazılıyor.
+   */
+  const [yalniz, setYalniz] = useState(false)
+  /** Sunucuda bizden ileri bir kayıt var; kullanıcı getirene kadar yazmıyoruz */
+  const [cakisma, setCakisma] = useState(false)
 
   const refs = useRef<EngineRefs>({
     board: null,
@@ -354,6 +377,9 @@ export default function GameScreen({ config, onExit }: Props) {
     pendingSnap: config.snap ?? null,
     lastChunkAt: 0,
     remoteId: config.remoteId ?? null,
+    uzakDamga: config.updatedAt ?? null,
+    tazeSnap: null,
+    elapsedUzak: 0,
     rotation: config.rotation ?? false,
     lastRemoteSave: 0,
     lastMoveSent: 0,
@@ -400,16 +426,41 @@ export default function GameScreen({ config, onExit }: Props) {
     // Sunucudaki ortak kayda da yaz. Normalde seyrek yazılır; oyundan
     // ayrılırken (zorla=true) beklemeden yazılır, yoksa son hamleler
     // sunucuya hiç ulaşmadan sekme kapanabiliyor.
-    if (r.remoteId && (zorla || Date.now() - r.lastRemoteSave > 8000)) {
+    // Bekleyen bir çakışma varken yazmıyoruz: kullanıcı taze hâli almadan
+    // yazmak karşı tarafın ilerlemesini ezmek demek.
+    if (r.remoteId && !r.tazeSnap && (zorla || Date.now() - r.lastRemoteSave > 8000)) {
       r.lastRemoteSave = Date.now()
-      void saveRemoteProgress(r.remoteId, {
-        state: snapshot(r.game),
-        elapsed: r.elapsed,
-        completed: r.completed,
-        title: titleRef.current,
-      }).catch(() => {
-        // çevrimdışıysak yerel kayıt zaten duruyor
-      })
+      const bizimSnap = snapshot(r.game)
+      void saveRemoteProgress(
+        r.remoteId,
+        {
+          state: bizimSnap,
+          elapsed: r.elapsed,
+          completed: r.completed,
+          title: titleRef.current,
+        },
+        r.uzakDamga,
+      )
+        .then((sonuc) => {
+          if (r.destroyed) return
+          if (sonuc.durum === 'yazildi') {
+            r.uzakDamga = sonuc.damga
+            return
+          }
+          if (sonuc.durum !== 'cakisma') return
+          // Araya başka bir oturum girmiş. Damgayı her hâlükârda tazeliyoruz;
+          // onunki bizden ileri değilse (canlı oynarken iki taraf da yazıyor,
+          // durum aynı) sessizce devam edip bir sonraki yazmada üstüne yazarız.
+          r.uzakDamga = sonuc.taze.updated_at
+          if (ilerlemeOlcusu(sonuc.taze.state) > ilerlemeOlcusu(bizimSnap)) {
+            r.tazeSnap = sonuc.taze.state
+            r.elapsedUzak = sonuc.taze.elapsed
+            setCakisma(true)
+          }
+        })
+        .catch(() => {
+          // çevrimdışıysak yerel kayıt zaten duruyor
+        })
     }
   }
   const surpriseRef = useRef(surprise)
@@ -775,18 +826,28 @@ export default function GameScreen({ config, onExit }: Props) {
       if (status === 'connecting') setError(null)
       if (status === 'error') {
         if (config.mode === 'guest') {
-          setError(
-            detail === 'peer-unavailable'
-              ? c('Oda kapalı. Karşı tarafın sayfası hâlâ açık mı?')
-              : relayKullanilabilir()
-                ? c('Bağlanamadık. Karşı taraf sayfayı öne alıp tekrar denesin.')
-                : c(
-                    'Bağlanamadık. Ağınız doğrudan bağlantıya izin vermiyor ve yedek aktarma sunucusuna da ulaşılamadı. Farklı bir ağ (ör. mobil veri) deneyebilirsiniz.',
-                  ),
-          )
+          // Puzzle sunucudan yüklendiyse bağlanamamak ölümcül değil: tahta
+          // kurulu, oynanabiliyor ve ilerleme sunucuya yazılıyor. Eskiden
+          // burada tam ekran hata katmanı açılıyor ve oynanabilir bir oyunun
+          // üstünü kapatıyordu — host çevrimdışıyken odaya girmek bu yüzden
+          // imkânsız görünüyordu.
+          if (r.game) setYalniz(true)
+          else
+            setError(
+              detail === 'peer-unavailable'
+                ? c('Oda kapalı. Karşı tarafın sayfası hâlâ açık mı?')
+                : relayKullanilabilir()
+                  ? c('Bağlanamadık. Karşı taraf sayfayı öne alıp tekrar denesin.')
+                  : c(
+                      'Bağlanamadık. Ağınız doğrudan bağlantıya izin vermiyor ve yedek aktarma sunucusuna da ulaşılamadı. Farklı bir ağ (ör. mobil veri) deneyebilirsiniz.',
+                    ),
+            )
         }
       }
+      // Host oyunun ortasında çıktıysa da yalnız kalıyoruz; oyun sürüyor.
+      if (status === 'disconnected' && config.mode === 'guest' && r.game) setYalniz(true)
       if (status === 'connected') {
+        setYalniz(false)
         // odadaki listede görünmek için kimliğini tanıt
         tanit()
         if (config.mode === 'guest') {
@@ -873,16 +934,39 @@ export default function GameScreen({ config, onExit }: Props) {
         rotation: r.rotation,
         unlockAt: config.unlockAt ?? null,
       })
-      if (uzak && !r.destroyed) r.remoteId = uzak.id
+      if (uzak && !r.destroyed) {
+        r.remoteId = uzak.id
+        r.uzakDamga = uzak.updated_at
+      }
     } catch {
       // sunucuya yazılamadıysa oyun yine çalışır, sadece ortak geçmişe düşmez
     }
+  }
+
+  /**
+   * Çakışmada sunucudaki taze hâli tahtaya uygula.
+   *
+   * Sayfayı yeniden yüklemiyoruz: fotoğraf ve kesim zaten elimizde, yalnızca
+   * parça konumları değişiyor. Kullanıcı basana kadar kendi tahtası duruyor —
+   * elindeki dizilim habersiz değiştirilmemeli.
+   */
+  const tazeHaliGetir = () => {
+    const r = refs.current
+    if (!r.game || !r.tazeSnap) return
+    restore(r.game, r.tazeSnap)
+    r.elapsed = r.elapsedUzak
+    setElapsed(r.elapsedUzak)
+    r.tazeSnap = null
+    setCakisma(false)
+    r.board?.invalidate()
+    setProg(progress(r.game))
   }
 
   const rejoin = () => {
     const r = refs.current
     if (config.mode !== 'guest' || !config.roomCode) return
     setError(null)
+    setYalniz(false)
     r.imgChunks = []
     r.imgTotal = -1
     setLoadText(c('Odaya bağlanılıyor'))
@@ -915,6 +999,7 @@ export default function GameScreen({ config, onExit }: Props) {
           if (url && !r.destroyed) {
             const dataUrl = await urlToDataUrl(url)
             r.remoteId = uzak.id
+            r.uzakDamga = uzak.updated_at
             r.elapsed = uzak.elapsed
             r.pendingSnap = uzak.state
             setElapsed(uzak.elapsed)
@@ -1535,6 +1620,46 @@ export default function GameScreen({ config, onExit }: Props) {
         <div className="overlay">
           <div className="spinner" />
           <p>{loadText}</p>
+        </div>
+      )}
+
+      {/*
+        Bağlanamadık ama puzzle sunucudan geldi: oyun sürüyor, bu yalnızca
+        bilgi. Kapatılabilir olması önemli — kalıcı bir şerit tuvalin
+        üstünde yer kaplıyor.
+      */}
+      {yalniz && !cakisma && (
+        <div className="game-banner">
+          <b>{ceviri('Tek başına oynuyorsun')}</b>
+          <small className="muted">
+            {ceviri(
+              'Karşı taraf şu an çevrimdışı. Devam edebilirsin, ilerlemen kaydediliyor; o girdiğinde kaldığınız yerden buluşursunuz.',
+            )}
+          </small>
+          <div className="action-row">
+            <button className="btn btn-primary" onClick={rejoin}>
+              {ceviri('Bağlanmayı dene')}
+            </button>
+            <button className="btn btn-ghost" onClick={() => setYalniz(false)}>
+              {ceviri('Kapat')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {cakisma && (
+        <div className="game-banner">
+          <b>{ceviri('Bu tabloda başkası da ilerlemiş')}</b>
+          <small className="muted">
+            {ceviri(
+              'Sen oynarken karşı taraf da bu tabloyu ilerletmiş ve onunki daha ileride. Üstüne yazmadık; güncel hâli getirebilirsin.',
+            )}
+          </small>
+          <div className="action-row">
+            <button className="btn btn-primary" onClick={tazeHaliGetir}>
+              {ceviri('Güncel hâli getir')}
+            </button>
+          </div>
         </div>
       )}
 
