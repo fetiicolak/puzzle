@@ -596,6 +596,17 @@ sayılmıyor.
       - **Eski `github.io/puzzle/` adresi bu commit'le kırıldı**, bilerek:
         varlık yolları artık kök-göreli. Pages eski adresi yeni alan adına
         yönlendiriyor, paylaşılmış oda linkleri çalışmaya devam ediyor.
+- [ ] **Supabase projesi duraklatılmış (2026-09-02).** Free katman 7 gün
+      hareketsizlikte projeyi duraklatıyor; son gerçek kullanım 2026-08-14.
+      Belirtisi ağ hatası değil, **DNS**: proje alan adı duraklayınca DNS'ten
+      düşüyor, `zthirhmesedquzkredfl.supabase.co` yetkili sunucudan NXDOMAIN
+      dönüyor (Cloudflare, `supabase.co`'nun NS'i). Bu hâlde giriş, kütüphane,
+      arkadaşlar ve mesajlar çalışmaz — site açılır, hesap tarafı ölüdür.
+      Dashboard → Restore. Kontrol tek satır:
+      `curl -s -H 'accept: application/dns-json' 'https://8.8.8.8/resolve?name=<ref>.supabase.co&type=A'`
+      → `"Status":3` duraklamış, `"Status":0` ayakta.
+      **Sıra önemli:** proje ayağa kalkmadan aşağıdaki Supabase panel işleri
+      (URL Configuration) yapılamaz.
 - [x] **Depolama kotası kararı verildi (2026-08-13).** 1 GB ≈ 2.800 fotoğraf.
       Şimdi hiçbir şey yapılmıyor; Storage kullanımı %50'yi geçince sırayla:
       yetim dosya temizliği → saklama süresi → gerekirse Cloudflare R2
