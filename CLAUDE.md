@@ -570,16 +570,23 @@ tarihi yaz. "Herhalde çalışır" diye sessizce geçme — denenmemiş iş bitm
 sayılmıyor.
 
 **Canlıya alma — kalan adımlar** (yol haritasının tamamı ayrı planda)
-- [ ] **Alan adı — kalan panel işleri.** `birliktepuzzle.com` alındı
+- [ ] **Alan adı — kalan panel işleri.** `birliktepuzzle.com` **yayında**
       (2026-09-02, Turhost). DNS oturdu: dört A kaydı + `www` CNAME yayında,
       park kayıtları (A/MX/mail/ftp) silindi, NS `dns1/dns2.turhost.com`.
       Depo tarafı bitti (`public/CNAME`, `og:*`, `apple-touch-icon` yolları,
-      `sw.js` v5). Kalanlar:
-      - [ ] GitHub → Settings → Pages → Custom domain + **Enforce HTTPS**
-            (sertifika birkaç dakika ile bir saat arasında çıkıyor)
+      `sw.js` v5); Pages'te özel alan adı ve **Enforce HTTPS** açık, sertifika
+      onaylı (`birliktepuzzle.com` + `www`, 2026-12-01'e kadar). Kalanlar:
       - [ ] Supabase → Authentication → URL Configuration: Site URL ve
-            Redirect URLs'e `https://birliktepuzzle.com/**` (localhost kalsın)
+            Redirect URLs'e `https://birliktepuzzle.com/**` (localhost kalsın).
+            **Yapılmadan şifre sıfırlama bağlantısı ölür** — jeton yeni adrese
+            dönmüyor, kullanıcı "invalid redirect" görüyor.
       - [ ] Resend'de alan adı doğrulaması, gönderen `noreply@birliktepuzzle.com`
+      - **`public/CNAME` dosyası Pages'i tek başına yapılandırmıyor.** Depodan
+        dallanan eski yöntemde yeterliydi; `actions/deploy-pages` ile dağıtımda
+        alan adı **ayardan** giriliyor. Dosya varken bile
+        `gh api repos/<owner>/<repo>/pages` `"cname": null` diyordu ve site iki
+        adreste birden 404'tü. Kontrol yolu bu API çağrısı — tarayıcıya bakmak
+        "yayılmamıştır" demeye yol açıyor.
       - **`vite.config.ts` `base` artık `'/'`, `'./'` değil.** Zorunluydu:
         Vite HTML'deki kök-göreli yolları base ile yeniden yazıyor ve `'./'`
         altında `/apple-touch-icon.png` çıktıda `./apple-touch-icon.png`
