@@ -413,6 +413,22 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
     değişmesi, kaybettiği hamleden daha kötü.
   - Ölçü **tek yönlü değil**: parça gruptan çıkarılabiliyor (`state.ts`).
     Bilerek öyle — ölçü o anki dizilimi anlatmalı.
+  - **Çakışınca taze damgayla hemen bir kez daha denenir.** Yalnızca damgayı
+    tazeleyip bırakmak, iki oturum açıkken geride kalanı aç bırakıyor: karşı
+    taraf 15 saniyede bir yazıp damgayı ilerlettiği için bizim 8 saniyelik
+    denememiz hep bayat damgayla düşüyordu. Ölçüldü (2026-09-03): 8 birleşmelik
+    ilerleme sunucuya hiç ulaşmadı ve yazmayı kazanan taraf **daha geride**
+    olandı. Tek tekrar yetiyor.
+  - **Damga yoksa önce satır okunur.** `saveRemoteProgress` damga verilmezse
+    `.eq()` koymuyor, yani koşulsuz yazıyor; damgası düşmüş bir oturum karşı
+    tarafın ilerlemesini siliyordu (ölçüldü: sıfır ilerlemeli oturum 8'i ezdi).
+- **`remoteId` `refs`'te yaşıyor, `acikOyun` kaydına girmiyor.** Oyunun
+  ortasında sayfa yenilenince boş dönüyor; `registerRemoteRoom` bu yüzden
+  önce `joinRemotePuzzle` ile satırı arıyor, bulamazsa oluşturuyor. Eskiden
+  doğrudan insert deniyordu: `room_code` benzersiz olduğu için hata veriyor,
+  hata yutuluyor ve **host o andan sonra sunucuya hiç yazmıyordu** — üstelik
+  fotoğraf insert'ten önce yüklendiği için her denemede bir yetim depo dosyası
+  kalıyordu.
 
 ## Bilinçli tercihler (değiştirmeden önce düşün)
 
@@ -688,21 +704,20 @@ Google/Cloudflare/Quad9 hepsi ölçüldü. Arıza tek bir çözümleyicide.
       davet, senkron, sohbet, kamera ve hatıra kartını tek seferde sınayan
       test — canlıya alma listesindeki son madde.
 
-Host çevrimdışıyken oynama (2026-09-02) hesapsız sınanabildiği kadar
-sınandı: iki sekme, biri yerel oyunla oda açtı, öbürü misafir olarak
-katıldı (24 parça P2P'den geldi), sonra host kapatıldı — tam ekran katman
-**çıkmadı**, kapatılabilir şerit çıktı, sayaç işlemeye devam etti
-(01:59 → 02:02), şerit kapatılınca oyun sürdü. Kalan iki yol **giriş
-istiyor**, ikisi de denenmedi:
-- [ ] **Girişli misafir, host hiç açılmadan odaya girsin.** Beklenen:
-      puzzle sunucudan gelir, oynanır, çıkışta ilerleme kaydedilir; host
-      sonra girdiğinde onu görür. Dayandığı `join_puzzle` host'un varlığını
-      sormuyor (okundu), ama akış uçtan uca çalıştırılmadı. İki hesap
-      gerekiyor.
-- [ ] **Çakışma şeridi gerçekten çıksın.** İki hesapla aynı tabloyu sırayla
-      ilerletip, geride kalan tarafın "Güncel hâli getir" şeridini görmesi
-      ve basınca taze dizilimin gelmesi. `ilerlemeOlcusu`'nun testi var
-      (6 test), şeridin kendisi hiç ekranda görülmedi.
+Host çevrimdışıyken oynama **iki hesapla uçtan uca doğrulandı**
+(2026-09-03, `a@gmail.com` canlı sitede · `b@gmail.com` localhost'ta).
+Ölçülenler: host oda kurup sayfayı kapattı, girişli misafir davet linkiyle
+girdi — tam ekran katman çıkmadı, puzzle sunucudan geldi (24 parça,
+`remoteId` + damga dolu), "Tek başına oynuyorsun" şeridi çıktı, sentetik
+sürüklemeyle 5 birleşme yapıldı, çıkışta yazıldı; host sonra "Tablolarım"dan
+açtığında **aynı 5 birleşmeyi** gördü. Çakışma şeridi de canlı sitede
+göründü ve "Güncel hâli getir" taze dizilimi uyguladı (sayaç 09:37 → 04:38).
+
+Bu tur sırasında **üç hata bulundu ve düzeltildi** (hepsi ölçümle çıktı,
+kod okuyarak değil): yenilemeden sonra host'un sunucuya yazmayı bırakması,
+çakışmada tekrar denenmediği için geride kalan tarafın aç kalması, ve
+damgasız yazmanın koşulsuz üstüne yazması. Ayrıntı "Host çevrimdışıyken
+oynamak" bölümünde.
 
 Buraya yeni madde eklerken kuralı hatırla: kod yazıldı, `tsc`/test/build
 temiz, ama denenmediyse **bitmiş sayılmaz**; neyin eksik olduğunu ve

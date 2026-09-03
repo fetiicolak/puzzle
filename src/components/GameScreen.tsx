@@ -73,6 +73,7 @@ import {
   joinRemotePuzzle,
   kilitliMi,
   OdaHatasi,
+  puzzleGetir,
   puzzleImageUrl,
   saveRemoteProgress,
   updateRemoteRoomCode,
@@ -431,36 +432,64 @@ export default function GameScreen({ config, onExit }: Props) {
     if (r.remoteId && !r.tazeSnap && (zorla || Date.now() - r.lastRemoteSave > 8000)) {
       r.lastRemoteSave = Date.now()
       const bizimSnap = snapshot(r.game)
-      void saveRemoteProgress(
-        r.remoteId,
-        {
-          state: bizimSnap,
-          elapsed: r.elapsed,
-          completed: r.completed,
-          title: titleRef.current,
-        },
-        r.uzakDamga,
-      )
-        .then((sonuc) => {
+      const alanlar = {
+        state: bizimSnap,
+        elapsed: r.elapsed,
+        completed: r.completed,
+        title: titleRef.current,
+      }
+
+      /**
+       * Bir kez yaz; çakışırsa taze damgayla **hemen** bir kez daha dene.
+       *
+       * Tekrar şart: çakışmada yalnızca damgayı tazeleyip bırakmak, iki
+       * oturum aynı anda açıkken geride kalan tarafı aç bırakıyor. Ölçüldü —
+       * karşı taraf 15 saniyede bir yazıp damgayı ilerlettiği için bizim her
+       * denememiz bayat damgayla düşüyordu ve 8 birleşmelik ilerleme sunucuya
+       * hiç ulaşmıyordu; üstelik yazmayı kazanan taraf **daha geride** olandı.
+       * Tek tekrar yeterli: taze damga elimizde ve pencere milisaniyeler.
+       */
+      const yaz = async (damga: string | null, tekrarHakki: boolean): Promise<void> => {
+        // Damgasız yazmak koşulsuz üstüne yazmak demek: `saveRemoteProgress`
+        // damga verilmezse `.eq()` koymuyor. Elimizde damga yoksa önce satırı
+        // okuyup karşılaştırıyoruz — yoksa damgası düşmüş bir oturum karşı
+        // tarafın ilerlemesini sessizce siliyor. Ölçüldü: 8 birleşmelik kayıt
+        // sıfır ilerlemeli bir oturum tarafından ezildi.
+        if (!damga) {
+          const taze = await puzzleGetir(r.remoteId!)
+          if (!taze || r.destroyed) return
+          r.uzakDamga = taze.updated_at
+          if (ilerlemeOlcusu(taze.state) > ilerlemeOlcusu(bizimSnap)) {
+            r.tazeSnap = taze.state
+            r.elapsedUzak = taze.elapsed
+            setCakisma(true)
+            return
+          }
+          damga = taze.updated_at
+        }
+        return saveRemoteProgress(r.remoteId!, alanlar, damga).then((sonuc) => {
           if (r.destroyed) return
           if (sonuc.durum === 'yazildi') {
             r.uzakDamga = sonuc.damga
             return
           }
           if (sonuc.durum !== 'cakisma') return
-          // Araya başka bir oturum girmiş. Damgayı her hâlükârda tazeliyoruz;
-          // onunki bizden ileri değilse (canlı oynarken iki taraf da yazıyor,
-          // durum aynı) sessizce devam edip bir sonraki yazmada üstüne yazarız.
           r.uzakDamga = sonuc.taze.updated_at
+          // Karşı taraf bizden ileriyse üstüne yazmıyoruz; kullanıcı "Güncel
+          // hâli getir"e basana kadar sunucuya dokunulmuyor.
           if (ilerlemeOlcusu(sonuc.taze.state) > ilerlemeOlcusu(bizimSnap)) {
             r.tazeSnap = sonuc.taze.state
             r.elapsedUzak = sonuc.taze.elapsed
             setCakisma(true)
+            return
           }
+          if (tekrarHakki) return yaz(sonuc.taze.updated_at, false)
         })
-        .catch(() => {
-          // çevrimdışıysak yerel kayıt zaten duruyor
-        })
+      }
+
+      void yaz(r.uzakDamga, true).catch(() => {
+        // çevrimdışıysak yerel kayıt zaten duruyor
+      })
     }
   }
   const surpriseRef = useRef(surprise)
@@ -920,6 +949,21 @@ export default function GameScreen({ config, onExit }: Props) {
     const kod = r.room?.code ?? config.roomCode
     if (!hesap || r.remoteId || !kod || !r.imageDataUrl) return
     try {
+      // Önce bu oda kodunun sunucuda bir satırı var mı diye bak.
+      //
+      // `remoteId` yalnızca `refs`'te yaşıyor, `acikOyun` kaydına girmiyor;
+      // oyunun ortasında sayfa yenilenince boş dönüyor ve burası aynı kodla
+      // yeniden insert deniyordu. `room_code` benzersiz olduğu için insert
+      // hata veriyor, hata yutuluyor ve **host o andan sonra sunucuya hiç
+      // yazmıyordu** — üstelik fotoğraf insert'ten önce yüklendiği için her
+      // denemede bir yetim depo dosyası kalıyordu. Host çevrimdışıyken
+      // oynama özelliğiyle bu sessiz kopukluk doğrudan veri kaybı demek.
+      const mevcut = await joinRemotePuzzle(kod).catch(() => null)
+      if (mevcut && !r.destroyed) {
+        r.remoteId = mevcut.id
+        r.uzakDamga = mevcut.updated_at
+        return
+      }
       const uzak = await createRemotePuzzle({
         roomCode: kod,
         title: titleRef.current,
