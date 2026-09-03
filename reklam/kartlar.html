@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Birlikte Puzzle — açılış / kapanış kartları</title>
+    <!--
+      `tanitim.html` tek başına bir video. Bu dosya ise **kendi ekran kaydının**
+      arasına kesilecek parçaları veriyor: açılış kartı, kapanış kartı, alt
+      şerit ve kanca sorusu.
+
+      Nasıl kullanılır:
+        1. http://localhost:5173/reklam/kartlar.html
+        2. Üstten oran (9:16 · 1:1 · 16:9) ve kart seç
+        3. Yazıların üstüne tıklayıp değiştir — hepsi düzenlenebilir
+        4. K → kumanda gizlenir, Boşluk → kartı baştan oynatır, kaydını al
+
+      **Yeşil zemin** düğmesi alt şeridi kroma anahtarlama için #00b140
+      zemine alıyor: CapCut / CupCut / Premiere'de "chroma key" ile zemini
+      silip şeridi kendi görüntünün üstüne bindirebilirsin.
+    -->
+    <style>
+      :root {
+        --bg: #120e1a;
+        --text: #f4eef8;
+        --muted: #a596b5;
+        --accent: #ff5d7d;
+        --accent-soft: #ffd2dc;
+        --altin: #ffd6a0;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        background: #000;
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
+      }
+      #kutu {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+      }
+      #sahne {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        overflow: hidden;
+        background: var(--bg);
+        transform: translate(-50%, -50%) scale(var(--olcek, 0.4));
+      }
+      #sahne.yesil {
+        background: #00b140;
+      }
+      /* Zemin dokusu — yeşil zeminde kapatılıyor, yoksa kroma delik açıyor */
+      #zemin {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(60% 45% at 18% 22%, rgba(255, 93, 125, 0.18), transparent 70%),
+          radial-gradient(60% 45% at 82% 80%, rgba(255, 154, 90, 0.16), transparent 70%);
+      }
+      #sahne.yesil #zemin {
+        display: none;
+      }
+
+      .kart {
+        position: absolute;
+        inset: 0;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0 8%;
+      }
+      .kart.acik {
+        display: flex;
+      }
+
+      /* ---------- ortak animasyonlar ---------- */
+      @keyframes yukselt {
+        from {
+          opacity: 0;
+          transform: translateY(46px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes solaGel {
+        from {
+          opacity: 0;
+          transform: translateX(-70px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes sagaGel {
+        from {
+          opacity: 0;
+          transform: translateX(70px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes belir {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes buyu {
+        from {
+          opacity: 0;
+          transform: scale(0.86);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .an {
+        opacity: 0;
+        animation-fill-mode: forwards;
+        animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
+      }
+
+      /* ---------- logo ---------- */
+      .logo svg {
+        display: block;
+        width: var(--logo, 260px);
+        height: var(--logo, 260px);
+      }
+      .logo .sol,
+      .logo .sag,
+      .logo .ay,
+      .logo .yildiz,
+      .logo .dikis {
+        animation-fill-mode: forwards;
+        animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
+      }
+      @keyframes parcaSol {
+        from {
+          transform: translateX(-26px);
+        }
+        to {
+          transform: none;
+        }
+      }
+      @keyframes parcaSag {
+        from {
+          transform: translateX(26px);
+        }
+        to {
+          transform: none;
+        }
+      }
+      .oynat .logo .sol {
+        animation: parcaSol 0.9s 0.1s both;
+      }
+      .oynat .logo .sag {
+        animation: parcaSag 0.9s 0.1s both;
+      }
+      .oynat .logo .ay,
+      .oynat .logo .yildiz {
+        animation: belir 0.5s 0.75s both;
+      }
+
+      /* ---------- kart: giriş ---------- */
+      #kartGiris .marka {
+        font-size: var(--dev, 82px);
+        font-weight: 800;
+        letter-spacing: -2px;
+        margin-top: 44px;
+      }
+      #kartGiris .slogan {
+        font-size: var(--orta, 42px);
+        color: var(--accent-soft);
+        margin-top: 14px;
+      }
+      .oynat #kartGiris .marka {
+        animation: yukselt 0.7s 0.7s both;
+      }
+      .oynat #kartGiris .slogan {
+        animation: yukselt 0.7s 0.95s both;
+      }
+      .oynat #kartGiris .logo {
+        animation: buyu 0.8s both;
+      }
+
+      /* ---------- kart: kanca sorusu ---------- */
+      #kartSoru .soru {
+        font-size: var(--kocaman, 92px);
+        font-weight: 800;
+        line-height: 1.12;
+        letter-spacing: -2px;
+      }
+      #kartSoru .soru u {
+        text-decoration: none;
+        color: var(--accent);
+      }
+      #kartSoru .alt {
+        margin-top: 44px;
+        font-size: calc(var(--orta, 42px) * 1.35);
+        font-weight: 700;
+        color: var(--accent-soft);
+      }
+      .oynat #kartSoru .soru {
+        animation: yukselt 0.75s 0.1s both;
+      }
+      .oynat #kartSoru .alt {
+        animation: yukselt 0.75s 0.55s both;
+      }
+
+      /* ---------- kart: kapanış ---------- */
+      #kartKapanis .alan {
+        font-size: var(--dev, 82px);
+        font-weight: 800;
+        letter-spacing: -1.5px;
+        margin-top: 40px;
+      }
+      #kartKapanis .alan em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      #kartKapanis .madde {
+        font-size: var(--orta, 40px);
+        color: var(--muted);
+        margin-top: 18px;
+      }
+      #kartKapanis .madde b {
+        color: var(--text);
+      }
+      .oynat #kartKapanis .logo {
+        animation: buyu 0.8s both;
+      }
+      .oynat #kartKapanis .alan {
+        animation: yukselt 0.7s 0.65s both;
+      }
+      .oynat #kartKapanis .m1 {
+        animation: yukselt 0.6s 0.95s both;
+      }
+      .oynat #kartKapanis .m2 {
+        animation: yukselt 0.6s 1.15s both;
+      }
+      .oynat #kartKapanis .m3 {
+        animation: yukselt 0.6s 1.35s both;
+      }
+
+      /* ---------- kart: alt şerit ---------- */
+      /* Ekran kaydının üstüne bindirilecek şerit. Kart dikeyde ortalanmıyor,
+         alt üçte bire oturuyor — video düzenleyicide kırpmak kolay olsun. */
+      #kartSerit {
+        justify-content: flex-end;
+        padding-bottom: 12%;
+      }
+      #kartSerit .serit {
+        display: inline-flex;
+        align-items: center;
+        gap: 26px;
+        background: rgba(18, 14, 26, 0.92);
+        border: 2px solid rgba(255, 255, 255, 0.16);
+        border-left: 10px solid var(--accent);
+        border-radius: 20px;
+        padding: 26px 40px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      }
+      #kartSerit .no {
+        font-size: var(--orta, 40px);
+        font-weight: 800;
+        color: var(--accent);
+      }
+      #kartSerit .yazi {
+        font-size: var(--orta, 42px);
+        font-weight: 700;
+        text-align: left;
+      }
+      .oynat #kartSerit .serit {
+        animation: solaGel 0.6s both;
+      }
+
+      [contenteditable]:focus {
+        outline: 2px dashed rgba(255, 93, 125, 0.7);
+        outline-offset: 8px;
+      }
+
+      /* ---------- kumanda ---------- */
+      #kumanda {
+        position: fixed;
+        left: 14px;
+        bottom: 14px;
+        right: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        background: rgba(18, 14, 26, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 14px;
+        padding: 10px 12px;
+        font-size: 13px;
+        z-index: 10;
+      }
+      #kumanda button {
+        font: inherit;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        padding: 6px 11px;
+        cursor: pointer;
+      }
+      #kumanda button.secili {
+        background: var(--accent);
+        color: #23101a;
+        border-color: transparent;
+        font-weight: 700;
+      }
+      #kumanda .ayrac {
+        width: 1px;
+        height: 22px;
+        background: rgba(255, 255, 255, 0.16);
+        margin: 0 4px;
+      }
+      #kumanda .ipucu {
+        color: var(--muted);
+      }
+      #kumanda.gizli {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="kutu">
+      <div id="sahne">
+        <div id="zemin"></div>
+
+        <!-- ---- açılış ---- -->
+        <div class="kart" id="kartGiris">
+          <div class="logo"></div>
+          <div class="marka" contenteditable="true">Birlikte Puzzle</div>
+          <div class="slogan" contenteditable="true">İkiniz. Tek yapboz.</div>
+        </div>
+
+        <!-- ---- kanca sorusu ---- -->
+        <div class="kart" id="kartSoru">
+          <div class="soru" contenteditable="true">
+            Aranızda <u>700 km</u> var.<br />Aynı masaya nasıl oturursunuz?
+          </div>
+          <div class="alt" contenteditable="true">Bir yapbozla.</div>
+        </div>
+
+        <!-- ---- alt şerit ---- -->
+        <div class="kart" id="kartSerit">
+          <div class="serit">
+            <span class="no" contenteditable="true">01</span>
+            <span class="yazi" contenteditable="true">Fotoğrafını seç</span>
+          </div>
+        </div>
+
+        <!-- ---- kapanış ---- -->
+        <div class="kart" id="kartKapanis">
+          <div class="logo"></div>
+          <div class="alan" contenteditable="true">birliktepuzzle<em>.com</em></div>
+          <div class="madde m1" contenteditable="true"><b>Ücretsiz</b> — kurulum yok</div>
+          <div class="madde m2" contenteditable="true">Telefonda ve bilgisayarda</div>
+          <div class="madde m3" contenteditable="true">Fotoğrafını seç · Linki gönder · Beraber çöz</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="kumanda">
+      <span class="ipucu">Kart:</span>
+      <button data-kart="kartGiris">Açılış</button>
+      <button data-kart="kartSoru">Kanca</button>
+      <button data-kart="kartSerit">Alt şerit</button>
+      <button data-kart="kartKapanis">Kapanış</button>
+      <span class="ayrac"></span>
+      <span class="ipucu">Oran:</span>
+      <button data-oran="9:16">9:16</button>
+      <button data-oran="1:1">1:1</button>
+      <button data-oran="16:9">16:9</button>
+      <span class="ayrac"></span>
+      <button id="yesil">Yeşil zemin</button>
+      <button id="tekrar">↺ Oynat (Boşluk)</button>
+      <span class="ipucu">Yazılara tıklayıp değiştirebilirsin · K: kumandayı gizle</span>
+    </div>
+
+    <script>
+      const LOGO_SVG = `
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="bayrak" gradientUnits="userSpaceOnUse" x1="24" y1="24" x2="76" y2="76">
+              <stop offset="0" stop-color="#f4232f" />
+              <stop offset="1" stop-color="#c00713" />
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" rx="22" fill="#1a1423" />
+          <g fill="url(#bayrak)">
+            <path class="sol" d="M24 31 H30 A7 7 0 0 1 44 31 H50 V43 A7 7 0 0 1 50 57 V69 H24 Z" />
+            <path class="sag" d="M50 31 H76 V69 H70 A7 7 0 0 1 56 69 H50 V57 A7 7 0 0 0 50 43 Z" />
+          </g>
+          <path class="dikis" d="M50 31 V43 A7 7 0 0 1 50 57 V69" fill="none" stroke="#1a1423" stroke-width="1.8" />
+          <path class="ay" fill="#fff" d="M51.346 43.850 A11.5 11.5 0 1 0 51.346 56.150 A9.2 9.2 0 1 1 51.346 43.850 Z" />
+          <polygon class="yildiz" fill="#fff" points="56.00,50.00 61.30,48.28 61.30,42.71 64.58,47.21 69.87,45.49 66.60,50.00 69.87,54.51 64.58,52.79 61.30,57.29 61.30,51.72" />
+        </svg>`
+      // Degrade id'si her kopyada benzersiz olmalı: aynı `id="bayrak"` iki
+      // kez geçtiğinde `url(#bayrak)` hep ilk kopyayı buluyor, o kopya
+      // `display:none` bir kartın içindeyse ikinci logo kırmızısını
+      // kaybediyor (kapanış kartında bayrak bembeyaz çıkıyordu).
+      document.querySelectorAll('.logo').forEach((el, i) => {
+        el.innerHTML = LOGO_SVG.replaceAll('bayrak', 'bayrak' + i)
+      })
+
+      const sahne = document.getElementById('sahne')
+      const kumanda = document.getElementById('kumanda')
+
+      // Oran → sahne boyutu ve yazı ölçekleri. Yazı boyları oranla birlikte
+      // değişmeli: 16:9'da 92 px'lik kanca sorusu üç satıra düşüyor.
+      const ORANLAR = {
+        '9:16': { en: 1080, boy: 1920, logo: 260, dev: 82, orta: 42, kocaman: 88 },
+        '1:1': { en: 1080, boy: 1080, logo: 200, dev: 74, orta: 38, kocaman: 76 },
+        '16:9': { en: 1920, boy: 1080, logo: 190, dev: 78, orta: 38, kocaman: 84 },
+      }
+      let oran = '9:16'
+      let kart = 'kartGiris'
+
+      function uygula() {
+        const o = ORANLAR[oran]
+        sahne.style.width = o.en + 'px'
+        sahne.style.height = o.boy + 'px'
+        sahne.style.setProperty('--logo', o.logo + 'px')
+        sahne.style.setProperty('--dev', o.dev + 'px')
+        sahne.style.setProperty('--orta', o.orta + 'px')
+        sahne.style.setProperty('--kocaman', o.kocaman + 'px')
+        document.querySelectorAll('.kart').forEach((k) => k.classList.toggle('acik', k.id === kart))
+        document
+          .querySelectorAll('[data-kart]')
+          .forEach((b) => b.classList.toggle('secili', b.dataset.kart === kart))
+        document
+          .querySelectorAll('[data-oran]')
+          .forEach((b) => b.classList.toggle('secili', b.dataset.oran === oran))
+        olcekle()
+        oynat()
+      }
+
+      function olcekle() {
+        const o = ORANLAR[oran]
+        const s = Math.min(innerWidth / o.en, (innerHeight - 20) / o.boy)
+        sahne.style.setProperty('--olcek', s)
+      }
+
+      /** Animasyonu baştan almak için sınıfı söküp bir kare sonra geri takıyoruz */
+      function oynat() {
+        sahne.classList.remove('oynat')
+        void sahne.offsetWidth
+        sahne.classList.add('oynat')
+      }
+
+      document.querySelectorAll('[data-kart]').forEach((b) => {
+        b.onclick = () => {
+          kart = b.dataset.kart
+          uygula()
+        }
+      })
+      document.querySelectorAll('[data-oran]').forEach((b) => {
+        b.onclick = () => {
+          oran = b.dataset.oran
+          uygula()
+        }
+      })
+      document.getElementById('tekrar').onclick = oynat
+      document.getElementById('yesil').onclick = (e) => {
+        sahne.classList.toggle('yesil')
+        e.currentTarget.classList.toggle('secili', sahne.classList.contains('yesil'))
+      }
+
+      addEventListener('keydown', (e) => {
+        // Yazı düzenlerken kısayollar araya girmesin
+        if (document.activeElement && document.activeElement.isContentEditable) return
+        if (e.key === ' ') {
+          e.preventDefault()
+          oynat()
+        }
+        if (e.key === 'k' || e.key === 'K') kumanda.classList.toggle('gizli')
+      })
+      addEventListener('resize', olcekle)
+      uygula()
+    </script>
+  </body>
+</html>

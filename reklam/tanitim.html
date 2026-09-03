@@ -1,0 +1,1197 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Birlikte Puzzle — tanıtım videosu (9:16)</title>
+    <!--
+      Bu dosya ÜRÜNÜN PARÇASI DEĞİL. `reklam/` klasörü Vite'ın paketine
+      girmiyor (yalnızca `public/` ve import grafiği dağıtıma giriyor), yani
+      canlıya çıkmaz. Amacı tek: ekran kaydı alınacak 9:16 bir tanıtım
+      animasyonu.
+
+      Nasıl kullanılır:
+        1. `npm run dev` çalışırken http://localhost:5173/reklam/tanitim.html
+        2. K tuşu → kumanda gizlenir (kayıtta görünmesin)
+        3. Ekran kaydını başlat, R tuşuna bas, animasyon 0,6 sn siyahla
+           açılıyor — kesme payın var.
+
+      Parametreler (adres sonuna):
+        ?eser=yildizli-gece   public/samples içindeki dosya adı (uzantısız)
+        ?dil=en               İngilizce metinler
+        ?kayit                kumanda baştan gizli
+        ?parca=30             hedef parça sayısı
+
+      Kesim matematiği `src/engine/cutter.ts`'ten birebir kopyalandı —
+      mulberry32 + generateCut + piecePath. Sahte parça çizmek yerine gerçek
+      jigsaw silueti kullanılıyor, çünkü videoda ürünün kendisi görünmeli.
+      Motor değişirse burası kendiliğinden güncellenmez; kopya bilinçli
+      (tanıtım dosyası ürün koduna bağımlı olmasın diye).
+    -->
+    <style>
+      :root {
+        --bg: #120e1a;
+        --bg-2: #1a1426;
+        --text: #f4eef8;
+        --muted: #a596b5;
+        --accent: #ff5d7d;
+        --accent-2: #ff9a5a;
+        --accent-soft: #ffd2dc;
+        --altin: #ffd6a0;
+        --ok: #5fd3a0;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        background: #000;
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
+      }
+      #kutu {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+      }
+      /* Sahne her zaman 1080x1920 çiziliyor, ekrana sığacak kadar küçültülüyor.
+         Böylece ekran ne olursa olsun yerleşim birebir aynı kalıyor. */
+      /* Ortalama `place-items` ile yapılmıyor: 1080x1920'lik kutu küçük
+         ekranda taşıyor ve taşan öğe merkezde değil başta hizalanıyor.
+         Mutlak konum + translate(-50%,-50%) her boyutta ortalıyor. */
+      #sahne {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--bg);
+        transform: translate(-50%, -50%) scale(var(--olcek, 0.4));
+      }
+      #tuval {
+        position: absolute;
+        inset: 0;
+        width: 1080px;
+        height: 1920px;
+      }
+      #perde {
+        position: absolute;
+        inset: 0;
+        background: #000;
+        pointer-events: none;
+      }
+      .kat {
+        position: absolute;
+        left: 0;
+        right: 0;
+        text-align: center;
+        will-change: opacity, transform;
+        opacity: 0;
+        padding: 0 90px;
+        /* Yazılar tuvalin üstünde duruyor; fotoğraf açık renkliyse
+           gölge olmadan okunmuyor. */
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.85), 0 1px 3px rgba(0, 0, 0, 0.6);
+      }
+
+      /* ---- giriş ---- */
+      #logo {
+        top: 640px;
+      }
+      #logo svg {
+        width: 300px;
+        height: 300px;
+        display: block;
+        margin: 0 auto;
+      }
+      #marka {
+        top: 990px;
+        font-size: 78px;
+        font-weight: 800;
+        letter-spacing: -1.5px;
+      }
+      #slogan {
+        top: 1096px;
+        font-size: 42px;
+        color: var(--accent-soft);
+        font-weight: 500;
+      }
+
+      /* ---- adım başlıkları ---- */
+      #adim {
+        top: 230px;
+      }
+      .adim-no {
+        display: inline-block;
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: 4px;
+        color: var(--accent);
+        border: 2px solid rgba(255, 93, 125, 0.45);
+        border-radius: 999px;
+        padding: 10px 26px;
+        margin-bottom: 22px;
+      }
+      .adim-yazi {
+        font-size: 66px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        line-height: 1.1;
+      }
+      .adim-alt {
+        margin-top: 16px;
+        font-size: 34px;
+        color: var(--muted);
+      }
+
+      /* ---- çözerken alt yazılar ---- */
+      #ozellik {
+        bottom: 250px;
+        font-size: 46px;
+        font-weight: 700;
+      }
+      #ozellik span {
+        background: rgba(18, 14, 26, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        padding: 18px 40px;
+        display: inline-block;
+        backdrop-filter: blur(6px);
+      }
+
+      /* ---- sohbet balonları ---- */
+      .balon {
+        position: absolute;
+        max-width: 520px;
+        font-size: 34px;
+        line-height: 1.35;
+        padding: 20px 28px;
+        border-radius: 22px;
+        opacity: 0;
+        will-change: opacity, transform;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+      }
+      .balon b {
+        display: block;
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 6px;
+        opacity: 0.75;
+      }
+      #balon1 {
+        left: 70px;
+        bottom: 640px;
+        background: rgba(255, 93, 125, 0.92);
+        border-bottom-left-radius: 6px;
+      }
+      #balon2 {
+        right: 70px;
+        bottom: 470px;
+        text-align: right;
+        background: rgba(95, 211, 160, 0.92);
+        color: #08221a;
+        border-bottom-right-radius: 6px;
+      }
+
+      /* ---- bitiş ---- */
+      #bitti {
+        top: 300px;
+      }
+      #bitti {
+        filter: drop-shadow(0 6px 28px rgba(0, 0, 0, 0.8));
+      }
+      /* Degrade yazıda `text-shadow` kullanılamıyor: harfler saydam olduğu
+         için gölge doğrudan görünüyor ve yazı gri bir lekeye dönüyor.
+         Gölge bu yüzden kapsayıcıya `drop-shadow` olarak veriliyor. */
+      #bitti .patlama {
+        font-size: 104px;
+        font-weight: 800;
+        letter-spacing: -2px;
+        background: linear-gradient(100deg, var(--altin), #fff 45%, var(--altin));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: none;
+      }
+      #bittiAlt {
+        top: 424px;
+        font-size: 36px;
+        color: var(--accent-soft);
+      }
+      #kunye {
+        bottom: 170px;
+      }
+      #kunye .satir {
+        display: flex;
+        gap: 18px;
+        justify-content: center;
+      }
+      #kunye .kutu {
+        flex: 1;
+        max-width: 280px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 214, 160, 0.28);
+        border-radius: 18px;
+        padding: 22px 10px;
+      }
+      #kunye .ust {
+        font-size: 22px;
+        letter-spacing: 2px;
+        color: #9b8ea8;
+        font-weight: 700;
+      }
+      #kunye .alt {
+        font-size: 44px;
+        font-weight: 800;
+        margin-top: 8px;
+        color: var(--altin);
+      }
+
+      /* ---- kapanış ---- */
+      #cta {
+        top: 940px;
+      }
+      #cta .alan {
+        font-size: 68px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        margin-bottom: 34px;
+      }
+      #cta .alan em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      #cta .madde {
+        font-size: 38px;
+        color: var(--muted);
+        margin: 14px 0;
+      }
+      #cta .madde b {
+        color: var(--text);
+        font-weight: 700;
+      }
+      #ctaLogo {
+        top: 660px;
+      }
+      #ctaLogo svg {
+        width: 190px;
+        height: 190px;
+        display: block;
+        margin: 0 auto;
+      }
+
+      /* ---- kumanda (kayıtta gizlenir) ---- */
+      #kumanda {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background: rgba(18, 14, 26, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 14px;
+        padding: 10px 14px;
+        font-size: 13px;
+        z-index: 10;
+      }
+      #kumanda button {
+        font: inherit;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        padding: 6px 12px;
+        cursor: pointer;
+      }
+      #kumanda button:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+      #kumanda .ipucu {
+        color: var(--muted);
+      }
+      #kumanda.gizli {
+        display: none;
+      }
+      #saat {
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+        min-width: 74px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="kutu">
+      <div id="sahne">
+        <canvas id="tuval" width="1080" height="1920"></canvas>
+
+        <div class="kat" id="logo"></div>
+        <div class="kat" id="marka">Birlikte Puzzle</div>
+        <div class="kat" id="slogan">İkiniz. Tek yapboz.</div>
+
+        <div class="kat" id="adim">
+          <div class="adim-no" id="adimNo">ADIM 1</div>
+          <div class="adim-yazi" id="adimYazi">Fotoğrafını seç</div>
+          <div class="adim-alt" id="adimAlt">kendi fotoğrafın ya da 36 hazır tablo</div>
+        </div>
+
+        <div class="kat" id="ozellik"><span id="ozellikYazi">Aynı anda, aynı tahtada</span></div>
+
+        <div class="balon" id="balon1"><b>Feti</b>Köşeleri ben topluyorum</div>
+        <div class="balon" id="balon2"><b>Elif</b>Şu turuncu parça sende mi?</div>
+
+        <div class="kat" id="bitti">
+          <div class="patlama" id="bittiYazi">Bitti!</div>
+        </div>
+        <div class="kat" id="bittiAlt">Sakladığın sürpriz mesaj burada açılıyor</div>
+        <div class="kat" id="kunye">
+          <div class="satir">
+            <div class="kutu">
+              <div class="ust" id="kunyeUst1">SÜRE</div>
+              <div class="alt">14:22</div>
+            </div>
+            <div class="kutu">
+              <div class="ust" id="kunyeUst2">PARÇA</div>
+              <div class="alt" id="kunyeParca">30</div>
+            </div>
+            <div class="kutu">
+              <div class="ust" id="kunyeUst3">ÇÖZENLER</div>
+              <div class="alt">2</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kat" id="ctaLogo"></div>
+        <div class="kat" id="cta">
+          <div class="alan">birliktepuzzle<em>.com</em></div>
+          <div class="madde" id="cta1"><b>Ücretsiz</b> — kurulum yok, tarayıcıda açılıyor</div>
+          <div class="madde" id="cta2">Telefonda ve bilgisayarda</div>
+          <div class="madde" id="cta3">Fotoğrafını seç · Linki gönder · Beraber çöz</div>
+        </div>
+
+        <div id="perde"></div>
+      </div>
+    </div>
+
+    <div id="kumanda">
+      <button id="oynat">▶ Oynat</button>
+      <button id="bastan">↺ Baştan (R)</button>
+      <button id="dilBtn">EN</button>
+      <span id="saat">0.0 / 0.0</span>
+      <span class="ipucu">K: kumandayı gizle · Boşluk: duraklat</span>
+    </div>
+
+    <script>
+      /* ==========================================================
+         1) Kesim motoru — src/engine/cutter.ts'ten kopya
+         ========================================================== */
+
+      function mulberry32(seed) {
+        let a = seed >>> 0
+        return () => {
+          a |= 0
+          a = (a + 0x6d2b79f5) | 0
+          let t = Math.imul(a ^ (a >>> 15), 1 | a)
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+        }
+      }
+
+      function computeGrid(imgW, imgH, target) {
+        let best = { rows: 1, cols: 1 }
+        let bestScore = Infinity
+        for (let rows = 1; rows <= Math.ceil(Math.sqrt(target * 4)); rows++) {
+          const cols = Math.max(1, Math.round(target / rows))
+          const count = rows * cols
+          const cellAspect = imgW / cols / (imgH / rows)
+          const score =
+            Math.abs(count - target) / target + Math.abs(Math.log(cellAspect)) * 0.7
+          if (score < bestScore) {
+            bestScore = score
+            best = { rows, cols }
+          }
+        }
+        return best
+      }
+
+      function generateCut(imgW, imgH, target, seed) {
+        const { rows, cols } = computeGrid(imgW, imgH, target)
+        const rng = mulberry32(seed)
+        const jitter = () => (rng() - 0.5) * 0.12
+        const makeEdge = (flat) =>
+          flat
+            ? { sign: 0, a: 0, b: 0, c: 0, d: 0 }
+            : {
+                sign: rng() < 0.5 ? 1 : -1,
+                a: jitter(),
+                b: jitter(),
+                c: jitter(),
+                d: jitter(),
+              }
+        const horizontal = []
+        for (let r = 0; r <= rows; r++) {
+          const line = []
+          for (let c = 0; c < cols; c++) line.push(makeEdge(r === 0 || r === rows))
+          horizontal.push(line)
+        }
+        const vertical = []
+        for (let r = 0; r < rows; r++) {
+          const line = []
+          for (let c = 0; c <= cols; c++) line.push(makeEdge(c === 0 || c === cols))
+          vertical.push(line)
+        }
+        return { rows, cols, cellW: imgW / cols, cellH: imgH / rows, horizontal, vertical }
+      }
+
+      const T = 0.09
+
+      function addEdge(path, x0, y0, x1, y1, edge, reverse) {
+        if (edge.sign === 0) {
+          path.lineTo(x1, y1)
+          return
+        }
+        const dx = x1 - x0
+        const dy = y1 - y0
+        const len = Math.hypot(dx, dy)
+        let px = -dy / len
+        let py = dx / len
+        let { a, b, c, d } = edge
+        let sign = edge.sign
+        if (reverse) {
+          b = -b
+          d = -d
+          sign = -sign
+        }
+        px *= sign
+        py *= sign
+        const t = T
+        const pt = (u, v) => [x0 + u * dx + v * len * px, y0 + u * dy + v * len * py]
+        const c1 = pt(0.2, a)
+        const c2 = pt(0.5 + b + d, -t + c)
+        const p3 = pt(0.5 - t + b, t + c)
+        const c4 = pt(0.5 - 2 * t + b - d, 3 * t + c)
+        const c5 = pt(0.5 + 2 * t + b - d, 3 * t + c)
+        const p6 = pt(0.5 + t + b, t + c)
+        const c7 = pt(0.5 + b + d, -t + c)
+        const c8 = pt(0.8, a)
+        path.bezierCurveTo(c1[0], c1[1], c2[0], c2[1], p3[0], p3[1])
+        path.bezierCurveTo(c4[0], c4[1], c5[0], c5[1], p6[0], p6[1])
+        path.bezierCurveTo(c7[0], c7[1], c8[0], c8[1], x1, y1)
+      }
+
+      function piecePath(cut, row, col) {
+        const { cellW, cellH } = cut
+        const x = col * cellW
+        const y = row * cellH
+        const path = new Path2D()
+        path.moveTo(x, y)
+        addEdge(path, x, y, x + cellW, y, cut.horizontal[row][col], false)
+        addEdge(path, x + cellW, y, x + cellW, y + cellH, cut.vertical[row][col + 1], false)
+        addEdge(path, x + cellW, y + cellH, x, y + cellH, cut.horizontal[row + 1][col], true)
+        addEdge(path, x, y + cellH, x, y, cut.vertical[row][col], true)
+        path.closePath()
+        return path
+      }
+
+      /* ==========================================================
+         2) Ayarlar ve metinler
+         ========================================================== */
+
+      const sorgu = new URLSearchParams(location.search)
+      const ESER = sorgu.get('eser') || 'kaplumbaga-terbiyecisi'
+      const HEDEF_PARCA = Number(sorgu.get('parca')) || 30
+      let dil = sorgu.get('dil') === 'en' ? 'en' : 'tr'
+
+      // Sahnelerin başlangıç/bitiş saniyeleri. Videoyu kısaltmak istersen
+      // tek yer burası — çizim ve yazılar buradan besleniyor.
+      const S = {
+        siyah: [0.0, 0.6],
+        giris: [0.6, 3.4],
+        foto: [3.4, 6.0],
+        dagil: [6.0, 8.6],
+        coz: [8.6, 18.8],
+        bitis: [18.8, 22.4],
+        cta: [22.4, 28.0],
+      }
+      const TOPLAM = S.cta[1]
+
+      const METIN = {
+        tr: {
+          slogan: 'İkiniz. Tek yapboz.',
+          adim: [
+            ['ADIM 1', 'Fotoğrafını seç', 'kendi fotoğrafın ya da 36 hazır tablo'],
+            ['ADIM 2', 'Linki gönder', 'hesap açmasına bile gerek yok'],
+            ['ADIM 3', 'Beraber çözün', 'aynı anda, aynı tahtada'],
+          ],
+          ozellik: [
+            'İmleçleri birbirinizde görün',
+            'Sesli görüşme ve sohbet',
+            'Bittiğinde sürpriz mesaj',
+          ],
+          balon1: ['Feti', 'Köşeleri ben topluyorum'],
+          balon2: ['Elif', 'Şu turuncu parça sende mi?'],
+          bitti: 'Bitti!',
+          bitisAlt: 'Sakladığın sürpriz mesaj burada açılıyor',
+          kunye: ['SÜRE', 'PARÇA', 'ÇÖZENLER'],
+          cta: [
+            '<b>Ücretsiz</b> — kurulum yok, tarayıcıda açılıyor',
+            'Telefonda ve bilgisayarda',
+            'Fotoğrafını seç · Linki gönder · Beraber çöz',
+          ],
+        },
+        en: {
+          slogan: 'Two of you. One puzzle.',
+          adim: [
+            ['STEP 1', 'Pick a photo', 'yours, or one of 36 ready artworks'],
+            ['STEP 2', 'Send the link', 'they do not even need an account'],
+            ['STEP 3', 'Solve together', 'same time, same board'],
+          ],
+          ozellik: [
+            'See each other’s cursors',
+            'Voice call and chat',
+            'A surprise message at the end',
+          ],
+          balon1: ['Feti', 'I’ll take the corners'],
+          balon2: ['Elif', 'Do you have the orange one?'],
+          bitti: 'Done!',
+          bitisAlt: 'The message you hid opens right here',
+          kunye: ['TIME', 'PIECES', 'SOLVED BY'],
+          cta: [
+            '<b>Free</b> — no install, runs in the browser',
+            'On phone and desktop',
+            'Pick a photo · Send the link · Solve together',
+          ],
+        },
+      }
+
+      // Marka işareti — public/icon.svg'nin aynısı, parçaları ayrı ayrı
+      // hareket ettirebilmek için gövdeye gömüldü.
+      const LOGO_SVG = `
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="bayrak" gradientUnits="userSpaceOnUse" x1="24" y1="24" x2="76" y2="76">
+              <stop offset="0" stop-color="#f4232f" />
+              <stop offset="1" stop-color="#c00713" />
+            </linearGradient>
+          </defs>
+          <rect width="100" height="100" rx="22" fill="#1a1423" />
+          <g fill="url(#bayrak)">
+            <path class="sol" d="M24 31 H30 A7 7 0 0 1 44 31 H50 V43 A7 7 0 0 1 50 57 V69 H24 Z" />
+            <path class="sag" d="M50 31 H76 V69 H70 A7 7 0 0 1 56 69 H50 V57 A7 7 0 0 0 50 43 Z" />
+          </g>
+          <path class="dikis" d="M50 31 V43 A7 7 0 0 1 50 57 V69" fill="none" stroke="#1a1423" stroke-width="1.8" />
+          <path class="ay" fill="#fff" d="M51.346 43.850 A11.5 11.5 0 1 0 51.346 56.150 A9.2 9.2 0 1 1 51.346 43.850 Z" />
+          <polygon class="yildiz" fill="#fff" points="56.00,50.00 61.30,48.28 61.30,42.71 64.58,47.21 69.87,45.49 66.60,50.00 69.87,54.51 64.58,52.79 61.30,57.29 61.30,51.72" />
+        </svg>`
+
+      // Aynı `id="bayrak"` iki kez geçerse `url(#bayrak)` hep ilki bulur;
+      // ilki gizlenirse ikinci logo kırmızısını kaybediyor.
+      document.getElementById('logo').innerHTML = LOGO_SVG.replaceAll('bayrak', 'bayrak0')
+      document.getElementById('ctaLogo').innerHTML = LOGO_SVG.replaceAll('bayrak', 'bayrak1')
+
+      /* ==========================================================
+         3) Yardımcılar
+         ========================================================== */
+
+      const kis = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v)
+      const easeOut = (t) => 1 - Math.pow(1 - kis(t), 3)
+      const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+      const karis = (a, b, t) => a + (b - a) * t
+
+      /** Bir katmanın [bas, bit] penceresindeki opaklığı: 0.45 sn açılır/kapanır */
+      function pencere(t, bas, bit, sure = 0.45) {
+        const gir = easeOut((t - bas) / sure)
+        const cik = 1 - easeOut((t - (bit - sure)) / sure)
+        return kis(Math.min(gir, cik))
+      }
+
+      /** Katmanı yerleştir: opaklık + aşağıdan yukarı kayma */
+      function katYaz(el, alfa, kayma = 40) {
+        el.style.opacity = alfa
+        el.style.transform = `translateY(${(1 - alfa) * kayma}px)`
+      }
+
+      /* ==========================================================
+         4) Sahne kurulumu
+         ========================================================== */
+
+      const tuval = document.getElementById('tuval')
+      const ctx = tuval.getContext('2d')
+      const EN = 1080
+      const BOY = 1920
+
+      let cut = null
+      let bitmapler = []
+      let parcalar = []
+      let tahta = { x: 0, y: 0, en: 0, boy: 0, olcek: 1 }
+      let hazir = false
+
+      /** Görseli iki yoldan da dene: dev sunucusunda /samples, dosyadan ../public/samples */
+      function gorselYukle(ad) {
+        return new Promise((coz, red) => {
+          const img = new Image()
+          let ikinci = false
+          img.onload = () => coz(img)
+          img.onerror = () => {
+            if (ikinci) return red(new Error('görsel yüklenemedi: ' + ad))
+            ikinci = true
+            img.src = `../public/samples/${ad}.jpg`
+          }
+          img.src = `/samples/${ad}.jpg`
+        })
+      }
+
+      function parcaBitmapleri(img, cut) {
+        const margin = Math.ceil(Math.max(cut.cellW, cut.cellH) * 0.34)
+        const out = []
+        for (let r = 0; r < cut.rows; r++) {
+          const satir = []
+          for (let c = 0; c < cut.cols; c++) {
+            const w = Math.ceil(cut.cellW) + margin * 2
+            const h = Math.ceil(cut.cellH) + margin * 2
+            const cv = document.createElement('canvas')
+            cv.width = w
+            cv.height = h
+            const cc = cv.getContext('2d')
+            const path = piecePath(cut, r, c)
+            cc.translate(-(c * cut.cellW - margin), -(r * cut.cellH - margin))
+            cc.save()
+            cc.clip(path)
+            cc.drawImage(img, 0, 0)
+            cc.restore()
+            cc.lineWidth = Math.max(1, cut.cellW * 0.008)
+            cc.strokeStyle = 'rgba(0,0,0,0.45)'
+            cc.stroke(path)
+            satir.push({ canvas: cv, offset: -margin })
+          }
+          out.push(satir)
+        }
+        return out
+      }
+
+      async function kur() {
+        const img = await gorselYukle(ESER)
+        cut = generateCut(img.naturalWidth, img.naturalHeight, HEDEF_PARCA, 20260903)
+        bitmapler = parcaBitmapleri(img, cut)
+
+        // Tahta: en fazla 900 geniş, en fazla 1010 yüksek — üstte adım yazısı,
+        // altta özellik şeridi için yer kalsın.
+        const enBuyukEn = 880
+        const enBuyukBoy = 1010
+        const olcek = Math.min(
+          enBuyukEn / img.naturalWidth,
+          enBuyukBoy / img.naturalHeight,
+        )
+        tahta = {
+          olcek,
+          en: img.naturalWidth * olcek,
+          boy: img.naturalHeight * olcek,
+          x: 0,
+          y: 0,
+        }
+        tahta.x = (EN - tahta.en) / 2
+        tahta.y = 1000 - tahta.boy / 2
+
+        // Parçalar: ev konumu (tahtadaki yeri) + dağılma konumu
+        const rng = mulberry32(7)
+        parcalar = []
+        for (let r = 0; r < cut.rows; r++) {
+          for (let c = 0; c < cut.cols; c++) {
+            const evX = tahta.x + c * cut.cellW * olcek
+            const evY = tahta.y + r * cut.cellH * olcek
+            // Dağılma: tahtanın dışına, ekranın kenarlarına doğru it
+            const merkezX = tahta.x + tahta.en / 2
+            const merkezY = tahta.y + tahta.boy / 2
+            const aci = Math.atan2(evY + 40 - merkezY, evX + 40 - merkezX)
+            const uzaklik = 330 + rng() * 250
+            parcalar.push({
+              r,
+              c,
+              evX,
+              evY,
+              // Halka tahtanın hemen dışında kalıyor: yukarıda adım başlığı,
+              // aşağıda özellik şeridi var, parçalar oraya taşarsa yazı okunmuyor.
+              dagX: kis(merkezX + Math.cos(aci) * uzaklik, 40, EN - 170),
+              dagY: kis(merkezY + Math.sin(aci) * uzaklik, 470, BOY - 400),
+              dagAci: (rng() - 0.5) * 1.3,
+              sira: 0,
+            })
+          }
+        }
+        // Çözülme sırası: merkezden dışa doğru, üstüne biraz rastgelelik.
+        // Saf rastgele sırada resim "dolmuyor", ekranda dağınık noktalar
+        // beliriyordu; merkezden büyüyünce fotoğraf gözle takip edilebiliyor.
+        const mX = tahta.x + tahta.en / 2
+        const mY = tahta.y + tahta.boy / 2
+        const enUzak = Math.hypot(tahta.en, tahta.boy) / 2
+        const sira = parcalar
+          .map((p, i) => ({
+            i,
+            d:
+              Math.hypot(p.evX + (cut.cellW * olcek) / 2 - mX, p.evY + (cut.cellH * olcek) / 2 - mY) +
+              rng() * enUzak * 0.35,
+          }))
+          .sort((a, b) => a.d - b.d)
+        sira.forEach((s, k) => (parcalar[s.i].sira = k))
+
+        document.getElementById('kunyeParca').textContent = String(parcalar.length)
+        hazir = true
+      }
+
+      /* ==========================================================
+         5) Çizim
+         ========================================================== */
+
+      /** İmleç oku + isim etiketi */
+      function imlecCiz(x, y, renk, ad) {
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.shadowColor = 'rgba(0,0,0,0.5)'
+        ctx.shadowBlur = 12
+        ctx.beginPath()
+        ctx.moveTo(0, 0)
+        ctx.lineTo(0, 34)
+        ctx.lineTo(9, 26)
+        ctx.lineTo(15, 39)
+        ctx.lineTo(21, 36)
+        ctx.lineTo(15, 23)
+        ctx.lineTo(26, 21)
+        ctx.closePath()
+        ctx.fillStyle = renk
+        ctx.fill()
+        ctx.lineWidth = 2
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)'
+        ctx.stroke()
+        ctx.shadowBlur = 0
+        ctx.font = '700 26px ui-sans-serif, system-ui, Segoe UI, sans-serif'
+        const w = ctx.measureText(ad).width + 28
+        ctx.fillStyle = renk
+        ctx.beginPath()
+        ctx.roundRect(20, 34, w, 42, 12)
+        ctx.fill()
+        ctx.fillStyle = '#12101a'
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(ad, 34, 56)
+        ctx.restore()
+      }
+
+      function tahtaCerceve(alfa) {
+        if (alfa <= 0) return
+        ctx.save()
+        ctx.globalAlpha = alfa
+        ctx.beginPath()
+        ctx.roundRect(tahta.x - 14, tahta.y - 14, tahta.en + 28, tahta.boy + 28, 20)
+        ctx.fillStyle = 'rgba(255,255,255,0.035)'
+        ctx.fill()
+        ctx.lineWidth = 2
+        ctx.strokeStyle = 'rgba(255,255,255,0.16)'
+        ctx.stroke()
+        // hayalet ızgara
+        ctx.globalAlpha = alfa * 0.5
+        ctx.lineWidth = 1
+        ctx.strokeStyle = 'rgba(255,255,255,0.10)'
+        ctx.beginPath()
+        for (let c = 1; c < cut.cols; c++) {
+          const x = tahta.x + c * cut.cellW * tahta.olcek
+          ctx.moveTo(x, tahta.y)
+          ctx.lineTo(x, tahta.y + tahta.boy)
+        }
+        for (let r = 1; r < cut.rows; r++) {
+          const y = tahta.y + r * cut.cellH * tahta.olcek
+          ctx.moveTo(tahta.x, y)
+          ctx.lineTo(tahta.x + tahta.en, y)
+        }
+        ctx.stroke()
+        ctx.restore()
+      }
+
+      /** Zemin: koyu mor + iki yumuşak ışık */
+      function zeminCiz(t) {
+        ctx.fillStyle = '#120e1a'
+        ctx.fillRect(0, 0, EN, BOY)
+        const g1 = ctx.createRadialGradient(180, 380, 0, 180, 380, 900)
+        g1.addColorStop(0, 'rgba(255,93,125,0.16)')
+        g1.addColorStop(1, 'rgba(255,93,125,0)')
+        ctx.fillStyle = g1
+        ctx.fillRect(0, 0, EN, BOY)
+        const g2 = ctx.createRadialGradient(900, 1560, 0, 900, 1560, 950)
+        g2.addColorStop(0, 'rgba(255,154,90,0.14)')
+        g2.addColorStop(1, 'rgba(255,154,90,0)')
+        ctx.fillStyle = g2
+        ctx.fillRect(0, 0, EN, BOY)
+        void t
+      }
+
+      /**
+       * Bir parçanın o andaki durumu.
+       * evAlfa: 1 = yerinde. Dönüş: {x, y, aci, oturdu}
+       */
+      function parcaDurum(p, t) {
+        const n = parcalar.length
+        // Dağılma: hepsi 1,4 sn içinde, küçük gecikmelerle
+        if (t < S.dagil[0]) return { x: p.evX, y: p.evY, aci: 0, oturdu: true, taze: 0 }
+        if (t < S.coz[0]) {
+          const gecikme = (p.sira / n) * 0.7
+          const k = easeInOut(kis((t - S.dagil[0] - gecikme) / 1.3))
+          return {
+            x: karis(p.evX, p.dagX, k),
+            y: karis(p.evY, p.dagY, k),
+            aci: p.dagAci * k,
+            oturdu: false,
+            taze: 0,
+          }
+        }
+        // Çözülme: sırayla eve dönüş
+        const pencereBoyu = S.coz[1] - S.coz[0] - 1.1
+        const bas = S.coz[0] + (p.sira / n) * pencereBoyu
+        const sure = 0.85
+        const k = easeInOut(kis((t - bas) / sure))
+        return {
+          x: karis(p.dagX, p.evX, k),
+          y: karis(p.dagY, p.evY, k),
+          aci: p.dagAci * (1 - k),
+          oturdu: k >= 1,
+          // yerine oturduğu anki parlama (0,45 sn sönüyor)
+          taze: k >= 1 ? kis(1 - (t - (bas + sure)) / 0.45) : 0,
+        }
+      }
+
+      function ciz(t) {
+        zeminCiz(t)
+        if (!hazir) return
+
+        // Tahta çerçevesi yalnızca parçalar dağınıkken görünür
+        const cerceveAlfa = pencere(t, S.dagil[0] + 0.2, S.bitis[0] + 0.4, 0.5)
+        tahtaCerceve(cerceveAlfa)
+
+        const gorunurluk = pencere(t, S.foto[0], S.cta[0] + 0.5, 0.5)
+        if (gorunurluk <= 0) return
+
+        // Bitişte hafif büyüme + altın parıltı
+        const bitisK = kis((t - S.bitis[0]) / 0.9)
+        const buyume = 1 + easeOut(bitisK) * 0.04
+        ctx.save()
+        ctx.globalAlpha = gorunurluk
+        ctx.translate(tahta.x + tahta.en / 2, tahta.y + tahta.boy / 2)
+        ctx.scale(buyume, buyume)
+        ctx.translate(-(tahta.x + tahta.en / 2), -(tahta.y + tahta.boy / 2))
+
+        // Girişte fotoğraf tek parça gibi görünsün diye önce oturanlar çizilir
+        const hareketli = []
+        for (const p of parcalar) {
+          const d = parcaDurum(p, t)
+          if (d.oturdu) cizParca(p, d)
+          else hareketli.push([p, d])
+        }
+        for (const [p, d] of hareketli) cizParca(p, d)
+
+        // Bitişte çerçeveye altın hâle
+        if (bitisK > 0) {
+          ctx.save()
+          ctx.globalAlpha = kis(bitisK) * (0.55 + 0.45 * Math.sin(t * 3))
+          ctx.lineWidth = 5
+          ctx.strokeStyle = 'rgba(255,214,160,0.85)'
+          ctx.shadowColor = 'rgba(255,214,160,0.9)'
+          ctx.shadowBlur = 40
+          ctx.beginPath()
+          ctx.roundRect(tahta.x - 6, tahta.y - 6, tahta.en + 12, tahta.boy + 12, 14)
+          ctx.stroke()
+          ctx.restore()
+        }
+        ctx.restore()
+
+        // İmleçler yalnızca çözerken
+        const imlecAlfa = pencere(t, S.coz[0] - 0.2, S.bitis[0] + 0.3, 0.4)
+        if (imlecAlfa > 0) {
+          ctx.save()
+          ctx.globalAlpha = imlecAlfa
+          const iki = imlecKonumlari(t)
+          imlecCiz(iki[0].x, iki[0].y, '#ff5d7d', METIN[dil].balon1[0])
+          imlecCiz(iki[1].x, iki[1].y, '#5fd3a0', METIN[dil].balon2[0])
+          ctx.restore()
+        }
+      }
+
+      function cizParca(p, d) {
+        const bm = bitmapler[p.r][p.c]
+        const o = bm.offset * tahta.olcek
+        ctx.save()
+        const mx = d.x + (cut.cellW * tahta.olcek) / 2
+        const my = d.y + (cut.cellH * tahta.olcek) / 2
+        ctx.translate(mx, my)
+        ctx.rotate(d.aci)
+        if (!d.oturdu) {
+          ctx.shadowColor = 'rgba(0,0,0,0.55)'
+          ctx.shadowBlur = 26
+          ctx.shadowOffsetY = 10
+        }
+        ctx.drawImage(
+          bm.canvas,
+          -(cut.cellW * tahta.olcek) / 2 + o,
+          -(cut.cellH * tahta.olcek) / 2 + o,
+          bm.canvas.width * tahta.olcek,
+          bm.canvas.height * tahta.olcek,
+        )
+        ctx.restore()
+        if (d.taze > 0) {
+          ctx.save()
+          ctx.globalAlpha = d.taze * 0.9
+          ctx.lineWidth = 4
+          ctx.strokeStyle = '#ffd6a0'
+          ctx.shadowColor = '#ffd6a0'
+          ctx.shadowBlur = 26
+          ctx.strokeRect(
+            d.x + 2,
+            d.y + 2,
+            cut.cellW * tahta.olcek - 4,
+            cut.cellH * tahta.olcek - 4,
+          )
+          ctx.restore()
+        }
+      }
+
+      /**
+       * İki imleç: her biri kendi sırasındaki (tek/çift) parçayı takip ediyor.
+       * Hareket hâlinde parçanın üstünde, boştayken son yerinde bekliyor.
+       */
+      const sonImlec = [
+        { x: 240, y: 1200 },
+        { x: 840, y: 700 },
+      ]
+      function imlecKonumlari(t) {
+        for (let k = 0; k < 2; k++) {
+          let aday = null
+          for (const p of parcalar) {
+            if (p.sira % 2 !== k) continue
+            const d = parcaDurum(p, t)
+            if (!d.oturdu && t >= S.coz[0]) {
+              const n = parcalar.length
+              const bas = S.coz[0] + (p.sira / n) * (S.coz[1] - S.coz[0] - 1.1)
+              if (t >= bas - 0.35 && t <= bas + 0.9) {
+                aday = d
+                break
+              }
+            }
+          }
+          if (aday) {
+            const hedefX = aday.x + cut.cellW * tahta.olcek * 0.5
+            const hedefY = aday.y + cut.cellH * tahta.olcek * 0.4
+            sonImlec[k].x = karis(sonImlec[k].x, hedefX, 0.35)
+            sonImlec[k].y = karis(sonImlec[k].y, hedefY, 0.35)
+          }
+        }
+        return sonImlec
+      }
+
+      /* ==========================================================
+         6) Yazı katmanları
+         ========================================================== */
+
+      const E = (id) => document.getElementById(id)
+      const el = {
+        perde: E('perde'),
+        logo: E('logo'),
+        marka: E('marka'),
+        slogan: E('slogan'),
+        adim: E('adim'),
+        adimNo: E('adimNo'),
+        adimYazi: E('adimYazi'),
+        adimAlt: E('adimAlt'),
+        ozellik: E('ozellik'),
+        ozellikYazi: E('ozellikYazi'),
+        balon1: E('balon1'),
+        balon2: E('balon2'),
+        bitti: E('bitti'),
+        bittiAlt: E('bittiAlt'),
+        bittiYazi: E('bittiYazi'),
+        kunye: E('kunye'),
+        ctaLogo: E('ctaLogo'),
+        cta: E('cta'),
+      }
+
+      function dilYaz() {
+        const m = METIN[dil]
+        el.slogan.textContent = m.slogan
+        el.bittiYazi.textContent = m.bitti
+        el.bittiAlt.textContent = m.bitisAlt
+        el.balon1.innerHTML = `<b>${m.balon1[0]}</b>${m.balon1[1]}`
+        el.balon2.innerHTML = `<b>${m.balon2[0]}</b>${m.balon2[1]}`
+        E('kunyeUst1').textContent = m.kunye[0]
+        E('kunyeUst2').textContent = m.kunye[1]
+        E('kunyeUst3').textContent = m.kunye[2]
+        E('cta1').innerHTML = m.cta[0]
+        E('cta2').innerHTML = m.cta[1]
+        E('cta3').innerHTML = m.cta[2]
+        E('dilBtn').textContent = dil === 'tr' ? 'EN' : 'TR'
+        document.documentElement.lang = dil
+      }
+
+      function yazilar(t) {
+        const m = METIN[dil]
+
+        // Açılış perdesi: 0,6 sn siyah, sonra açılıyor
+        el.perde.style.opacity = 1 - easeOut((t - S.siyah[1] + 0.25) / 0.5)
+
+        // Logo: iki parça yanlardan gelip birleşiyor, sonra ay-yıldız beliriyor
+        const gAlfa = pencere(t, S.giris[0], S.giris[1], 0.4)
+        el.logo.style.opacity = gAlfa
+        el.logo.style.transform = 'none'
+        const birlesme = easeOut((t - S.giris[0] - 0.15) / 0.9)
+        const svg = el.logo.querySelector('svg')
+        if (svg) {
+          const kay = (1 - birlesme) * 60
+          svg.querySelector('.sol').style.transform = `translateX(${-kay}px)`
+          svg.querySelector('.sag').style.transform = `translateX(${kay}px)`
+          const motif = kis((birlesme - 0.55) / 0.45)
+          svg.querySelector('.ay').style.opacity = motif
+          svg.querySelector('.yildiz').style.opacity = motif
+          svg.querySelector('.dikis').style.opacity = birlesme
+          svg.style.transform = `scale(${karis(0.86, 1, easeOut(birlesme))})`
+          svg.style.transformOrigin = 'center'
+        }
+        katYaz(el.marka, pencere(t, S.giris[0] + 0.55, S.giris[1], 0.4), 30)
+        katYaz(el.slogan, pencere(t, S.giris[0] + 0.85, S.giris[1], 0.4), 30)
+
+        // Adım başlıkları: foto / dagil / coz sahnelerinin başında
+        const adimlar = [
+          [S.foto[0], S.foto[1] + 0.2, 0],
+          [S.dagil[0] + 0.1, S.dagil[1] + 0.2, 1],
+          [S.coz[0] + 0.1, S.coz[0] + 3.4, 2],
+        ]
+        let adimAlfa = 0
+        for (const [b, s, i] of adimlar) {
+          const a = pencere(t, b, s, 0.4)
+          if (a > adimAlfa) {
+            adimAlfa = a
+            el.adimNo.textContent = m.adim[i][0]
+            el.adimYazi.textContent = m.adim[i][1]
+            el.adimAlt.textContent = m.adim[i][2]
+          }
+        }
+        katYaz(el.adim, adimAlfa, 34)
+
+        // Çözerken dönen özellik şeridi
+        // İki beat: önce imleçler, sonra sohbet. Üçüncü özellik (sürpriz
+        // mesaj) bitiş sahnesine taşındı — çözme penceresi üçü için kısa
+        // kalıyor ve yazılar birbirini kovalıyordu.
+        const ozellikler = [
+          [S.coz[0] + 3.6, S.coz[0] + 6.4, 0],
+          [S.coz[0] + 6.4, S.bitis[0] + 0.2, 1],
+        ]
+        let oAlfa = 0
+        for (const [b, s, i] of ozellikler) {
+          const a = pencere(t, b, s, 0.35)
+          if (a > oAlfa) {
+            oAlfa = a
+            el.ozellikYazi.textContent = m.ozellik[i]
+          }
+        }
+        katYaz(el.ozellik, oAlfa, 26)
+
+        // Sohbet balonları
+        const b1 = pencere(t, S.coz[0] + 6.7, S.bitis[0] + 0.1, 0.35)
+        const b2 = pencere(t, S.coz[0] + 7.4, S.bitis[0] + 0.1, 0.35)
+        el.balon1.style.opacity = b1
+        el.balon1.style.transform = `translateY(${(1 - b1) * 24}px) scale(${karis(0.9, 1, b1)})`
+        el.balon2.style.opacity = b2
+        el.balon2.style.transform = `translateY(${(1 - b2) * 24}px) scale(${karis(0.9, 1, b2)})`
+
+        // Bitiş
+        katYaz(el.bitti, pencere(t, S.bitis[0] + 0.2, S.bitis[1], 0.4), 30)
+        katYaz(el.bittiAlt, pencere(t, S.bitis[0] + 0.5, S.bitis[1], 0.4), 30)
+        katYaz(el.kunye, pencere(t, S.bitis[0] + 0.7, S.bitis[1], 0.4), 30)
+
+        // Kapanış
+        const cAlfa = pencere(t, S.cta[0] + 0.2, TOPLAM + 1, 0.5)
+        katYaz(el.ctaLogo, cAlfa, 24)
+        katYaz(el.cta, pencere(t, S.cta[0] + 0.5, TOPLAM + 1, 0.5), 34)
+      }
+
+      /* ==========================================================
+         7) Saat ve kumanda
+         ========================================================== */
+
+      let t = 0
+      let oynuyor = false
+      let sonKare = 0
+
+      function dongu(simdi) {
+        const dt = sonKare ? (simdi - sonKare) / 1000 : 0
+        sonKare = simdi
+        if (oynuyor) {
+          t += dt
+          if (t > TOPLAM + 1.2) {
+            t = 0
+            sonImlec[0] = { x: 240, y: 1200 }
+            sonImlec[1] = { x: 840, y: 700 }
+          }
+        }
+        ciz(t)
+        yazilar(t)
+        E('saat').textContent = `${t.toFixed(1)} / ${TOPLAM.toFixed(1)}`
+        requestAnimationFrame(dongu)
+      }
+
+      function bastanAl() {
+        t = 0
+        sonImlec[0] = { x: 240, y: 1200 }
+        sonImlec[1] = { x: 840, y: 700 }
+        oynuyor = true
+        E('oynat').textContent = '⏸ Duraklat'
+      }
+
+      E('oynat').onclick = () => {
+        oynuyor = !oynuyor
+        E('oynat').textContent = oynuyor ? '⏸ Duraklat' : '▶ Oynat'
+      }
+      E('bastan').onclick = bastanAl
+      E('dilBtn').onclick = () => {
+        dil = dil === 'tr' ? 'en' : 'tr'
+        dilYaz()
+      }
+
+      addEventListener('keydown', (e) => {
+        if (e.key === ' ') {
+          e.preventDefault()
+          E('oynat').click()
+        }
+        if (e.key === 'r' || e.key === 'R') bastanAl()
+        if (e.key === 'k' || e.key === 'K') E('kumanda').classList.toggle('gizli')
+      })
+
+      function olcekle() {
+        const s = Math.min(innerWidth / EN, innerHeight / BOY)
+        document.getElementById('sahne').style.setProperty('--olcek', s)
+      }
+      addEventListener('resize', olcekle)
+      olcekle()
+      dilYaz()
+      if (sorgu.has('kayit')) E('kumanda').classList.add('gizli')
+
+      kur()
+        .then(() => {
+          bastanAl()
+        })
+        .catch((h) => {
+          document.getElementById('sahne').insertAdjacentHTML(
+            'beforeend',
+            `<div style="position:absolute;inset:0;display:grid;place-items:center;
+               text-align:center;font-size:34px;padding:80px;color:#ff9a9a">
+               Görsel yüklenemedi.<br><br>
+               <span style="font-size:24px;color:#a596b5">
+                 Bu sayfa dev sunucusundan açılmalı:<br>
+                 <b>http://localhost:5173/reklam/tanitim.html</b><br><br>
+                 (${h.message})
+               </span>
+             </div>`,
+          )
+        })
+      requestAnimationFrame(dongu)
+    </script>
+  </body>
+</html>

@@ -1,0 +1,958 @@
+<title>Birlikte Puzzle Lansman Kiti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;700&display=swap"
+/>
+
+<style>
+  /* --------------------------------------------------------------
+     Renkler ürünün kendi tasarım sisteminden (src/index.css):
+     akşam moru zemin, mercan vurgu, sertifika altını.
+     Nötrler mora çalıyor — gri değil, seçilmiş bir gri.
+     -------------------------------------------------------------- */
+  :root {
+    --zemin: #f6f3f8;
+    --kagit: #ffffff;
+    --kagit-2: #efeaf3;
+    --murekkep: #1c1526;
+    --soluk: #6b5f78;
+    --cizgi: #e0d8e7;
+    --cizgi-koyu: #cabfd4;
+    --vurgu: #d63a5e;
+    --vurgu-yumusak: #fce8ee;
+    --altin: #a06a12;
+    --altin-yumusak: #fbf0dc;
+    --yesil: #1c7a56;
+
+    --golge: 0 1px 2px rgba(28, 21, 38, 0.06), 0 8px 24px rgba(28, 21, 38, 0.06);
+    --olcu-1: clamp(2.4rem, 1.4rem + 3.2vw, 3.9rem);
+    --olcu-2: 1.55rem;
+    --olcu-3: 1.12rem;
+    --govde: 1.02rem;
+    --kucuk: 0.87rem;
+    --minik: 0.76rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --zemin: #120e1a;
+      --kagit: #1a1426;
+      --kagit-2: #221a30;
+      --murekkep: #f2ecf7;
+      --soluk: #a596b5;
+      --cizgi: #2e2440;
+      --cizgi-koyu: #3d3151;
+      --vurgu: #ff7f9b;
+      --vurgu-yumusak: #2c1622;
+      --altin: #ffd6a0;
+      --altin-yumusak: #2b2110;
+      --yesil: #5fd3a0;
+      --golge: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme='dark'] {
+    --zemin: #120e1a;
+    --kagit: #1a1426;
+    --kagit-2: #221a30;
+    --murekkep: #f2ecf7;
+    --soluk: #a596b5;
+    --cizgi: #2e2440;
+    --cizgi-koyu: #3d3151;
+    --vurgu: #ff7f9b;
+    --vurgu-yumusak: #2c1622;
+    --altin: #ffd6a0;
+    --altin-yumusak: #2b2110;
+    --yesil: #5fd3a0;
+    --golge: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: var(--zemin);
+    color: var(--murekkep);
+    font-family: 'Source Sans 3', ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
+    font-size: var(--govde);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sayfa {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: clamp(1.6rem, 1rem + 2.4vw, 3.5rem) clamp(1.1rem, 0.6rem + 2vw, 2.5rem) 5rem;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+    text-wrap: balance;
+    margin: 0;
+    line-height: 1.08;
+  }
+  h1 {
+    font-size: var(--olcu-1);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  h2 {
+    font-size: var(--olcu-2);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  h3 {
+    font-size: var(--olcu-3);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  p {
+    margin: 0;
+    max-width: 62ch;
+  }
+  a {
+    color: var(--vurgu);
+  }
+  code,
+  .tk {
+    font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  code {
+    font-size: 0.88em;
+    background: var(--kagit-2);
+    border: 1px solid var(--cizgi);
+    border-radius: 5px;
+    padding: 0.08em 0.36em;
+  }
+  kbd {
+    font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+    font-size: 0.8em;
+    font-weight: 700;
+    background: var(--kagit);
+    border: 1px solid var(--cizgi-koyu);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 0.12em 0.42em;
+    white-space: nowrap;
+  }
+
+  /* ---------------- başlık ---------------- */
+  .ust {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    padding-bottom: 2rem;
+    border-bottom: 2px solid var(--murekkep);
+  }
+  .goz {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: var(--minik);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--vurgu);
+  }
+  .ozet {
+    font-size: 1.16rem;
+    color: var(--soluk);
+    max-width: 54ch;
+  }
+  .kunye {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 2.2rem;
+    padding-top: 0.4rem;
+  }
+  .kunye div {
+    display: flex;
+    flex-direction: column;
+  }
+  .kunye dt {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: var(--minik);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--soluk);
+  }
+  .kunye dd {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  /* ---------------- bölümler ---------------- */
+  section {
+    margin-top: 3.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+  .bolum-basi {
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+    border-bottom: 1px solid var(--cizgi);
+    padding-bottom: 0.6rem;
+  }
+  .bolum-basi .harf {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: var(--minik);
+    font-weight: 700;
+    color: var(--vurgu);
+    letter-spacing: 0.1em;
+  }
+
+  /* ---------------- iki yol ---------------- */
+  .yollar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1rem;
+  }
+  .yol {
+    background: var(--kagit);
+    border: 1px solid var(--cizgi);
+    border-radius: 12px;
+    padding: 1.15rem 1.25rem 1.3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .yol.onerilen {
+    border-color: var(--vurgu);
+    box-shadow: var(--golge);
+  }
+  .yol .etiket {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: var(--minik);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--soluk);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .yol.onerilen .etiket span:last-child {
+    color: var(--vurgu);
+    font-weight: 700;
+  }
+  .yol p {
+    font-size: var(--kucuk);
+    color: var(--soluk);
+  }
+
+  /* ---------------- tablolar ---------------- */
+  .kaydir {
+    overflow-x: auto;
+    border: 1px solid var(--cizgi);
+    border-radius: 12px;
+    background: var(--kagit);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--kucuk);
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.62rem 0.85rem;
+    border-bottom: 1px solid var(--cizgi);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: var(--minik);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--soluk);
+    font-weight: 400;
+    background: var(--kagit-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  td.tk {
+    white-space: nowrap;
+    color: var(--vurgu);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+  td.sure {
+    white-space: nowrap;
+    color: var(--soluk);
+  }
+
+  /* ---------------- adım listesi ---------------- */
+  /* Numaralar süs değil: çekim sırası bu, atlanırsa oda kurulmadan davet
+     ekranı çekilmeye çalışılıyor. */
+  ol.adimlar {
+    list-style: none;
+    counter-reset: adim;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  ol.adimlar > li {
+    counter-increment: adim;
+    display: grid;
+    grid-template-columns: 2.6rem 1fr;
+    gap: 0 0.9rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--cizgi);
+  }
+  ol.adimlar > li:last-child {
+    border-bottom: 0;
+  }
+  ol.adimlar > li::before {
+    content: counter(adim, decimal-leading-zero);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--vurgu);
+    padding-top: 0.16rem;
+  }
+  ol.adimlar h3 {
+    margin-bottom: 0.15rem;
+  }
+  ol.adimlar p {
+    font-size: var(--kucuk);
+    color: var(--soluk);
+  }
+  ol.adimlar .not {
+    grid-column: 2;
+    margin-top: 0.45rem;
+    font-size: var(--minik);
+    color: var(--soluk);
+    border-left: 2px solid var(--cizgi-koyu);
+    padding-left: 0.7rem;
+  }
+
+  /* ---------------- metin bankası ---------------- */
+  .sekmeler {
+    display: flex;
+    gap: 0.4rem;
+  }
+  .sekmeler button {
+    font: inherit;
+    font-size: var(--kucuk);
+    font-weight: 600;
+    color: var(--soluk);
+    background: transparent;
+    border: 1px solid var(--cizgi);
+    border-radius: 999px;
+    padding: 0.24rem 0.85rem;
+    cursor: pointer;
+  }
+  .sekmeler button[aria-selected='true'] {
+    background: var(--vurgu);
+    border-color: var(--vurgu);
+    color: var(--kagit);
+  }
+  .sekmeler button:focus-visible,
+  .kopya:focus-visible {
+    outline: 2px solid var(--vurgu);
+    outline-offset: 2px;
+  }
+
+  .metinler {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+    gap: 0.75rem;
+  }
+  .kopya {
+    text-align: left;
+    font: inherit;
+    background: var(--kagit);
+    border: 1px solid var(--cizgi);
+    border-left: 3px solid var(--cizgi-koyu);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: inherit;
+  }
+  .kopya:hover {
+    border-left-color: var(--vurgu);
+  }
+  .kopya .rol {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: var(--minik);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--soluk);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .kopya .govde {
+    white-space: pre-wrap;
+  }
+  .kopya .durum {
+    color: var(--yesil);
+    font-weight: 700;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .kopya.tamam .durum {
+    opacity: 1;
+  }
+
+  /* ---------------- uyarı kutusu ---------------- */
+  .uyari {
+    background: var(--altin-yumusak);
+    border: 1px solid var(--altin);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .uyari h3 {
+    color: var(--altin);
+  }
+  .uyari ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: var(--kucuk);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .liste {
+    margin: 0;
+    padding-left: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--cizgi);
+    font-size: var(--minik);
+    color: var(--soluk);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.4rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+</style>
+
+<div class="sayfa">
+  <header class="ust">
+    <span class="goz">birliktepuzzle.com · lansman</span>
+    <h1>Instagram ve TikTok için tanıtım kiti</h1>
+    <p class="ozet">
+      Otuz saniyeden kısa, dikey, iki dilli bir tanıtım. Depoda hazır bekleyen animasyondan
+      başlayıp kendi ekran kaydınla devam eden bir plan — çekim listesi, kayıt ayarları ve
+      yayına hazır metinler.
+    </p>
+    <dl class="kunye">
+      <div><dt>Oran</dt><dd class="tk">9:16 · 1080×1920</dd></div>
+      <div><dt>Süre</dt><dd class="tk">28,0 sn</dd></div>
+      <div><dt>Dil</dt><dd>Türkçe + İngilizce</dd></div>
+      <div><dt>Gereken</dt><dd>ekran kaydı, video kesme</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="bolum-basi">
+      <span class="harf">01</span>
+      <h2>İki yol var, ikisi de hazır</h2>
+    </div>
+    <p>
+      İlk gönderiyi bugün çıkarmak istiyorsan A yolu yeter: kaydı al, kırp, paylaş. B yolu
+      ürünün gerçek arayüzünü gösterdiği için daha ikna edici ama iki cihaz ve biraz kesme
+      istiyor. Sırayla ikisini de yayınlamak en iyisi — A ile başla, ikinci gönderi B olsun.
+    </p>
+    <div class="yollar">
+      <article class="yol onerilen">
+        <div class="etiket"><span>A yolu</span><span>önce bu</span></div>
+        <h3>Hazır animasyon</h3>
+        <p>
+          <code>reklam/tanitim.html</code> tek başına bitmiş bir video: logo, üç adım, iki
+          imleçli çözülme, sohbet, bitiş künyesi ve kapanış. Kesme gerekmez, kaydı al ve
+          paylaş. Parçalar ürünün <em>gerçek</em> kesim motoruyla çiziliyor.
+        </p>
+      </article>
+      <article class="yol">
+        <div class="etiket"><span>B yolu</span><span>sonra bu</span></div>
+        <h3>Kendi ekran kaydın</h3>
+        <p>
+          Siteyi iki cihazda açıp gerçek bir oda kurarsın; araya <code>reklam/kartlar.html</code>
+          içindeki açılış, kanca, alt şerit ve kapanış kartlarını kesersin. En inandırıcı
+          olan bu: iki imlecin aynı tahtada gerçekten oynadığı görünüyor.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <div class="bolum-basi">
+      <span class="harf">02</span>
+      <h2>A yolu — hazır animasyonun kaydı</h2>
+    </div>
+    <ol class="adimlar">
+      <li>
+        <div>
+          <h3>Sayfayı aç</h3>
+          <p>
+            <code>npm run dev</code> çalışırken
+            <code>localhost:5173/reklam/tanitim.html?kayit</code>. <code>?kayit</code>
+            kumandayı baştan gizler. Eser değiştirmek istersen
+            <code>?eser=yildizli-gece</code>, İngilizce için <code>?dil=en</code>,
+            parça sayısı için <code>?parca=48</code>.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Sahneyi büyüt</h3>
+          <p>
+            Sahne pencereye sığacak kadar ölçekleniyor. Tarayıcı penceresini olabildiğince
+            uzun yap; 1080p ekranda sahne ~1040 piksel yüksekliğe kadar çıkıyor.
+          </p>
+        </div>
+        <p class="not">
+          Net sonuç istiyorsan OBS kur, sahne boyutunu 1080×1920 yap ve
+          <strong>Browser Source</strong> olarak aynı adresi 1080×1920 genişlik/yükseklikle
+          ekle. OBS sayfayı monitörden bağımsız, tam çözünürlükte çizer — ekran kaydını
+          kırpıp büyütmek gerekmez.
+        </p>
+      </li>
+      <li>
+        <div>
+          <h3>Kaydı başlat, sonra <kbd>R</kbd></h3>
+          <p>
+            Windows'ta <kbd>Win</kbd> + <kbd>Alt</kbd> + <kbd>R</kbd> (Xbox Game Bar) yeter.
+            Animasyon 0,6 saniye siyahla açılıyor — baştan kesmek için payın var.
+            <kbd>Boşluk</kbd> duraklatır, <kbd>K</kbd> kumandayı gizler/gösterir.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Kırp ve paylaş</h3>
+          <p>
+            CapCut'ta tuvali 9:16 yap, klibi sahne kenarları taşana kadar büyüt. Sesi
+            uygulamanın kendi kütüphanesinden seç — kayıtta ses yok, bilerek.
+          </p>
+        </div>
+      </li>
+    </ol>
+
+    <h3>Ne zaman ne görünüyor</h3>
+    <div class="kaydir">
+      <table>
+        <thead>
+          <tr>
+            <th>Zaman</th>
+            <th>Süre</th>
+            <th>Ekranda</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tk">00,0 – 00,6</td>
+            <td class="sure">0,6 sn</td>
+            <td>Siyah. Kesme payı.</td>
+          </tr>
+          <tr>
+            <td class="tk">00,6 – 03,4</td>
+            <td class="sure">2,8 sn</td>
+            <td>Logonun iki parçası birleşiyor, ay-yıldız beliriyor · “Birlikte Puzzle · İkiniz. Tek yapboz.”</td>
+          </tr>
+          <tr>
+            <td class="tk">03,4 – 06,0</td>
+            <td class="sure">2,6 sn</td>
+            <td><strong>Adım 1 — Fotoğrafını seç.</strong> Tablo bütün hâlde duruyor.</td>
+          </tr>
+          <tr>
+            <td class="tk">06,0 – 08,6</td>
+            <td class="sure">2,6 sn</td>
+            <td><strong>Adım 2 — Linki gönder.</strong> Parçalar dönerek dağılıyor.</td>
+          </tr>
+          <tr>
+            <td class="tk">08,6 – 12,0</td>
+            <td class="sure">3,4 sn</td>
+            <td><strong>Adım 3 — Beraber çözün.</strong> Parçalar merkezden dışa doğru yerine oturuyor, iki isimli imleç dolaşıyor.</td>
+          </tr>
+          <tr>
+            <td class="tk">12,2 – 15,0</td>
+            <td class="sure">2,8 sn</td>
+            <td>“İmleçleri birbirinizde görün”</td>
+          </tr>
+          <tr>
+            <td class="tk">15,0 – 18,8</td>
+            <td class="sure">3,8 sn</td>
+            <td>“Sesli görüşme ve sohbet” + iki sohbet balonu</td>
+          </tr>
+          <tr>
+            <td class="tk">18,8 – 22,4</td>
+            <td class="sure">3,6 sn</td>
+            <td>Tablo tamamlanıyor, altın hâle · <strong>Bitti!</strong> · süre / parça / çözenler künyesi</td>
+          </tr>
+          <tr>
+            <td class="tk">22,4 – 28,0</td>
+            <td class="sure">5,6 sn</td>
+            <td>Kapanış: logo, <strong>birliktepuzzle.com</strong>, üç satır</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size: var(--kucuk); color: var(--soluk)">
+      Kısaltmak istersen <code>tanitim.html</code> içindeki <code>const S</code> bloğu tek
+      düzenleme noktası: bütün yazılar ve çizim oradan besleniyor. 15 saniyeye indirmek için
+      adım sahnelerini 1,6 saniyeye çekip özellik şeridini tek beat'e düşür.
+    </p>
+  </section>
+
+  <section>
+    <div class="bolum-basi">
+      <span class="harf">03</span>
+      <h2>B yolu — gerçek arayüzün çekimi</h2>
+    </div>
+    <p>
+      İki cihaz gerekiyor: biri canlı sitede, biri <code>localhost:5173</code>'te (aynı adreste
+      tek oturum tutulabiliyor). Her plan 2–4 saniye; toplam ham kayıt 40 saniyeyi geçmesin,
+      kesmesi kolay olur.
+    </p>
+    <ol class="adimlar">
+      <li>
+        <div>
+          <h3>Ana ekran, hazır eserler</h3>
+          <p>
+            “HAZIR OLANLAR · 36 ESER” şeridinde yavaşça aşağı kaydır. Kaplumbağa Terbiyecisi,
+            İnci Küpeli Kız, Yıldızlı Gece arka arkaya görünsün.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Kendi fotoğrafını sürükle</h3>
+          <p>
+            Bir fotoğrafı sürükleyip bırakma alanına bırak. Ürünün asıl vaadi bu —
+            hazır tablolar ikinci sırada.
+          </p>
+        </div>
+        <p class="not">Kendi fotoğrafın videoda görünecek; paylaşmak istemediğin bir kare seçme.</p>
+      </li>
+      <li>
+        <div>
+          <h3>Kurulum ekranı</h3>
+          <p>Parça sayısını 24'ten 100'e çek, döndürmeyi aç. Kaydırıcı hareketi iyi duruyor.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Davet</h3>
+          <p>
+            Üst çubukta <strong>Davet</strong> → “Linki gönder” kutusu → <strong>Kopyala</strong>.
+            İkinci cihazda linki yapıştır ve odaya gir.
+          </p>
+        </div>
+        <p class="not">
+          Oda kodu ekranda görünüyor. Çekimden sonra o odayı kütüphaneden sil ya da kodu
+          videoda bulanıklaştır — link paylaşıldığı sürece geçerli.
+        </p>
+      </li>
+      <li>
+        <div>
+          <h3>İki imleç aynı tahtada</h3>
+          <p>
+            Asıl plan bu. İki cihazda aynı anda parça sürükleyin; iki isimli imleç ve
+            birleşme parlaması aynı karede görünsün. Bunu iki kez çek, iyisini seç.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Sohbet ve kamera</h3>
+          <p>
+            <span class="tk">💬</span> ile sohbet panelini aç, kısa bir mesaj yaz;
+            <span class="tk">📹</span> ile kamerayı aç. Panelleri başlıklarından tutup
+            taşımak da güzel duruyor — sürüklenebilir oldukları anlaşılıyor.
+          </p>
+        </div>
+        <p class="not">
+          Karşı tarafın yüzü videoda görünecekse iznini al. Yüz yerine yalnızca kendi
+          kameranı göstermek de yeterli.
+        </p>
+      </li>
+      <li>
+        <div>
+          <h3>Bitiş ve hatıra kartı</h3>
+          <p>
+            Son parçayı birlikte yerleştirin. Tamamlama sertifikası açılsın: eser adı,
+            çözenler, süre, parça sayısı. Kapanış planı bu — <strong>İndir</strong> düğmesine
+            basmayı da göster.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Kartları araya kes</h3>
+          <p>
+            <code>reklam/kartlar.html</code>: <strong>Kanca</strong> kartı en başa,
+            <strong>Alt şerit</strong> her adımın üstüne, <strong>Kapanış</strong> sona.
+            Yazılara tıklayıp değiştirebilirsin; oran düğmesi 9:16 · 1:1 · 16:9 arasında
+            geçiyor.
+          </p>
+        </div>
+        <p class="not">
+          Alt şeridi kendi görüntünün üstüne bindirmek için <strong>Yeşil zemin</strong>
+          düğmesine bas, kaydı al, CapCut'ta “chroma key” ile yeşili sil.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="bolum-basi">
+      <span class="harf">04</span>
+      <h2>Metinler</h2>
+    </div>
+    <p>
+      Kutuya tıklayınca metin panoya kopyalanır. İlk üç kanca ilk 1,5 saniyede ekranda
+      yazacağın satır; altındakiler gönderi açıklaması.
+    </p>
+    <div class="sekmeler" role="tablist" aria-label="Metin dili">
+      <button role="tab" aria-selected="true" data-dil="tr">Türkçe</button>
+      <button role="tab" aria-selected="false" data-dil="en">English</button>
+    </div>
+
+    <div class="metinler" data-grup="tr">
+      <button class="kopya">
+        <span class="rol"><span>Kanca 1</span><span class="durum">kopyalandı</span></span>
+        <span class="govde">Aranızda 700 km var. Aynı masaya nasıl oturursunuz?</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Kanca 2</span><span class="durum">kopyalandı</span></span>
+        <span class="govde">Uzun mesafe ilişkisinde “beraber bir şey yapmak” bu kadar basit olabilir.</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Kanca 3</span><span class="durum">kopyalandı</span></span>
+        <span class="govde">Fotoğrafınızı yapboza çevirdim. İkiniz aynı anda çözüyorsunuz.</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Açıklama — kısa</span><span class="durum">kopyalandı</span></span>
+        <span class="govde">Fotoğrafını seç, linki gönder, aynı yapbozu beraber çözün. Ücretsiz, kurulum yok, tarayıcıda açılıyor.
+
+birliktepuzzle.com</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Açıklama — uzun</span><span class="durum">kopyalandı</span></span>
+        <span class="govde">Sevgilimle uzaktayken beraber yapacak bir şey arıyorduk, ben de yaptım.
+
+· Kendi fotoğrafın ya da 36 hazır tablo
+· İkiniz aynı tahtada, imleçleri birbirinizde görüyorsunuz
+· Sesli görüşme ve sohbet aynı ekranda
+· Bittiğinde sakladığın sürpriz mesaj açılıyor
+· Karşı taraf hesap bile açmadan girebiliyor
+
+Ücretsiz ve reklamsız. birliktepuzzle.com</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Etiketler</span><span class="durum">kopyalandı</span></span>
+        <span class="govde">#uzakmesafe #çiftleriçin #yapboz #puzzle #hediyefikirleri #yazılım #sevgiliyehediye #birlikteoyun</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Profil bağlantısı</span><span class="durum">kopyalandı</span></span>
+        <span class="govde">İkiniz. Tek yapboz. → birliktepuzzle.com</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>İlk yorum</span><span class="durum">kopyalandı</span></span>
+        <span class="govde">Link profilde. Tamamen ücretsiz, indirmen gereken bir şey yok — tarayıcıda açılıyor, telefonda da çalışıyor.</span>
+      </button>
+    </div>
+
+    <div class="metinler" data-grup="en" hidden>
+      <button class="kopya">
+        <span class="rol"><span>Hook 1</span><span class="durum">copied</span></span>
+        <span class="govde">You’re 700 km apart. How do you sit at the same table?</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Hook 2</span><span class="durum">copied</span></span>
+        <span class="govde">Long distance, but you still get to do something together.</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Hook 3</span><span class="durum">copied</span></span>
+        <span class="govde">I turned our photo into a jigsaw. We solve it at the same time.</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Caption — short</span><span class="durum">copied</span></span>
+        <span class="govde">Pick a photo, send the link, solve the same puzzle together. Free, no install, runs in the browser.
+
+birliktepuzzle.com</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Caption — long</span><span class="durum">copied</span></span>
+        <span class="govde">My girlfriend and I wanted something to do together while apart, so I built it.
+
+· Your own photo, or 36 ready artworks
+· Same board, and you see each other’s cursors
+· Voice call and chat on the same screen
+· A surprise message opens when you finish
+· The other person doesn’t even need an account
+
+Free, no ads. birliktepuzzle.com</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Hashtags</span><span class="durum">copied</span></span>
+        <span class="govde">#longdistance #ldr #jigsaw #puzzle #coupleactivities #indiedev #buildinpublic #playtogether</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>Bio link</span><span class="durum">copied</span></span>
+        <span class="govde">Two of you. One puzzle. → birliktepuzzle.com</span>
+      </button>
+      <button class="kopya">
+        <span class="rol"><span>First comment</span><span class="durum">copied</span></span>
+        <span class="govde">Link in bio. Completely free, nothing to download — it opens in the browser and works on phones too.</span>
+      </button>
+    </div>
+  </section>
+
+  <section>
+    <div class="bolum-basi">
+      <span class="harf">05</span>
+      <h2>İlk hafta</h2>
+    </div>
+    <p>
+      Tek bir gönderiye yüklenmek yerine aynı ürünü farklı açılardan gösteren üç gönderi
+      daha iyi çalışıyor. Hepsi aynı videodan kesilebilir.
+    </p>
+    <div class="kaydir">
+      <table>
+        <thead>
+          <tr>
+            <th>Gün</th>
+            <th>Gönderi</th>
+            <th>Açı</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tk">1</td>
+            <td>A yolu — hazır animasyon (Reels + TikTok)</td>
+            <td>Ürün ne yapıyor</td>
+          </tr>
+          <tr>
+            <td class="tk">3</td>
+            <td>B yolu — iki imleç aynı tahtada, 15 sn</td>
+            <td>Gerçekten çalışıyor</td>
+          </tr>
+          <tr>
+            <td class="tk">5</td>
+            <td>Hatıra kartının çıktığı an, tek plan</td>
+            <td>Duygusal karşılık</td>
+          </tr>
+          <tr>
+            <td class="tk">7</td>
+            <td>“Bunu neden yaptım” — kendi sesinle, ekran kaydı üstüne</td>
+            <td>Yapan kişi</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size: var(--kucuk); color: var(--soluk)">
+      Ölçmesi kolay tek şey var: gönderiden sonra siteye giren olup olmadığı. Ayrı bir
+      analitik kurulu değil — <code>profiles.last_seen</code> damgasına ve yeni kayıt
+      sayısına bakmak ilk hafta için yeter.
+    </p>
+  </section>
+
+  <section>
+    <div class="bolum-basi">
+      <span class="harf">06</span>
+      <h2>Yayınlamadan önce</h2>
+    </div>
+    <div class="uyari">
+      <h3>Dört kontrol</h3>
+      <ul>
+        <li>
+          <strong>Oda kodu ve davet linki.</strong> Kayıtta görünüyorsa ya bulanıklaştır ya
+          da o odayı sonra kütüphaneden sil. Link paylaşıldığı sürece çalışıyor.
+        </li>
+        <li>
+          <strong>Karşı tarafın yüzü ve adı.</strong> Kamera panelinde görünen kişinin
+          iznini al; oyuncu listesinde gerçek adlar yazıyor.
+        </li>
+        <li>
+          <strong>Müzik.</strong> Sesi uygulamanın kendi kütüphanesinden seç. Sitedeki müzik
+          Web Audio ile üretiliyor, telifi yok ama ekran kaydında zaten duyulmayacak.
+        </li>
+        <li>
+          <strong>Eserler kamu malı.</strong> Videoda görünen 36 tablo ya kamu malı ya CC0 —
+          sorun yok. Kendi eklediğin telifli bir görseli videoya koyma.
+        </li>
+      </ul>
+    </div>
+    <ul class="liste" style="font-size: var(--kucuk); color: var(--soluk)">
+      <li>
+        <code>reklam/</code> klasörü dağıtıma girmiyor: Vite yalnızca <code>public/</code>
+        ve import grafiğini paketliyor. Bu dosyalar canlı siteye çıkmaz.
+      </li>
+      <li>
+        Kartlardaki ve animasyondaki logo <code>public/icon.svg</code>'nin aynısı; markayı
+        değiştirirsen üç dosyayı birden güncelle.
+      </li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Birlikte Puzzle · birliktepuzzle.com</span>
+    <span class="tk">reklam/tanitim.html · reklam/kartlar.html</span>
+  </footer>
+</div>
+
+<script>
+  // Dil sekmeleri
+  const sekmeler = document.querySelectorAll('.sekmeler button')
+  sekmeler.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      sekmeler.forEach((b) => b.setAttribute('aria-selected', String(b === btn)))
+      document.querySelectorAll('.metinler').forEach((g) => {
+        g.hidden = g.dataset.grup !== btn.dataset.dil
+      })
+    })
+  })
+
+  // Kopyalama. Pano izni verilmezse metni seçili bırakıyoruz — kullanıcı
+  // Ctrl+C ile alabilsin, sessizce hiçbir şey olmasın istemiyoruz.
+  document.querySelectorAll('.kopya').forEach((kutu) => {
+    kutu.addEventListener('click', async () => {
+      const govde = kutu.querySelector('.govde')
+      const metin = govde.textContent
+      let oldu = false
+      try {
+        await navigator.clipboard.writeText(metin)
+        oldu = true
+      } catch {
+        const aralik = document.createRange()
+        aralik.selectNodeContents(govde)
+        const secim = window.getSelection()
+        secim.removeAllRanges()
+        secim.addRange(aralik)
+      }
+      if (oldu) {
+        kutu.classList.add('tamam')
+        setTimeout(() => kutu.classList.remove('tamam'), 1400)
+      }
+    })
+  })
+</script>
