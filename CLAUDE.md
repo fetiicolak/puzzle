@@ -588,13 +588,16 @@ Kural: **kare başına yapılan iş parça sayısıyla büyümemeli.**
 - **`concurrency: cancel-in-progress: true` var**: yeni bir push, devam eden
   dağıtımı iptal ediyor. Bir çalıştırmanın "cancelled" görünmesi hata değil,
   ardından push yaptığın anlamına gelir.
-- **Şifremi unuttum akışı canlıda çalışıyor** (2026-08-13, gerçek e-postayla
-  uçtan uca denendi). SMTP Resend üzerinden: `smtp.resend.com:465`, kullanıcı
-  adı sabit `resend`, şifre API anahtarı. Gönderen şimdilik
-  `onboarding@resend.dev` — Resend doğrulanmış alan adı olmadan yalnızca bu
-  göndericiye ve **yalnızca hesabı açan adrese** izin veriyor. Alan adı
-  alınınca Resend'de alan doğrulanıp gönderen `noreply@<alanadi>` yapılacak;
-  Supabase'de değişen tek alan bu.
+- **Şifremi unuttum akışı canlıda, kendi alan adıyla çalışıyor** (2026-09-03,
+  gerçek e-postayla uçtan uca denendi: posta geldi, bağlantı şifre ekranını
+  açtı, yeni şifreyle giriş oldu). SMTP Resend üzerinden:
+  `smtp.resend.com:465`, kullanıcı adı sabit `resend`, şifre API anahtarı,
+  gönderen `noreply@birliktepuzzle.com`. Bağlantı **tek kullanımlık**:
+  şifre değiştirilmeden çıkılıp aynı bağlantıya dönülürse "süresi dolmuş ya
+  da kullanılmış" diyor — hata değil.
+  - Alan adı doğrulanmadan önce Resend yalnızca `onboarding@resend.dev`
+    göndericisine ve **yalnızca hesabı açan adrese** izin veriyordu; yeni bir
+    alan adına geçilirse bu kısıt geri gelir.
 - **Özel SMTP açılınca Supabase'in e-posta sınırı 2/saat'ten 30/saat'e
   çıkıyor.** Sıfırlamanın öncesinde hiç çalışmamasının sebebi buydu.
 - **Auth bağlantısı hata döndürdüğünde onu da okumak gerekiyor.** Supabase
@@ -636,13 +639,14 @@ Bittikçe buradan sil. Sıra kabaca öncelik sırası.
 tarihi yaz. "Herhalde çalışır" diye sessizce geçme — denenmemiş iş bitmiş
 sayılmıyor.
 
-**Canlıya alma — kalan adımlar** (yol haritasının tamamı ayrı planda)
-- [ ] **Alan adı — kalan panel işleri.** `birliktepuzzle.com` **yayında**
-      (2026-09-02, Turhost). DNS oturdu: dört A kaydı + `www` CNAME yayında,
+**Canlıya alma bitti (2026-09-03).** Liste kapandı; aşağıdaki kayıt ve
+tuzaklar duruyor, yeni açık iş yok.
+- [x] **Alan adı.** `birliktepuzzle.com` **yayında** (2026-09-02, Turhost).
+      DNS oturdu: dört A kaydı + `www` CNAME yayında,
       park kayıtları (A/MX/mail/ftp) silindi, NS `dns1/dns2.turhost.com`.
       Depo tarafı bitti (`public/CNAME`, `og:*`, `apple-touch-icon` yolları,
       `sw.js` v5); Pages'te özel alan adı ve **Enforce HTTPS** açık, sertifika
-      onaylı (`birliktepuzzle.com` + `www`, 2026-12-01'e kadar). Kalanlar:
+      onaylı (`birliktepuzzle.com` + `www`, 2026-12-01'e kadar). Panel işleri:
       - [x] Supabase → URL Configuration yapıldı; `verify` uç noktasıyla
             ölçüldü: apeks ve `localhost:5173` izinli, Site URL yeni alan adı.
       - [x] Supabase → SMTP Settings → Sender email yapıldı; gelen postanın
@@ -690,19 +694,25 @@ iPhone'da güvenli alan dolgusu, panellerin parmakla taşınması, arka planda
 sesin susması, zayıf cihaz başarımı / `hafifMod`, engelleme listesi ve
 profilden e-posta değiştirme — hepsi çalışıyor.
 
-Alan adına geçtikten sonra iki madde açık kaldı (2026-09-02). İkisinin de
-takıldığı yer aynı: **kullanıcının kendi operatörünün çözümleyicisi
-`birliktepuzzle.com`'a SERVFAIL veriyor**, yani sahibi kendi sitesine
-giremiyor. Site yayında ve başkaları giriyor (üçüncü kişi doğruladı);
-alan adı kusursuz — delegasyon, iki NS'in EDNS uyumu, DNSSEC yokluğu ve
-Google/Cloudflare/Quad9 hepsi ölçüldü. Arıza tek bir çözümleyicide.
-- [ ] **Şifre sıfırlama, uçtan uca.** Posta gitti ve `noreply@` adresinden
-      geldiği doğrulandı; **bağlantıya tıklanamadı**. Kalan: bağlantının
-      `birliktepuzzle.com`'da şifre ekranını açtığını görmek. Çalışan bir
-      ağ gerekiyor (başka Wi-Fi ya da çözümleyici düzelmesi).
-- [ ] **İki cihaz + iki hesapla bir oda kurup puzzle bitirmek.** Giriş,
-      davet, senkron, sohbet, kamera ve hatıra kartını tek seferde sınayan
-      test — canlıya alma listesindeki son madde.
+**Canlıya alma listesinin tamamı doğrulandı (2026-09-03).** Açık madde
+kalmadı; aşağıdakiler kayıt olsun diye duruyor.
+
+- **Şifre sıfırlama, uçtan uca çalışıyor.** Posta `noreply@birliktepuzzle.com`
+  adresinden geliyor, bağlantı canlı sitede şifre ekranını açıyor, yeni
+  şifreyle giriş oluyor. Yan gözlem: bağlantı **tek kullanımlık** —
+  şifreyi değiştirmeden çıkıp aynı bağlantıya dönünce "süresi dolmuş ya da
+  kullanılmış" diyor. Doğru davranış.
+- **İki hesapla birlikte oyun (Test A) çalışıyor.** Giriş, davet, senkron,
+  sohbet, kamera ve bitişte hatıra kartı — kullanıcı gerçek kullanımda
+  denedi.
+
+**DNS arızası kendiliğinden geçti.** 2026-09-02'de kullanıcının kendi
+operatörünün çözümleyicisi `birliktepuzzle.com`'a SERVFAIL veriyordu; sahibi
+kendi sitesine giremiyordu, başkaları giriyordu. Alan adında kusur
+bulunmadı — delegasyon, iki NS'in EDNS uyumu, DNSSEC yokluğu ve
+Google/Cloudflare/Quad9 ölçüldü, hepsi temiz. Ertesi gün düzeldi.
+**Ders: tek bir çözümleyicideki arıza için DNS'i taşımaya kalkma**, önce
+başka bir ağdan ya da genel çözümleyiciden dene.
 
 Host çevrimdışıyken oynama **iki hesapla uçtan uca doğrulandı**
 (2026-09-03, `a@gmail.com` canlı sitede · `b@gmail.com` localhost'ta).
@@ -717,7 +727,10 @@ Bu tur sırasında **üç hata bulundu ve düzeltildi** (hepsi ölçümle çıkt
 kod okuyarak değil): yenilemeden sonra host'un sunucuya yazmayı bırakması,
 çakışmada tekrar denenmediği için geride kalan tarafın aç kalması, ve
 damgasız yazmanın koşulsuz üstüne yazması. Ayrıntı "Host çevrimdışıyken
-oynamak" bölümünde.
+oynamak" bölümünde. Üçüncüsünün **düzeltme sonrası kendi senaryosu ayrıca
+tetiklenmedi** — hatanın kendisi ölçümle görüldü (sıfır ilerlemeli oturum
+8 birleşmeyi ezdi), düzeltme tip denetiminden ve testlerden geçti ama
+"damgasız oturum" yolu bir daha canlıda yürütülmedi.
 
 Buraya yeni madde eklerken kuralı hatırla: kod yazıldı, `tsc`/test/build
 temiz, ama denenmediyse **bitmiş sayılmaz**; neyin eksik olduğunu ve
