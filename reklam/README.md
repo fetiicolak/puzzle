@@ -5,7 +5,7 @@ import grafiğini paketlediği için buradaki dosyalar canlı siteye çıkmaz.
 
 | Dosya | Ne işe yarar |
 | --- | --- |
-| `tanitim.html` | Tek başına bitmiş 28 saniyelik 9:16 tanıtım animasyonu. Ekran kaydı alınıp doğrudan paylaşılabilir. |
+| `tanitim.html` | Tek başına bitmiş 15 saniyelik 9:16 tanıtım animasyonu. Ekran kaydı alınıp doğrudan paylaşılabilir. |
 | `kartlar.html` | Kendi ekran kaydının arasına kesilecek açılış / kanca / alt şerit / kapanış kartları. 9:16 · 1:1 · 16:9. |
 | `lansman-kiti.html` | Çekim planı, kayıt ayarları, iki dilli metinler ve ilk hafta yayın takvimi. |
 
@@ -36,3 +36,10 @@ http://localhost:5173/reklam/lansman-kiti.html
 - Sahne 1080×1920 çizilip pencereye sığacak kadar küçültülüyor. Net kayıt için
   OBS'te **Browser Source**'u 1080×1920 boyutuyla eklemek, ekranı kaydedip
   büyütmekten iyi.
+- **Bitişteki hatıra kartının yeri CSS'te değil JS'te** (`hatiraYerlestir`).
+  Kartın içine oturan fotoğrafın oranı esere göre değişiyor; sabit koordinat
+  dikey eserde de yatay eserde de tutmuyor. Yerini değiştireceksen
+  `BITIS_OLCEK` / `BITIS_KAY` ile birlikte düşün — tuvaldeki küçülme de
+  aynı iki sayıdan besleniyor.
+- **Sayfa arka plandayken saat ilerlemiyor.** `requestAnimationFrame`
+  görünmeyen sekmede durduruyor; kayıt alırken pencere önde olmalı.

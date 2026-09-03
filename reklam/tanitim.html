@@ -8,12 +8,12 @@
       Bu dosya ÜRÜNÜN PARÇASI DEĞİL. `reklam/` klasörü Vite'ın paketine
       girmiyor (yalnızca `public/` ve import grafiği dağıtıma giriyor), yani
       canlıya çıkmaz. Amacı tek: ekran kaydı alınacak 9:16 bir tanıtım
-      animasyonu.
+      animasyonu. Toplam 15,1 saniye.
 
       Nasıl kullanılır:
         1. `npm run dev` çalışırken http://localhost:5173/reklam/tanitim.html
         2. K tuşu → kumanda gizlenir (kayıtta görünmesin)
-        3. Ekran kaydını başlat, R tuşuna bas, animasyon 0,6 sn siyahla
+        3. Ekran kaydını başlat, R tuşuna bas, animasyon kısa bir siyahla
            açılıyor — kesme payın var.
 
       Parametreler (adres sonuna):
@@ -98,27 +98,62 @@
         text-shadow: 0 4px 24px rgba(0, 0, 0, 0.85), 0 1px 3px rgba(0, 0, 0, 0.6);
       }
 
-      /* ---- giriş ---- */
+      /* ---- giriş / kanca ---- */
+      /* İlk iki saniye videonun tamamını taşıyor: sosyal mecrada kaydırma
+         kararı orada veriliyor. Bu yüzden ilk giren şey logo değil KANCA
+         yazısı; logo parçaları arkasından çarpışıp beyaz bir flaş bırakıyor. */
+      #kancaUst {
+        top: 492px;
+        font-size: 36px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: var(--muted);
+      }
+      #kanca {
+        top: 552px;
+        font-size: 92px;
+        font-weight: 800;
+        letter-spacing: -2px;
+        line-height: 1.06;
+      }
+      /* Degrade yazıda `text-shadow` kullanılamıyor (harfler saydam, gölge
+         doğrudan görünüyor); zemin zaten koyu, gölgesiz bırakılıyor. */
+      #kanca em {
+        font-style: normal;
+        background: linear-gradient(100deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: none;
+      }
       #logo {
-        top: 640px;
+        top: 860px;
       }
       #logo svg {
-        width: 300px;
-        height: 300px;
+        width: 280px;
+        height: 280px;
         display: block;
         margin: 0 auto;
       }
       #marka {
-        top: 990px;
-        font-size: 78px;
+        top: 1178px;
+        font-size: 72px;
         font-weight: 800;
         letter-spacing: -1.5px;
       }
       #slogan {
-        top: 1096px;
-        font-size: 42px;
+        top: 1276px;
+        font-size: 40px;
         color: var(--accent-soft);
         font-weight: 500;
+      }
+      /* Parçalar çarpıştığı anda patlayan beyaz flaş */
+      #flas {
+        position: absolute;
+        inset: 0;
+        background: #fff;
+        opacity: 0;
+        pointer-events: none;
       }
 
       /* ---- adım başlıkları ---- */
@@ -197,9 +232,90 @@
         border-bottom-right-radius: 6px;
       }
 
+      /* ---- görüşme paneli (çözerken) ---- */
+      /* Üründeki yüzen kamera paneline benziyor. Gerçek kamera görüntüsü
+         yerine baş harfli kutucuklar var; ses çubukları CSS animasyonuyla
+         değil saatten besleniyor, yoksa duraklatınca oynamaya devam ediyor
+         ve kayıt karesiyle uyuşmuyor. */
+      #kamera {
+        position: absolute;
+        right: 34px;
+        top: 468px;
+        width: 424px;
+        padding: 16px;
+        border-radius: 24px;
+        background: rgba(20, 15, 30, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: 0 22px 55px rgba(0, 0, 0, 0.55);
+        opacity: 0;
+        will-change: opacity, transform;
+      }
+      #kamera .bas {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 6px 12px;
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      #kamera .nokta {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: #ff4d5e;
+        box-shadow: 0 0 14px #ff4d5e;
+      }
+      #kamera .goz {
+        display: flex;
+        gap: 12px;
+      }
+      #kamera .kutucuk {
+        flex: 1;
+        height: 148px;
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+      }
+      #kamera .kutucuk.a {
+        background: linear-gradient(150deg, #55243a, #97374f);
+      }
+      #kamera .kutucuk.b {
+        background: linear-gradient(150deg, #1c3f36, #2f7a5f);
+      }
+      #kamera .yuz {
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.92);
+        color: #1a1423;
+        font-size: 42px;
+        font-weight: 800;
+        display: grid;
+        place-items: center;
+      }
+      #kamera .ses {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        display: flex;
+        gap: 5px;
+        align-items: flex-end;
+        height: 30px;
+      }
+      #kamera .ses i {
+        display: block;
+        width: 6px;
+        height: 8px;
+        border-radius: 3px;
+        background: #5fd3a0;
+      }
+
       /* ---- bitiş ---- */
       #bitti {
-        top: 300px;
+        top: 230px;
       }
       #bitti {
         filter: drop-shadow(0 6px 28px rgba(0, 0, 0, 0.8));
@@ -217,38 +333,117 @@
         color: transparent;
         text-shadow: none;
       }
-      #bittiAlt {
-        top: 424px;
-        font-size: 36px;
-        color: var(--accent-soft);
-      }
-      #kunye {
-        bottom: 170px;
-      }
-      #kunye .satir {
+      /* Hatıra kartı: yeri JS'te `hatiraYerlestir()` ile hesaplanıyor, çünkü
+         kartın içine oturan fotoğrafın boyu esere göre değişiyor. Kartın üst
+         bölümü SAYDAM — altındaki tuvalde küçülen fotoğraf oradan görünüyor,
+         böylece bitmiş yapboz kartın içine yerleşmiş oluyor. */
+      #hatira {
+        position: absolute;
         display: flex;
-        gap: 18px;
+        flex-direction: column;
+        justify-content: flex-end;
+        border: 2px solid rgba(255, 214, 160, 0.55);
+        border-radius: 28px;
+        box-shadow: 0 26px 64px rgba(0, 0, 0, 0.6);
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0) calc(100% - var(--serit, 160px)),
+          #191325 calc(100% - var(--serit, 160px))
+        );
+        opacity: 0;
+        will-change: opacity, transform;
+      }
+      #hatira .serit {
+        height: var(--serit, 160px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         justify-content: center;
+        gap: 16px;
       }
-      #kunye .kutu {
-        flex: 1;
-        max-width: 280px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 214, 160, 0.28);
-        border-radius: 18px;
-        padding: 22px 10px;
-      }
-      #kunye .ust {
+      #hatira .etiket {
         font-size: 22px;
-        letter-spacing: 2px;
-        color: #9b8ea8;
-        font-weight: 700;
-      }
-      #kunye .alt {
-        font-size: 44px;
         font-weight: 800;
-        margin-top: 8px;
+        letter-spacing: 5px;
         color: var(--altin);
+      }
+      #hatira .sayilar {
+        display: flex;
+        gap: 34px;
+      }
+      #hatira .sayilar > div {
+        text-align: center;
+      }
+      #hatira .sayilar b {
+        display: block;
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        color: #9b8ea8;
+      }
+      #hatira .sayilar span {
+        display: block;
+        margin-top: 4px;
+        font-size: 36px;
+        font-weight: 800;
+        color: var(--text);
+      }
+      #hatiraPil {
+        position: absolute;
+        left: 0;
+        right: 0;
+        text-align: center;
+        opacity: 0;
+        will-change: opacity, transform;
+      }
+      #hatiraPil .dugme {
+        display: inline-block;
+        font-size: 34px;
+        font-weight: 700;
+        padding: 18px 42px;
+        border-radius: 999px;
+        color: #22101a;
+        background: linear-gradient(120deg, var(--accent-soft), var(--altin));
+        box-shadow: 0 16px 38px rgba(255, 214, 160, 0.28);
+        text-shadow: none;
+      }
+      #surpriz {
+        position: absolute;
+        left: 0;
+        right: 0;
+        padding: 0 90px;
+        text-align: center;
+        opacity: 0;
+        will-change: opacity, transform;
+      }
+      #surpriz .not {
+        display: inline-block;
+        max-width: 800px;
+        text-align: left;
+        padding: 28px 38px 24px;
+        border-radius: 26px;
+        border: 1px solid rgba(255, 214, 160, 0.45);
+        background: linear-gradient(160deg, rgba(255, 214, 160, 0.16), rgba(255, 93, 125, 0.12)),
+          #17121f;
+        box-shadow: 0 22px 55px rgba(0, 0, 0, 0.55);
+      }
+      #surpriz .bas {
+        margin-bottom: 14px;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 3px;
+        color: var(--altin);
+      }
+      #surpriz .yazi {
+        font-size: 42px;
+        font-weight: 600;
+        line-height: 1.32;
+      }
+      #surpriz .imza {
+        margin-top: 14px;
+        text-align: right;
+        font-size: 28px;
+        color: var(--muted);
       }
 
       /* ---- kapanış ---- */
@@ -329,6 +524,8 @@
       <div id="sahne">
         <canvas id="tuval" width="1080" height="1920"></canvas>
 
+        <div class="kat" id="kancaUst">Aranızda kaç kilometre olursa olsun</div>
+        <div class="kat" id="kanca">aynı yapbozu<br /><em>birlikte çözün</em></div>
         <div class="kat" id="logo"></div>
         <div class="kat" id="marka">Birlikte Puzzle</div>
         <div class="kat" id="slogan">İkiniz. Tek yapboz.</div>
@@ -336,32 +533,51 @@
         <div class="kat" id="adim">
           <div class="adim-no" id="adimNo">ADIM 1</div>
           <div class="adim-yazi" id="adimYazi">Fotoğrafını seç</div>
-          <div class="adim-alt" id="adimAlt">kendi fotoğrafın ya da 36 hazır tablo</div>
+          <div class="adim-alt" id="adimAlt">Kendi fotoğrafın ya da hazır tablolar</div>
         </div>
 
         <div class="kat" id="ozellik"><span id="ozellikYazi">Aynı anda, aynı tahtada</span></div>
 
-        <div class="balon" id="balon1"><b>Feti</b>Köşeleri ben topluyorum</div>
-        <div class="balon" id="balon2"><b>Elif</b>Şu turuncu parça sende mi?</div>
+        <div id="kamera">
+          <div class="bas"><span class="nokta"></span><span id="kameraBas">Görüşme açık</span></div>
+          <div class="goz">
+            <div class="kutucuk a">
+              <span class="yuz">A</span>
+              <span class="ses"><i></i><i></i><i></i><i></i></span>
+            </div>
+            <div class="kutucuk b">
+              <span class="yuz">B</span>
+              <span class="ses"><i></i><i></i><i></i><i></i></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="balon" id="balon1"><b>A</b>Köşeleri ben topluyorum</div>
+        <div class="balon" id="balon2"><b>B</b>Şu turuncu parça sende mi?</div>
 
         <div class="kat" id="bitti">
           <div class="patlama" id="bittiYazi">Bitti!</div>
         </div>
-        <div class="kat" id="bittiAlt">Sakladığın sürpriz mesaj burada açılıyor</div>
-        <div class="kat" id="kunye">
-          <div class="satir">
-            <div class="kutu">
-              <div class="ust" id="kunyeUst1">SÜRE</div>
-              <div class="alt">14:22</div>
+        <div id="hatira">
+          <div class="serit">
+            <div class="etiket" id="hatiraEtiket">HATIRA KARTI</div>
+            <div class="sayilar">
+              <div><b id="kunyeUst1">SÜRE</b><span>14:22</span></div>
+              <div><b id="kunyeUst2">PARÇA</b><span id="kunyeParca">30</span></div>
+              <div><b id="kunyeUst3">ÇÖZENLER</b><span>2</span></div>
             </div>
-            <div class="kutu">
-              <div class="ust" id="kunyeUst2">PARÇA</div>
-              <div class="alt" id="kunyeParca">30</div>
+          </div>
+        </div>
+        <div id="hatiraPil">
+          <span class="dugme" id="hatiraPilYazi">Hatıra kartını indir</span>
+        </div>
+        <div id="surpriz">
+          <div class="not">
+            <div class="bas" id="surprizBas">KURARKEN SAKLANAN SÜRPRİZ MESAJ</div>
+            <div class="yazi" id="surprizYazi">
+              Bu fotoğrafı çektiğimiz günü hatırlıyor musun?
             </div>
-            <div class="kutu">
-              <div class="ust" id="kunyeUst3">ÇÖZENLER</div>
-              <div class="alt">2</div>
-            </div>
+            <div class="imza" id="surprizImza">— A</div>
           </div>
         </div>
 
@@ -369,10 +585,11 @@
         <div class="kat" id="cta">
           <div class="alan">birliktepuzzle<em>.com</em></div>
           <div class="madde" id="cta1"><b>Ücretsiz</b> — kurulum yok, tarayıcıda açılıyor</div>
-          <div class="madde" id="cta2">Telefonda ve bilgisayarda</div>
+          <div class="madde" id="cta2">Uygulama olarak ana ekrana eklenebilir</div>
           <div class="madde" id="cta3">Fotoğrafını seç · Linki gönder · Beraber çöz</div>
         </div>
 
+        <div id="flas"></div>
         <div id="perde"></div>
       </div>
     </div>
@@ -506,63 +723,89 @@
       const HEDEF_PARCA = Number(sorgu.get('parca')) || 30
       let dil = sorgu.get('dil') === 'en' ? 'en' : 'tr'
 
-      // Sahnelerin başlangıç/bitiş saniyeleri. Videoyu kısaltmak istersen
-      // tek yer burası — çizim ve yazılar buradan besleniyor.
+      // Sahnelerin başlangıç/bitiş saniyeleri. Videoyu kısaltmak/uzatmak
+      // istersen tek yer burası — çizim ve yazılar buradan besleniyor;
+      // sahne içindeki her şey bu sayılara göre kayıyor.
+      //
+      // Toplam 15,1 sn. Önce 28 sn'ydi: Instagram/TikTok'ta 10-15 sn'lik
+      // videolar daha çok izleniyor, uzun olan ortasından bırakılıyor.
+      // Kısaltma özellik atarak değil, her sahneyi sıkıştırarak yapıldı.
       const S = {
-        siyah: [0.0, 0.6],
-        giris: [0.6, 3.4],
-        foto: [3.4, 6.0],
-        dagil: [6.0, 8.6],
-        coz: [8.6, 18.8],
-        bitis: [18.8, 22.4],
-        cta: [22.4, 28.0],
+        siyah: [0.0, 0.25],
+        giris: [0.25, 2.5],
+        foto: [2.5, 3.7],
+        dagil: [3.7, 4.8],
+        coz: [4.8, 9.6],
+        bitis: [9.6, 12.8],
+        cta: [12.8, 15.1],
       }
       const TOPLAM = S.cta[1]
+
+      // Bitişte tahta küçülüp yukarı kayıyor; tamamlanan fotoğraf hatıra
+      // kartının içine oturuyor. `hatiraYerlestir()` kartı bu iki sayıdan
+      // hesaplıyor, ikisi birlikte değiştirilmeli.
+      const BITIS_OLCEK = 0.55
+      const BITIS_KAY = -300
+
+      // Logo parçalarının çarpıştığı an — flaş, halka ve vuruş buna bakıyor.
+      const CARPMA = S.giris[0] + 0.95
 
       const METIN = {
         tr: {
           slogan: 'İkiniz. Tek yapboz.',
+          kancaUst: 'Aranızda kaç kilometre olursa olsun',
+          kanca: ['aynı yapbozu', 'birlikte çözün'],
           adim: [
-            ['ADIM 1', 'Fotoğrafını seç', 'kendi fotoğrafın ya da 36 hazır tablo'],
-            ['ADIM 2', 'Linki gönder', 'hesap açmasına bile gerek yok'],
-            ['ADIM 3', 'Beraber çözün', 'aynı anda, aynı tahtada'],
+            ['ADIM 1', 'Fotoğrafını seç', 'Kendi fotoğrafın ya da hazır tablolar'],
+            ['ADIM 2', 'Linki gönder', 'Hesap açılmasına bile gerek yok'],
+            ['ADIM 3', 'Beraber çözün', 'Aynı anda, aynı tahtada'],
           ],
-          ozellik: [
-            'İmleçleri birbirinizde görün',
-            'Sesli görüşme ve sohbet',
-            'Bittiğinde sürpriz mesaj',
-          ],
-          balon1: ['Feti', 'Köşeleri ben topluyorum'],
-          balon2: ['Elif', 'Şu turuncu parça sende mi?'],
+          // Üçüncü özellik (sürpriz mesaj) artık yazıyla değil, bitiş
+          // sahnesindeki kartla gösteriliyor.
+          ozellik: ['İmleçleri birbirinizde görün', 'Sesli görüşme ve sohbet'],
+          kameraBas: 'Görüşme açık',
+          balon1: ['A', 'Köşeleri ben topluyorum'],
+          balon2: ['B', 'Şu turuncu parça sende mi?'],
           bitti: 'Bitti!',
-          bitisAlt: 'Sakladığın sürpriz mesaj burada açılıyor',
+          surpriz: [
+            'KURARKEN SAKLANAN SÜRPRİZ MESAJ',
+            'Bu fotoğrafı çektiğimiz günü hatırlıyor musun?',
+            '— A',
+          ],
+          hatiraEtiket: 'HATIRA KARTI',
+          hatiraPil: 'Hatıra kartını indir',
           kunye: ['SÜRE', 'PARÇA', 'ÇÖZENLER'],
           cta: [
             '<b>Ücretsiz</b> — kurulum yok, tarayıcıda açılıyor',
-            'Telefonda ve bilgisayarda',
+            'Uygulama olarak ana ekrana eklenebilir',
             'Fotoğrafını seç · Linki gönder · Beraber çöz',
           ],
         },
         en: {
           slogan: 'Two of you. One puzzle.',
+          kancaUst: 'However far apart you are',
+          kanca: ['solve one puzzle', 'together'],
           adim: [
-            ['STEP 1', 'Pick a photo', 'yours, or one of 36 ready artworks'],
-            ['STEP 2', 'Send the link', 'they do not even need an account'],
-            ['STEP 3', 'Solve together', 'same time, same board'],
+            ['STEP 1', 'Pick a photo', 'Your own photo, or a ready artwork'],
+            ['STEP 2', 'Send the link', 'They do not even need an account'],
+            ['STEP 3', 'Solve together', 'Same time, same board'],
           ],
-          ozellik: [
-            'See each other’s cursors',
-            'Voice call and chat',
-            'A surprise message at the end',
-          ],
-          balon1: ['Feti', 'I’ll take the corners'],
-          balon2: ['Elif', 'Do you have the orange one?'],
+          ozellik: ['See each other’s cursors', 'Voice call and chat'],
+          kameraBas: 'Call connected',
+          balon1: ['A', 'I’ll take the corners'],
+          balon2: ['B', 'Do you have the orange one?'],
           bitti: 'Done!',
-          bitisAlt: 'The message you hid opens right here',
+          surpriz: [
+            'THE MESSAGE HIDDEN AT SETUP',
+            'Remember the day we took this photo?',
+            '— A',
+          ],
+          hatiraEtiket: 'KEEPSAKE CARD',
+          hatiraPil: 'Download the keepsake card',
           kunye: ['TIME', 'PIECES', 'SOLVED BY'],
           cta: [
             '<b>Free</b> — no install, runs in the browser',
-            'On phone and desktop',
+            'Add it to your home screen like an app',
             'Pick a photo · Send the link · Solve together',
           ],
         },
@@ -739,7 +982,35 @@
         sira.forEach((s, k) => (parcalar[s.i].sira = k))
 
         document.getElementById('kunyeParca').textContent = String(parcalar.length)
+        hatiraYerlestir()
         hazir = true
+      }
+
+      /**
+       * Hatıra kartını, bitişte küçülen tahtanın etrafına oturtur.
+       * Elle sabit koordinat verilemiyor: fotoğrafın oranı esere göre
+       * değişiyor, tahtanın boyu da onunla değişiyor.
+       */
+      function hatiraYerlestir() {
+        const mx = tahta.x + tahta.en / 2
+        const my = tahta.y + tahta.boy / 2 + BITIS_KAY
+        const en = tahta.en * BITIS_OLCEK
+        const boy = tahta.boy * BITIS_OLCEK
+        const pay = 28
+        const serit = 160
+        // Dikey eserde kart fotoğraftan dar kalıyor ve sayı sütunları
+        // sığmıyor; en az 640 px.
+        const kartEn = Math.max(en + pay * 2, 640)
+        const ust = my - boy / 2 - pay
+        const kartBoy = boy + pay * 2 + serit
+        const k = document.getElementById('hatira')
+        k.style.left = Math.round(mx - kartEn / 2) + 'px'
+        k.style.top = Math.round(ust) + 'px'
+        k.style.width = Math.round(kartEn) + 'px'
+        k.style.height = Math.round(kartBoy) + 'px'
+        k.style.setProperty('--serit', serit + 'px')
+        document.getElementById('hatiraPil').style.top = Math.round(ust + kartBoy + 26) + 'px'
+        document.getElementById('surpriz').style.top = Math.round(ust + kartBoy + 128) + 'px'
       }
 
       /* ==========================================================
@@ -833,11 +1104,11 @@
        */
       function parcaDurum(p, t) {
         const n = parcalar.length
-        // Dağılma: hepsi 1,4 sn içinde, küçük gecikmelerle
+        // Dağılma: hepsi ~1 sn içinde, küçük gecikmelerle
         if (t < S.dagil[0]) return { x: p.evX, y: p.evY, aci: 0, oturdu: true, taze: 0 }
         if (t < S.coz[0]) {
-          const gecikme = (p.sira / n) * 0.7
-          const k = easeInOut(kis((t - S.dagil[0] - gecikme) / 1.3))
+          const gecikme = (p.sira / n) * 0.35
+          const k = easeInOut(kis((t - S.dagil[0] - gecikme) / 0.7))
           return {
             x: karis(p.evX, p.dagX, k),
             y: karis(p.evY, p.dagY, k),
@@ -847,39 +1118,58 @@
           }
         }
         // Çözülme: sırayla eve dönüş
-        const pencereBoyu = S.coz[1] - S.coz[0] - 1.1
+        const pencereBoyu = S.coz[1] - S.coz[0] - 0.9
         const bas = S.coz[0] + (p.sira / n) * pencereBoyu
-        const sure = 0.85
+        const sure = 0.7
         const k = easeInOut(kis((t - bas) / sure))
         return {
           x: karis(p.dagX, p.evX, k),
           y: karis(p.dagY, p.evY, k),
           aci: p.dagAci * (1 - k),
           oturdu: k >= 1,
-          // yerine oturduğu anki parlama (0,45 sn sönüyor)
-          taze: k >= 1 ? kis(1 - (t - (bas + sure)) / 0.45) : 0,
+          // yerine oturduğu anki parlama (0,4 sn sönüyor)
+          taze: k >= 1 ? kis(1 - (t - (bas + sure)) / 0.4) : 0,
         }
+      }
+
+      /** Girişte logo parçaları çarpışınca dışa açılan altın halka */
+      function halkaCiz(t) {
+        const k = (t - CARPMA) / 0.55
+        if (k < 0 || k > 1) return
+        ctx.save()
+        ctx.globalAlpha = (1 - k) * 0.5
+        ctx.lineWidth = karis(18, 2, k)
+        ctx.strokeStyle = 'rgba(255,214,160,0.9)'
+        ctx.beginPath()
+        // #logo top 860 + svg boyu 280'in yarısı
+        ctx.arc(540, 1000, karis(70, 540, easeOut(k)), 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.restore()
       }
 
       function ciz(t) {
         zeminCiz(t)
+        halkaCiz(t)
         if (!hazir) return
 
-        // Tahta çerçevesi yalnızca parçalar dağınıkken görünür
-        const cerceveAlfa = pencere(t, S.dagil[0] + 0.2, S.bitis[0] + 0.4, 0.5)
-        tahtaCerceve(cerceveAlfa)
-
-        const gorunurluk = pencere(t, S.foto[0], S.cta[0] + 0.5, 0.5)
+        const gorunurluk = pencere(t, S.foto[0], S.cta[0] + 0.4, 0.45)
         if (gorunurluk <= 0) return
 
-        // Bitişte hafif büyüme + altın parıltı
-        const bitisK = kis((t - S.bitis[0]) / 0.9)
-        const buyume = 1 + easeOut(bitisK) * 0.04
+        // Bitişte küçülüp yukarı kayma. 0,35 sn gecikmeli başlıyor: önce
+        // tamamlanan fotoğrafın tam boyda görülmesi gerekiyor.
+        const bitisK = easeInOut(kis((t - S.bitis[0] - 0.35) / 0.75))
+        const mX = tahta.x + tahta.en / 2
+        const mY = tahta.y + tahta.boy / 2
         ctx.save()
         ctx.globalAlpha = gorunurluk
-        ctx.translate(tahta.x + tahta.en / 2, tahta.y + tahta.boy / 2)
-        ctx.scale(buyume, buyume)
-        ctx.translate(-(tahta.x + tahta.en / 2), -(tahta.y + tahta.boy / 2))
+        ctx.translate(0, BITIS_KAY * bitisK)
+        ctx.translate(mX, mY)
+        ctx.scale(karis(1, BITIS_OLCEK, bitisK), karis(1, BITIS_OLCEK, bitisK))
+        ctx.translate(-mX, -mY)
+
+        // Hayalet ızgara yalnızca parçalar dağınıkken. Dönüşümün İÇİNDE
+        // çiziliyor, yoksa tahta küçülürken ızgara yerinde kalıyor.
+        tahtaCerceve(pencere(t, S.dagil[0] + 0.15, S.bitis[0] + 0.1, 0.45))
 
         // Girişte fotoğraf tek parça gibi görünsün diye önce oturanlar çizilir
         const hareketli = []
@@ -890,10 +1180,14 @@
         }
         for (const [p, d] of hareketli) cizParca(p, d)
 
-        // Bitişte çerçeveye altın hâle
-        if (bitisK > 0) {
+        // Bitişte çerçeveye altın hâle. Küçülmeden bağımsız: hâle bitiş
+        // anında yanıyor, küçülme 0,35 sn sonra başlıyor.
+        const haleK = kis((t - S.bitis[0]) / 0.5)
+        if (haleK > 0) {
           ctx.save()
-          ctx.globalAlpha = kis(bitisK) * (0.55 + 0.45 * Math.sin(t * 3))
+          // Kart göründükten sonra kısılıyor: kartın altın kenarıyla
+          // yan yana iki parlak çizgi fazla oluyor.
+          ctx.globalAlpha = haleK * (0.55 + 0.45 * Math.sin(t * 3)) * (1 - bitisK * 0.5)
           ctx.lineWidth = 5
           ctx.strokeStyle = 'rgba(255,214,160,0.85)'
           ctx.shadowColor = 'rgba(255,214,160,0.9)'
@@ -906,7 +1200,7 @@
         ctx.restore()
 
         // İmleçler yalnızca çözerken
-        const imlecAlfa = pencere(t, S.coz[0] - 0.2, S.bitis[0] + 0.3, 0.4)
+        const imlecAlfa = pencere(t, S.coz[0] - 0.15, S.bitis[0] + 0.15, 0.3)
         if (imlecAlfa > 0) {
           ctx.save()
           ctx.globalAlpha = imlecAlfa
@@ -971,8 +1265,8 @@
             const d = parcaDurum(p, t)
             if (!d.oturdu && t >= S.coz[0]) {
               const n = parcalar.length
-              const bas = S.coz[0] + (p.sira / n) * (S.coz[1] - S.coz[0] - 1.1)
-              if (t >= bas - 0.35 && t <= bas + 0.9) {
+              const bas = S.coz[0] + (p.sira / n) * (S.coz[1] - S.coz[0] - 0.9)
+              if (t >= bas - 0.3 && t <= bas + 0.75) {
                 aday = d
                 break
               }
@@ -995,6 +1289,9 @@
       const E = (id) => document.getElementById(id)
       const el = {
         perde: E('perde'),
+        flas: E('flas'),
+        kancaUst: E('kancaUst'),
+        kanca: E('kanca'),
         logo: E('logo'),
         marka: E('marka'),
         slogan: E('slogan'),
@@ -1004,23 +1301,33 @@
         adimAlt: E('adimAlt'),
         ozellik: E('ozellik'),
         ozellikYazi: E('ozellikYazi'),
+        kamera: E('kamera'),
         balon1: E('balon1'),
         balon2: E('balon2'),
         bitti: E('bitti'),
-        bittiAlt: E('bittiAlt'),
         bittiYazi: E('bittiYazi'),
-        kunye: E('kunye'),
+        hatira: E('hatira'),
+        hatiraPil: E('hatiraPil'),
+        surpriz: E('surpriz'),
         ctaLogo: E('ctaLogo'),
         cta: E('cta'),
       }
+      const sesCubuklari = el.kamera.querySelectorAll('.ses i')
 
       function dilYaz() {
         const m = METIN[dil]
         el.slogan.textContent = m.slogan
+        el.kancaUst.textContent = m.kancaUst
+        el.kanca.innerHTML = `${m.kanca[0]}<br /><em>${m.kanca[1]}</em>`
         el.bittiYazi.textContent = m.bitti
-        el.bittiAlt.textContent = m.bitisAlt
         el.balon1.innerHTML = `<b>${m.balon1[0]}</b>${m.balon1[1]}`
         el.balon2.innerHTML = `<b>${m.balon2[0]}</b>${m.balon2[1]}`
+        E('kameraBas').textContent = m.kameraBas
+        E('hatiraEtiket').textContent = m.hatiraEtiket
+        E('hatiraPilYazi').textContent = m.hatiraPil
+        E('surprizBas').textContent = m.surpriz[0]
+        E('surprizYazi').textContent = m.surpriz[1]
+        E('surprizImza').textContent = m.surpriz[2]
         E('kunyeUst1').textContent = m.kunye[0]
         E('kunyeUst2').textContent = m.kunye[1]
         E('kunyeUst3').textContent = m.kunye[2]
@@ -1034,34 +1341,48 @@
       function yazilar(t) {
         const m = METIN[dil]
 
-        // Açılış perdesi: 0,6 sn siyah, sonra açılıyor
-        el.perde.style.opacity = 1 - easeOut((t - S.siyah[1] + 0.25) / 0.5)
+        // Açılış perdesi: kısa bir siyah, sonra açılıyor
+        el.perde.style.opacity = 1 - easeOut((t - S.siyah[1] + 0.15) / 0.35)
 
-        // Logo: iki parça yanlardan gelip birleşiyor, sonra ay-yıldız beliriyor
-        const gAlfa = pencere(t, S.giris[0], S.giris[1], 0.4)
+        // Kanca yazısı ilk giren şey — logo değil. Hafif büyükten gelip
+        // yerine oturuyor, gözü ilk kareden yakalasın diye.
+        const kAlfa = pencere(t, S.giris[0] + 0.05, S.giris[1], 0.3)
+        const kVur = easeOut((t - S.giris[0] - 0.05) / 0.45)
+        el.kancaUst.style.opacity = kAlfa
+        el.kancaUst.style.transform = `translateY(${(1 - kAlfa) * 24}px)`
+        el.kanca.style.opacity = kAlfa
+        el.kanca.style.transform = `scale(${karis(1.16, 1, kVur)})`
+
+        // Logo: iki parça yanlardan çarpışıyor, sonra ay-yıldız beliriyor
+        const gAlfa = pencere(t, S.giris[0] + 0.3, S.giris[1], 0.28)
         el.logo.style.opacity = gAlfa
         el.logo.style.transform = 'none'
-        const birlesme = easeOut((t - S.giris[0] - 0.15) / 0.9)
+        const birlesme = easeOut((t - S.giris[0] - 0.35) / 0.6)
         const svg = el.logo.querySelector('svg')
         if (svg) {
-          const kay = (1 - birlesme) * 60
+          const kay = (1 - birlesme) * 95
           svg.querySelector('.sol').style.transform = `translateX(${-kay}px)`
           svg.querySelector('.sag').style.transform = `translateX(${kay}px)`
           const motif = kis((birlesme - 0.55) / 0.45)
           svg.querySelector('.ay').style.opacity = motif
           svg.querySelector('.yildiz').style.opacity = motif
           svg.querySelector('.dikis').style.opacity = birlesme
-          svg.style.transform = `scale(${karis(0.86, 1, easeOut(birlesme))})`
+          // Çarpışma anında kısa bir vuruş — tepe CARPMA'da, 0,22 sn'de söner
+          const vurus = kis(1 - Math.abs(t - CARPMA) / 0.22)
+          svg.style.transform = `scale(${karis(0.86, 1, easeOut(birlesme)) + vurus * 0.1})`
           svg.style.transformOrigin = 'center'
         }
-        katYaz(el.marka, pencere(t, S.giris[0] + 0.55, S.giris[1], 0.4), 30)
-        katYaz(el.slogan, pencere(t, S.giris[0] + 0.85, S.giris[1], 0.4), 30)
+        // Beyaz flaş: yalnızca çarpışmadan sonra, 0,3 sn'de söner
+        el.flas.style.opacity = t >= CARPMA ? 0.2 * kis(1 - (t - CARPMA) / 0.22) : 0
+
+        katYaz(el.marka, pencere(t, S.giris[0] + 1.05, S.giris[1], 0.3), 26)
+        katYaz(el.slogan, pencere(t, S.giris[0] + 1.25, S.giris[1], 0.3), 26)
 
         // Adım başlıkları: foto / dagil / coz sahnelerinin başında
         const adimlar = [
-          [S.foto[0], S.foto[1] + 0.2, 0],
-          [S.dagil[0] + 0.1, S.dagil[1] + 0.2, 1],
-          [S.coz[0] + 0.1, S.coz[0] + 3.4, 2],
+          [S.foto[0], S.foto[1] + 0.15, 0],
+          [S.dagil[0] + 0.05, S.dagil[1] + 0.15, 1],
+          [S.coz[0] + 0.1, S.coz[0] + 1.8, 2],
         ]
         let adimAlfa = 0
         for (const [b, s, i] of adimlar) {
@@ -1076,12 +1397,12 @@
         katYaz(el.adim, adimAlfa, 34)
 
         // Çözerken dönen özellik şeridi
-        // İki beat: önce imleçler, sonra sohbet. Üçüncü özellik (sürpriz
-        // mesaj) bitiş sahnesine taşındı — çözme penceresi üçü için kısa
-        // kalıyor ve yazılar birbirini kovalıyordu.
+        // İki beat: önce imleçler, sonra görüşme + sohbet. Üçüncü özellik
+        // (sürpriz mesaj) bitiş sahnesine taşındı — çözme penceresi üçü için
+        // kısa kalıyor ve yazılar birbirini kovalıyordu.
         const ozellikler = [
-          [S.coz[0] + 3.6, S.coz[0] + 6.4, 0],
-          [S.coz[0] + 6.4, S.bitis[0] + 0.2, 1],
+          [S.coz[0] + 1.6, S.coz[0] + 2.95, 0],
+          [S.coz[0] + 2.85, S.bitis[0] + 0.1, 1],
         ]
         let oAlfa = 0
         for (const [b, s, i] of ozellikler) {
@@ -1093,23 +1414,36 @@
         }
         katYaz(el.ozellik, oAlfa, 26)
 
+        // Görüşme paneli — "Sesli görüşme ve sohbet" beat'iyle birlikte
+        const kamAlfa = pencere(t, S.coz[0] + 2.9, S.bitis[0] + 0.05, 0.3)
+        el.kamera.style.opacity = kamAlfa
+        el.kamera.style.transform = `translateY(${(1 - kamAlfa) * 22}px) scale(${karis(0.93, 1, kamAlfa)})`
+        if (kamAlfa > 0) {
+          sesCubuklari.forEach((c, i) => {
+            c.style.height = 7 + 21 * Math.abs(Math.sin(t * 9 + i * 1.7)) + 'px'
+          })
+        }
+
         // Sohbet balonları
-        const b1 = pencere(t, S.coz[0] + 6.7, S.bitis[0] + 0.1, 0.35)
-        const b2 = pencere(t, S.coz[0] + 7.4, S.bitis[0] + 0.1, 0.35)
+        const b1 = pencere(t, S.coz[0] + 3.15, S.bitis[0] + 0.05, 0.3)
+        const b2 = pencere(t, S.coz[0] + 3.7, S.bitis[0] + 0.05, 0.3)
         el.balon1.style.opacity = b1
         el.balon1.style.transform = `translateY(${(1 - b1) * 24}px) scale(${karis(0.9, 1, b1)})`
         el.balon2.style.opacity = b2
         el.balon2.style.transform = `translateY(${(1 - b2) * 24}px) scale(${karis(0.9, 1, b2)})`
 
-        // Bitiş
-        katYaz(el.bitti, pencere(t, S.bitis[0] + 0.2, S.bitis[1], 0.4), 30)
-        katYaz(el.bittiAlt, pencere(t, S.bitis[0] + 0.5, S.bitis[1], 0.4), 30)
-        katYaz(el.kunye, pencere(t, S.bitis[0] + 0.7, S.bitis[1], 0.4), 30)
+        // Bitiş: Bitti! → hatıra kartı → sürpriz mesaj → indirme düğmesi
+        katYaz(el.bitti, pencere(t, S.bitis[0] + 0.15, S.bitis[1], 0.35), 26)
+        const hAlfa = pencere(t, S.bitis[0] + 1.0, S.bitis[1], 0.35)
+        el.hatira.style.opacity = hAlfa
+        el.hatira.style.transform = `translateY(${(1 - hAlfa) * 18}px)`
+        katYaz(el.surpriz, pencere(t, S.bitis[0] + 1.35, S.bitis[1], 0.35), 26)
+        katYaz(el.hatiraPil, pencere(t, S.bitis[0] + 1.75, S.bitis[1], 0.35), 22)
 
         // Kapanış
-        const cAlfa = pencere(t, S.cta[0] + 0.2, TOPLAM + 1, 0.5)
+        const cAlfa = pencere(t, S.cta[0] + 0.15, TOPLAM + 1, 0.4)
         katYaz(el.ctaLogo, cAlfa, 24)
-        katYaz(el.cta, pencere(t, S.cta[0] + 0.5, TOPLAM + 1, 0.5), 34)
+        katYaz(el.cta, pencere(t, S.cta[0] + 0.4, TOPLAM + 1, 0.4), 34)
       }
 
       /* ==========================================================
@@ -1125,7 +1459,7 @@
         sonKare = simdi
         if (oynuyor) {
           t += dt
-          if (t > TOPLAM + 1.2) {
+          if (t > TOPLAM + 0.8) {
             t = 0
             sonImlec[0] = { x: 240, y: 1200 }
             sonImlec[1] = { x: 840, y: 700 }
